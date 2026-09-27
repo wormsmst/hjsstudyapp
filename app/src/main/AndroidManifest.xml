@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.AdminMemo"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".HomeActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".SubjectSelectActivity"
+            android:exported="false"
+            android:label="과목 선택" />
+
+        <activity
+            android:name=".ContentStudyListActivity"
+            android:exported="false"
+            android:label="본문학습" />
+
+        <activity
+            android:name=".OutlineDrillActivity"
+            android:exported="false"
+            android:label="목차학습" />
+
+        <activity
+            android:name=".ExamSetupActivity"
+            android:exported="false"
+            android:label="모의고사 설정" />
+
+        <activity
+            android:name=".ExamSessionActivity"
+            android:exported="false"
+            android:label="모의고사" />
+
+        <activity
+            android:name=".ContentDetailActivity"
+            android:exported="false"
+            android:label="본문 상세" />
+
+        <activity
+            android:name=".ContentManageActivity"
+            android:exported="false"
+            android:label="학습내용관리" />
+
+        <activity
+            android:name=".QuizSessionActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:label="학습퀴즈" />
+
+        <activity
+            android:name=".HonestyQuizActivity"
+            android:exported="false"
+            android:label="핵심키워드 연습" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="설정" />
+
+        <receiver
+            android:name=".CardWidgetProvider"
+            android:exported="true"
+            android:label="행정사 암기카드 (본문학습 4x2)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.adminmemo.ACTION_FLIP" />
+                <action android:name="com.example.adminmemo.ACTION_NEXT" />
+                <action android:name="com.example.adminmemo.ACTION_CYCLE_MEMORY" />
+                <action android:name="com.example.adminmemo.ACTION_SCROLL" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_study_info" />
+        </receiver>
+
+        <receiver
+            android:name=".CardLargeWidgetProvider"
+            android:exported="true"
+            android:label="행정사 암기카드 (본문학습 4x4 대형)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.adminmemo.ACTION_SCROLL_LARGE" />
+                <action android:name="com.example.adminmemo.ACTION_NEXT_LARGE" />
+                <action android:name="com.example.adminmemo.ACTION_CYCLE_MEMORY_LARGE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_study_large_info" />
+        </receiver>
+
+        <service
+            android:name=".StudyWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <receiver
+            android:name=".QuizWidgetProvider"
+            android:exported="true"
+            android:label="행정사 암기카드 (미니퀴즈)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.adminmemo.ACTION_QUIZ_CHOICE_0" />
+                <action android:name="com.example.adminmemo.ACTION_QUIZ_CHOICE_1" />
+                <action android:name="com.example.adminmemo.ACTION_QUIZ_CHOICE_2" />
+                <action android:name="com.example.adminmemo.ACTION_QUIZ_NEXT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quiz_info" />
+        </receiver>
+
+    </application>
+
+</manifest>

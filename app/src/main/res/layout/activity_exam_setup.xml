@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_screen"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="⏱️ 실전 모의고사"
+        android:textColor="@color/text_main"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="4dp"/>
+
+    <TextView
+        android:id="@+id/tvExamSubjectLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_sub"
+        android:textSize="13sp"
+        android:layout_marginBottom="24dp"
+        android:text="과목"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="문제 수"
+        android:textColor="@color/text_sub"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <TextView
+        android:id="@+id/tvQuestionCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="4문제"
+        android:textColor="@color/primary"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:layout_marginBottom="4dp"/>
+
+    <SeekBar
+        android:id="@+id/seekQuestionCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="7"
+        android:progress="3"
+        android:layout_marginBottom="24dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="제한시간"
+        android:textColor="@color/text_sub"
+        android:textSize="12sp"
+        android:layout_marginBottom="4dp"/>
+
+    <TextView
+        android:id="@+id/tvTimeLimit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="50분"
+        android:textColor="@color/primary"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:layout_marginBottom="4dp"/>
+
+    <SeekBar
+        android:id="@+id/seekTimeLimit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="22"
+        android:progress="8"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="실제 2차 시험처럼 문제만 보고 백지에 목차/답안을 써보는 연습이에요. 시작하면 바로 타이머가 돌아가요."
+        android:textColor="@color/text_sub"
+        android:textSize="11sp"
+        android:layout_marginBottom="28dp"/>
+
+    <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
+
+    <Button
+        android:id="@+id/btnStartExam"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🚀 시작하기"
+        android:textSize="16sp"
+        android:textStyle="bold"/>
+
+</LinearLayout>

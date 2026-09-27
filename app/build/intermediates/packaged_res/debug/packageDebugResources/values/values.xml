@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent">#FF6D00</color>
+    <color name="bg_card">#FFFFFF</color>
+    <color name="bg_screen">#F2F4F8</color>
+    <color name="primary">#2962FF</color>
+    <color name="primary_dark">#0039CB</color>
+    <color name="text_main">#1A1C1E</color>
+    <color name="text_sub">#5F6368</color>
+    <string name="app_name">행정사 암기카드</string>
+    <string name="default_web_client_id" translatable="false">423523857862-eim9g0undj8apph1di1i43o23s4127ns.apps.googleusercontent.com</string>
+    <string name="gcm_defaultSenderId" translatable="false">423523857862</string>
+    <string name="google_api_key" translatable="false">AIzaSyAELRSFmV6TRvKg69yHffJSN0K2dMpWCz4</string>
+    <string name="google_app_id" translatable="false">1:423523857862:android:6dc235bad44a2b37142ec7</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAELRSFmV6TRvKg69yHffJSN0K2dMpWCz4</string>
+    <string name="google_storage_bucket" translatable="false">studyapp-e37f6.firebasestorage.app</string>
+    <string name="project_id" translatable="false">studyapp-e37f6</string>
+    <string name="widget_desc">홈 화면에서 바로 암기카드를 확인해요</string>
+    <string name="widget_name">행정사 암기카드 위젯</string>
+    <style name="MemoryStar">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:text">☆</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/text_sub</item>
+        <item name="android:paddingHorizontal">2dp</item>
+        <item name="android:background">?android:attr/selectableItemBackgroundBorderless</item>
+    </style>
+    <style name="Theme.AdminMemo" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:windowBackground">@color/bg_screen</item>
+    </style>
+</resources>

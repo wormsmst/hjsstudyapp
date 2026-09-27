@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">행정사 암기카드</string>
+    <string name="widget_name">행정사 암기카드 위젯</string>
+    <string name="widget_desc">홈 화면에서 바로 암기카드를 확인해요</string>
+</resources>

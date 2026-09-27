@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_screen">
+
+    <!-- Top Header Toolbar (Progress, TTS, Edit) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="12dp"
+        android:background="@color/bg_card"
+        android:elevation="2dp">
+
+        <TextView
+            android:id="@+id/tvDetailProgress"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:textColor="@color/text_sub"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:text="1 / 1"/>
+
+        <ImageButton
+            android:id="@+id/btnSpeak"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginEnd="6dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_lock_silent_mode_off"
+            app:tint="@color/primary"/>
+
+        <ImageButton
+            android:id="@+id/btnEditDetail"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_edit"
+            app:tint="@color/primary"/>
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/detailScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:id="@+id/tvDetailGrade"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/accent"
+                android:textSize="12sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/tvDetailTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="10dp"
+                android:textColor="@color/text_main"
+                android:textSize="21sp"
+                android:textStyle="bold"
+                android:lineSpacingExtra="2dp"/>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:layout_gravity="center_vertical"
+                    android:text="암기정도"
+                    android:textColor="@color/text_sub"
+                    android:textSize="11sp"/>
+
+                <TextView android:id="@+id/star1" style="@style/MemoryStar"/>
+                <TextView android:id="@+id/star2" style="@style/MemoryStar"/>
+                <TextView android:id="@+id/star3" style="@style/MemoryStar"/>
+                <TextView android:id="@+id/star4" style="@style/MemoryStar"/>
+                <TextView android:id="@+id/star5" style="@style/MemoryStar"/>
+            </LinearLayout>
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardMnemonicBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#EEF2FF">
+
+                <TextView
+                    android:id="@+id/tvDetailMnemonic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:textColor="@color/primary"
+                    android:textStyle="bold"
+                    android:textSize="16sp"/>
+            </androidx.cardview.widget.CardView>
+
+            <TextView
+                android:id="@+id/tvDetailBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_main"
+                android:textSize="16sp"
+                android:lineSpacingExtra="7dp"
+                android:letterSpacing="0.01"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="20dp"
+                android:background="#22808080"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📝 내 메모"
+                android:textColor="@color/text_sub"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="6dp"/>
+
+            <EditText
+                android:id="@+id/etMemo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minLines="3"
+                android:gravity="top"
+                android:background="#14808080"
+                android:padding="12dp"
+                android:hint="이 주제에 대한 메모를 남겨보세요"
+                android:textColor="@color/text_main"
+                android:textSize="14sp"/>
+
+            <Button
+                android:id="@+id/btnSaveMemo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginTop="8dp"
+                android:text="💾 메모 저장"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Bottom Navigation Bar (Previous & Next Buttons) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="@color/bg_card"
+        android:elevation="6dp"
+        android:gravity="center_vertical">
+
+        <Button
+            android:id="@+id/btnPrevDetail"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:text="◀ 이전 카드"
+            android:textAllCaps="false"
+            android:textSize="15sp"
+            android:textColor="#2962FF"
+            android:background="@drawable/bg_btn_secondary_pill"
+            app:backgroundTint="@null"/>
+
+        <Button
+            android:id="@+id/btnNextDetail"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:text="다음 카드 ▶"
+            android:textAllCaps="false"
+            android:textSize="15sp"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/bg_btn_primary_pill"
+            app:backgroundTint="@null"/>
+    </LinearLayout>
+
+</LinearLayout>

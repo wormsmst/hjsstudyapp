@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="주제 제목"
+        android:textColor="@color/text_sub"
+        android:textSize="12sp"/>
+
+    <EditText
+        android:id="@+id/etTopicTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="예: 계약자유의 원칙의 내용"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="두문자"
+        android:textColor="@color/text_sub"
+        android:textSize="12sp"/>
+
+    <EditText
+        android:id="@+id/etMnemonic"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="예: 체.상.내.방"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="정답 / 풀이 내용"
+        android:textColor="@color/text_sub"
+        android:textSize="12sp"/>
+
+    <EditText
+        android:id="@+id/etContext"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minLines="4"
+        android:gravity="top"
+        android:hint="두문자가 가리키는 내용을 적어주세요"/>
+
+</LinearLayout>
