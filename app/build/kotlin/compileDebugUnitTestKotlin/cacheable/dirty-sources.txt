@@ -1,1 +1,0 @@
-C:\androidstudio\project\AdminMemoApp\app\src\test\java\com\example\adminmemo\CleanCardsTest.kt
