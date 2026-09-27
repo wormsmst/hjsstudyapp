@@ -212,10 +212,18 @@ fun getFormattedCardText(card: Card): String {
 
 fun formatBodyText(text: String): String {
     val headingRegex = Regex("^\\d+\\.\\s")
-    val lines = text.split("\n")
+    val questionPromptRegex = Regex("(?<!\\n)(물음\\s*\\d+\\s*[)）.])")
+    
+    var processed = text
+    if (questionPromptRegex.containsMatchIn(processed)) {
+        processed = processed.replace(questionPromptRegex, "\n\n$1")
+    }
+
+    val lines = processed.split("\n")
     val out = mutableListOf<String>()
     for ((i, line) in lines.withIndex()) {
-        val isHeading = headingRegex.containsMatchIn(line.trimStart())
+        val trimmed = line.trimStart()
+        val isHeading = headingRegex.containsMatchIn(trimmed) || questionPromptRegex.containsMatchIn(trimmed)
         if (i > 0 && isHeading) {
             val prevBlank = out.isNotEmpty() && out.last().isBlank()
             if (!prevBlank) out.add("")
