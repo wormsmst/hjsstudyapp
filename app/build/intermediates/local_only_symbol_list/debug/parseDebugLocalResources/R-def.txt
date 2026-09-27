@@ -31,9 +31,14 @@ id btnSaveMemo
 id btnSpeak
 id btnStartExam
 id cardDDay
+id cardManageCase
+id cardManageStudy
 id cardMnemonicBox
 id containerRubricCheckboxes
 id detailScrollView
+id etCaseBody
+id etCaseTitle
+id etCaseTopic
 id etConceptBody
 id etConceptTitle
 id etContext
@@ -120,6 +125,7 @@ id widgetRoot
 id widgetText
 layout activity_content_detail
 layout activity_content_manage
+layout activity_content_manage_hub
 layout activity_content_study_list
 layout activity_exam_session
 layout activity_exam_setup
@@ -129,6 +135,7 @@ layout activity_outline_drill
 layout activity_quiz_session
 layout activity_settings
 layout activity_subject_select
+layout dialog_edit_case
 layout dialog_edit_concept
 layout dialog_edit_mnemonic
 layout dialog_gemini_ask

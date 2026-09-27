@@ -1,86 +1,90 @@
 [
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\widget_card_large.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_card_large.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_content_study_list.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_content_study_list.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\widget_quiz.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_quiz.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_content_manage_hub.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_content_manage_hub.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\dialog_edit_mnemonic.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\dialog_edit_mnemonic.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_exam_setup.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_exam_setup.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_exam_setup.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_exam_setup.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_home.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_home.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_content_detail.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_content_detail.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/dialog_edit_mnemonic.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/dialog_edit_mnemonic.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\widget_list_row.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_list_row.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_settings.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_settings.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_content_manage.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_content_manage.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_outline_drill.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_outline_drill.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\widget_card_scroll.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_card_scroll.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_quiz_session.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_quiz_session.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\widget_card.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_card.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/widget_card_large.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_card_large.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_exam_session.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_exam_session.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/widget_card.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_card.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_honesty_quiz.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_honesty_quiz.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_content_detail.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_content_detail.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_home.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_home.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/dialog_edit_case.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/dialog_edit_case.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\item_content_row.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\item_content_row.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/dialog_edit_concept.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/dialog_edit_concept.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_quiz_session.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_quiz_session.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/item_content_row.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/item_content_row.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\dialog_edit_concept.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\dialog_edit_concept.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/widget_card_scroll.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_card_scroll.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_outline_drill.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_outline_drill.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_exam_session.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_exam_session.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_settings.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_settings.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/widget_list_row.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_list_row.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_content_study_list.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_content_study_list.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/widget_quiz.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_quiz.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\activity_subject_select.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_subject_select.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_subject_select.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_subject_select.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/dialog_gemini_ask.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/dialog_gemini_ask.xml"
     },
     {
         "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_content_manage.xml",
         "source": "com.example.adminmemo.app-main-48:/layout/activity_content_manage.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-mergeDebugResources-45:\\layout\\dialog_gemini_ask.xml",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\dialog_gemini_ask.xml"
+        "merged": "com.example.adminmemo.app-mergeDebugResources-45:/layout/activity_honesty_quiz.xml",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_honesty_quiz.xml"
     }
 ]

@@ -216,10 +216,9 @@ class ExamSessionActivity : BaseActivity() {
             btnReveal.layoutParams = brlp
             btnReveal.setOnClickListener {
                 val answerText = reflowBody(card.back.ifBlank { "모범답안 내용이 없어요" })
-                val styledAnswer = buildStyledBody(this, formatBodyText(answerText))
                 val scroll = ScrollView(this)
                 val tv = TextView(this)
-                tv.text = styledAnswer
+                tv.text = answerText
                 tv.setPadding(dp(22), dp(20), dp(22), dp(20))
                 tv.textSize = 14.5f
                 tv.setLineSpacing(dp(5).toFloat(), 1.15f)

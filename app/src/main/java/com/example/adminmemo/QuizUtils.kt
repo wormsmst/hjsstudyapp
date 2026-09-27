@@ -3,14 +3,6 @@ package com.example.adminmemo
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.Typeface
-import android.text.SpannableStringBuilder
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
-import android.text.style.LeadingMarginSpan
-import android.text.style.RelativeSizeSpan
-import android.text.style.StyleSpan
-import androidx.core.content.ContextCompat
 
 fun numSortKey(num: String): Pair<Int, Int> {
     val m = Regex("^(\\d+)(?:[(\\-](\\d+)\\)?)?").find(num) ?: return 9999 to 0
@@ -208,90 +200,6 @@ fun getFormattedCardText(card: Card): String {
         out.add(line)
     }
     return out.joinToString("\n")
-}
-
-fun formatBodyText(text: String): String {
-    val headingRegex = Regex("^\\d+\\.\\s")
-    val questionPromptRegex = Regex("(?<!\\n)(물음\\s*\\d+\\s*[)）.])")
-    
-    var processed = text
-    if (questionPromptRegex.containsMatchIn(processed)) {
-        processed = processed.replace(questionPromptRegex, "\n\n$1")
-    }
-
-    val lines = processed.split("\n")
-    val out = mutableListOf<String>()
-    for ((i, line) in lines.withIndex()) {
-        val trimmed = line.trimStart()
-        val isHeading = headingRegex.containsMatchIn(trimmed) || questionPromptRegex.containsMatchIn(trimmed)
-        if (i > 0 && isHeading) {
-            val prevBlank = out.isNotEmpty() && out.last().isBlank()
-            if (!prevBlank) out.add("")
-        }
-        out.add(line)
-    }
-    return out.joinToString("\n")
-}
-
-fun buildStyledBody(context: Context, text: String): SpannableStringBuilder {
-    val density = context.resources.displayMetrics.density
-    fun dp(v: Int) = (v * density).toInt()
-
-    val majorRe = Regex("^\\d+\\.\\s")
-    val sub1Re = Regex("^\\d+\\)\\s")
-    val sub2Re = Regex("^\\(\\d+\\)\\s")
-    val sub3Re = Regex("^([①②③④⑤⑥⑦⑧⑨⑩]|[-·])\\s?")
-
-    val primaryColor = ContextCompat.getColor(context, R.color.primary)
-    val lines = text.split("\n")
-    val sb = SpannableStringBuilder()
-    var currentIndent = 0
-
-    for (line in lines) {
-        val trimmed = line.trimStart()
-        val start = sb.length
-        var indent = currentIndent
-        var sizeRel = 1.0f
-        var bold = false
-        var color: Int? = null
-
-        when {
-            trimmed.isBlank() -> {
-                indent = 0
-            }
-            majorRe.containsMatchIn(trimmed) -> {
-                indent = 0; sizeRel = 1.12f; bold = true; color = primaryColor
-                currentIndent = 0
-            }
-            sub1Re.containsMatchIn(trimmed) -> {
-                indent = dp(18); bold = true
-                currentIndent = dp(18)
-            }
-            sub2Re.containsMatchIn(trimmed) -> {
-                indent = dp(36); sizeRel = 0.97f
-                currentIndent = dp(36)
-            }
-            sub3Re.containsMatchIn(trimmed) -> {
-                indent = dp(36); sizeRel = 0.97f
-                currentIndent = dp(36)
-            }
-            else -> {
-                indent = currentIndent
-            }
-        }
-
-        sb.append(line)
-        val end = sb.length
-        sb.append("\n")
-
-        if (end > start) {
-            sb.setSpan(LeadingMarginSpan.Standard(indent, indent), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-            if (sizeRel != 1.0f) sb.setSpan(RelativeSizeSpan(sizeRel), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-            if (bold) sb.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-            if (color != null) sb.setSpan(ForegroundColorSpan(color), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-        }
-    }
-    return sb
 }
 
 fun launchQuizSession(activity: Activity, subject: String, reviewOnly: Boolean) {

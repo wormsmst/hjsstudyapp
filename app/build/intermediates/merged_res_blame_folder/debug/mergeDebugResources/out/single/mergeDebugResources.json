@@ -1,150 +1,154 @@
 [
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_content_study_list.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_content_study_list.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_widget_card_large.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_card_large.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\mipmap-mdpi_ic_launcher_round.png.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\mipmap-mdpi\\ic_launcher_round.png"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_exam_session.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_exam_session.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_widget_card_scroll.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_card_scroll.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/drawable_quiz_progress_bar.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/drawable/quiz_progress_bar.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_exam_setup.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_exam_setup.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_home.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_home.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_settings.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_settings.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_quiz_session.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_quiz_session.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\drawable_quiz_progress_bar.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\drawable\\quiz_progress_bar.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_exam_setup.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_exam_setup.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_dialog_edit_mnemonic.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\dialog_edit_mnemonic.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_widget_card.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_card.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_dialog_gemini_ask.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\dialog_gemini_ask.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_settings.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_settings.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\mipmap-xhdpi_ic_launcher_round.png.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\mipmap-xhdpi\\ic_launcher_round.png"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_honesty_quiz.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_honesty_quiz.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_exam_session.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_exam_session.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/xml_widget_study_large_info.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/xml/widget_study_large_info.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_home.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_home.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_content_detail.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_content_detail.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\mipmap-hdpi_ic_launcher.png.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\mipmap-hdpi\\ic_launcher.png"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\mipmap-xhdpi_ic_launcher.png.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\mipmap-xhdpi\\ic_launcher.png"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_quiz_session.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_quiz_session.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_outline_drill.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_outline_drill.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\mipmap-hdpi_ic_launcher_round.png.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\mipmap-hdpi\\ic_launcher_round.png"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\mipmap-mdpi_ic_launcher.png.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\mipmap-mdpi\\ic_launcher.png"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\xml_widget_study_info.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\xml\\widget_study_info.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_dialog_edit_concept.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\dialog_edit_concept.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\drawable_bg_btn_primary_pill.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\drawable\\bg_btn_primary_pill.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_subject_select.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_subject_select.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_content_manage.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_content_manage.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\drawable_bg_pill_white.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\drawable\\bg_pill_white.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_item_content_row.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\item_content_row.xml"
-    },
-    {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\drawable_widget_preview.png.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\drawable\\widget_preview.png"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_subject_select.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_subject_select.xml"
     },
     {
         "merged": "com.example.adminmemo.app-debug-46:/layout_activity_content_manage.xml.flat",
         "source": "com.example.adminmemo.app-main-48:/layout/activity_content_manage.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\xml_widget_study_large_info.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\xml\\widget_study_large_info.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_dialog_gemini_ask.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/dialog_gemini_ask.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\xml_widget_info.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\xml\\widget_info.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/drawable_bg_pill_white.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/drawable/bg_pill_white.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_widget_card_large.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_card_large.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "com.example.adminmemo.app-main-48:/mipmap-xhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_widget_card.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_card.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_content_study_list.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_content_study_list.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_widget_list_row.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_list_row.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/drawable_widget_background.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/drawable/widget_background.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_activity_honesty_quiz.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\activity_honesty_quiz.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_widget_list_row.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_list_row.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\drawable_widget_background.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\drawable\\widget_background.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_content_detail.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_content_detail.xml"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\layout_widget_quiz.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\layout\\widget_quiz.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/drawable_widget_preview.png.flat",
+        "source": "com.example.adminmemo.app-main-48:/drawable/widget_preview.png"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\drawable_bg_btn_secondary_pill.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\drawable\\bg_btn_secondary_pill.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.example.adminmemo.app-main-48:/mipmap-mdpi/ic_launcher.png"
     },
     {
-        "merged": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-debug-46:\\xml_widget_quiz_info.xml.flat",
-        "source": "C:\\Users\\규태\\.gradle\\daemon\\9.6.0\\com.example.adminmemo.app-main-48:\\xml\\widget_quiz_info.xml"
+        "merged": "com.example.adminmemo.app-debug-46:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.example.adminmemo.app-main-48:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_content_manage_hub.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_content_manage_hub.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/layout_item_content_row.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/item_content_row.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/layout_dialog_edit_case.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/dialog_edit_case.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "com.example.adminmemo.app-main-48:/mipmap-hdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/xml_widget_quiz_info.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/xml/widget_quiz_info.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/drawable_bg_btn_secondary_pill.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/drawable/bg_btn_secondary_pill.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/layout_activity_outline_drill.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/activity_outline_drill.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/layout_dialog_edit_mnemonic.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/dialog_edit_mnemonic.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/layout_widget_card_scroll.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_card_scroll.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/layout_widget_quiz.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/widget_quiz.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/layout_dialog_edit_concept.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/layout/dialog_edit_concept.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "com.example.adminmemo.app-main-48:/mipmap-mdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.example.adminmemo.app-main-48:/mipmap-hdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/xml_widget_study_info.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/xml/widget_study_info.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/drawable_bg_btn_primary_pill.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/drawable/bg_btn_primary_pill.xml"
+    },
+    {
+        "merged": "com.example.adminmemo.app-debug-46:/xml_widget_info.xml.flat",
+        "source": "com.example.adminmemo.app-main-48:/xml/widget_info.xml"
     }
 ]

@@ -177,12 +177,97 @@ class ContentDetailActivity : BaseActivity() {
             cardMnemonicBox.visibility = View.GONE
         }
 
-        tvBody.text = buildStyledBody(this, formatBodyText(reflowBody(card.back.ifBlank { "본문 내용이 없어요" })))
+        tvBody.text = buildStyledBody(formatBodyText(reflowBody(card.back.ifBlank { "본문 내용이 없어요" })))
         etMemo.setText(CardStore.getMemo(this, card.id))
         renderMemoryStars(CardStore.getMemoryLevel(this, card.subject, card.topicTitle))
 
         findViewById<Button>(R.id.btnPrevDetail).isEnabled = index > 0
         findViewById<Button>(R.id.btnNextDetail).isEnabled = index < ids.size - 1
+    }
+
+    /**
+     * 본문을 목차 레벨에 맞게 꾸민다.
+     * "1. " (대목차) → 굵게 + 큰 글씨 + 들여쓰기 없음
+     * "1) " (중목차) → 굵게 + 들여쓰기 1단계
+     * "(1) " (소목차) → 들여쓰기 2단계
+     * "①", "-", "·" 등 → 들여쓰기 2단계
+     * 그 외 줄바꿈된 설명 문장은 바로 위 목차와 같은 들여쓰기를 따라간다.
+     */
+    private fun buildStyledBody(text: String): SpannableStringBuilder {
+        val density = resources.displayMetrics.density
+        fun dp(v: Int) = (v * density).toInt()
+
+        val majorRe = Regex("^\\d+\\.\\s")
+        val sub1Re = Regex("^\\d+\\)\\s")
+        val sub2Re = Regex("^\\(\\d+\\)\\s")
+        val sub3Re = Regex("^([①②③④⑤⑥⑦⑧⑨⑩]|[-·])\\s?")
+
+        val primaryColor = ContextCompat.getColor(this, R.color.primary)
+        val lines = text.split("\n")
+        val sb = SpannableStringBuilder()
+        var currentIndent = 0
+
+        for (line in lines) {
+            val trimmed = line.trimStart()
+            val start = sb.length
+            var indent = currentIndent
+            var sizeRel = 1.0f
+            var bold = false
+            var color: Int? = null
+
+            when {
+                trimmed.isBlank() -> {
+                    indent = 0
+                }
+                majorRe.containsMatchIn(trimmed) -> {
+                    indent = 0; sizeRel = 1.12f; bold = true; color = primaryColor
+                    currentIndent = 0
+                }
+                sub1Re.containsMatchIn(trimmed) -> {
+                    indent = dp(18); bold = true
+                    currentIndent = dp(18)
+                }
+                sub2Re.containsMatchIn(trimmed) -> {
+                    indent = dp(36); sizeRel = 0.97f
+                    currentIndent = dp(36)
+                }
+                sub3Re.containsMatchIn(trimmed) -> {
+                    indent = dp(36); sizeRel = 0.97f
+                    currentIndent = dp(36)
+                }
+                else -> {
+                    indent = currentIndent
+                }
+            }
+
+            sb.append(line)
+            val end = sb.length
+            sb.append("\n")
+
+            if (end > start) {
+                sb.setSpan(LeadingMarginSpan.Standard(indent, indent), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+                if (sizeRel != 1.0f) sb.setSpan(RelativeSizeSpan(sizeRel), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+                if (bold) sb.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+                if (color != null) sb.setSpan(ForegroundColorSpan(color), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+            }
+        }
+        return sb
+    }
+
+    /** "1. ", "2. " 같은 최상위 번호 목차 앞에 빈 줄을 넣어 읽기 편하게 만든다. */
+    private fun formatBodyText(text: String): String {
+        val headingRegex = Regex("^\\d+\\.\\s")
+        val lines = text.split("\n")
+        val out = mutableListOf<String>()
+        for ((i, line) in lines.withIndex()) {
+            val isHeading = headingRegex.containsMatchIn(line.trimStart())
+            if (i > 0 && isHeading) {
+                val prevBlank = out.isNotEmpty() && out.last().isBlank()
+                if (!prevBlank) out.add("")
+            }
+            out.add(line)
+        }
+        return out.joinToString("\n")
     }
 
     private fun renderMemoryStars(level: Int) {

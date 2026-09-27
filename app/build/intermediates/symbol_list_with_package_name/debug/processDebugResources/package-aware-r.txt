@@ -3279,6 +3279,8 @@ id cache_measures
 id callMeasure
 id cancel_button
 id cardDDay
+id cardManageCase
+id cardManageStudy
 id cardMnemonicBox
 id carryVelocity
 id center
@@ -3361,6 +3363,9 @@ id endToStart
 id enterAlways
 id enterAlwaysCollapsed
 id escape
+id etCaseBody
+id etCaseTitle
+id etCaseTopic
 id etConceptBody
 id etConceptTitle
 id etContext
@@ -3887,6 +3892,7 @@ layout abc_select_dialog_material
 layout abc_tooltip
 layout activity_content_detail
 layout activity_content_manage
+layout activity_content_manage_hub
 layout activity_content_study_list
 layout activity_exam_session
 layout activity_exam_setup
@@ -3914,6 +3920,7 @@ layout design_navigation_menu
 layout design_navigation_menu_item
 layout design_text_input_end_icon
 layout design_text_input_start_icon
+layout dialog_edit_case
 layout dialog_edit_concept
 layout dialog_edit_mnemonic
 layout dialog_gemini_ask
