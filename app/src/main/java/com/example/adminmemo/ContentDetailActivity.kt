@@ -16,7 +16,6 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
@@ -61,6 +60,7 @@ class ContentDetailActivity : BaseActivity() {
         cardMnemonicBox = findViewById(R.id.cardMnemonicBox)
         tvMnemonic = findViewById(R.id.tvDetailMnemonic)
         tvBody = findViewById(R.id.tvDetailBody)
+        enableGeminiSelection(this, tvBody) { currentCard()?.back ?: "" }
         etMemo = findViewById(R.id.etMemo)
         btnSpeak = findViewById(R.id.btnSpeak)
 
@@ -106,12 +106,12 @@ class ContentDetailActivity : BaseActivity() {
             showEditDialog()
         }
 
-        findViewById<Button>(R.id.btnPrevDetail).setOnClickListener {
+        findViewById<ImageButton>(R.id.btnPrevDetail).setOnClickListener {
             saveCurrentMemoSilently()
             stopSpeaking()
             if (index > 0) { index--; render() }
         }
-        findViewById<Button>(R.id.btnNextDetail).setOnClickListener {
+        findViewById<ImageButton>(R.id.btnNextDetail).setOnClickListener {
             saveCurrentMemoSilently()
             stopSpeaking()
             if (index < ids.size - 1) { index++; render() }
@@ -160,7 +160,6 @@ class ContentDetailActivity : BaseActivity() {
     }
 
     private fun render() {
-        findViewById<ScrollView>(R.id.detailScrollView)?.scrollTo(0, 0)
         val card = currentCard() ?: run {
             tvTitle.text = "카드를 찾을 수 없어요"
             tvBody.text = ""
@@ -181,8 +180,8 @@ class ContentDetailActivity : BaseActivity() {
         etMemo.setText(CardStore.getMemo(this, card.id))
         renderMemoryStars(CardStore.getMemoryLevel(this, card.subject, card.topicTitle))
 
-        findViewById<Button>(R.id.btnPrevDetail).isEnabled = index > 0
-        findViewById<Button>(R.id.btnNextDetail).isEnabled = index < ids.size - 1
+        findViewById<ImageButton>(R.id.btnPrevDetail).isEnabled = index > 0
+        findViewById<ImageButton>(R.id.btnNextDetail).isEnabled = index < ids.size - 1
     }
 
     /**

@@ -17,7 +17,6 @@ class ContentAdapter(
     class VH(view: View) : RecyclerView.ViewHolder(view) {
         val tvTitle: TextView = view.findViewById(R.id.tvRowTitle)
         val tvSubtitle: TextView = view.findViewById(R.id.tvRowSubtitle)
-        val tvMemory: TextView = view.findViewById(R.id.tvRowMemory)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -31,8 +30,6 @@ class ContentAdapter(
         val sub = subtitleFn(card)
         holder.tvSubtitle.text = sub
         holder.tvSubtitle.visibility = if (sub.isBlank()) View.GONE else View.VISIBLE
-        val level = CardStore.getMemoryLevel(holder.itemView.context, card.subject, card.topicTitle)
-        holder.tvMemory.text = "★".repeat(level) + "☆".repeat(5 - level)
         holder.itemView.setOnClickListener { onClick(card) }
     }
 

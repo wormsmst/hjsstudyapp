@@ -15,7 +15,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="12dp">
 
         <LinearLayout
             android:id="@+id/widgetHeaderRow"
@@ -23,49 +23,63 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingBottom="6dp">
+            android:paddingBottom="4dp">
 
             <TextView
                 android:id="@+id/widgetGrade"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:textColor="#FF6D00"
                 android:textSize="11sp"
                 android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/widgetHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#5F6368"
+                android:textSize="10sp"
+                android:text="👆 탭: 정답 보기"/>
         </LinearLayout>
 
         <TextView
             android:id="@+id/widgetMemory"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp"
+            android:layout_marginBottom="4dp"
             android:textColor="#FFC107"
             android:textSize="11sp"
             android:text="☆☆☆☆☆"/>
 
-        <TextView
-            android:id="@+id/widgetText"
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:textColor="#1A1C1E"
-            android:textSize="13.5sp"
-            android:lineSpacingExtra="4dp"
-            android:gravity="top"
-            android:ellipsize="end"
-            android:text="위젯을 탭하여 내용을 확인하세요"/>
+            android:fillViewport="true"
+            android:scrollbars="vertical">
+
+            <TextView
+                android:id="@+id/widgetText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#1A1C1E"
+                android:textSize="13sp"
+                android:lineSpacingExtra="3dp"
+                android:text="위젯을 탭해서 오늘의 암기카드를 확인하세요"/>
+        </ScrollView>
 
         <TextView
             android:id="@+id/widgetNext"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="6dp"
             android:gravity="center"
             android:textColor="#2962FF"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:padding="4dp"
-            android:text="스크롤 / 다음 내용 ▼"/>
+            android:padding="6dp"
+            android:text="다음 카드 ▶"/>
 
     </LinearLayout>
 </FrameLayout>

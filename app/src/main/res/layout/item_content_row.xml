@@ -43,14 +43,6 @@
         </LinearLayout>
 
         <TextView
-            android:id="@+id/tvRowMemory"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:textColor="#FFC107"
-            android:textSize="11sp"/>
-
-        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"

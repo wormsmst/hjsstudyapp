@@ -10,8 +10,8 @@ object AppPrefs {
     private const val KEY_WIDGET_COLOR = "widget_bg_color"
     private const val KEY_WIDGET_OPACITY = "widget_opacity"   // 0~100
     private const val KEY_WIDGET_FONT_SCALE = "widget_font_scale"
-    private const val KEY_DDAY_DATE = "dday_target_date"
-    private const val KEY_LOCAL_SYNC_TIME = "local_sync_timestamp"
+    private const val KEY_GEMINI_API_KEY = "gemini_api_key"
+    private const val KEY_EXAM_DATE = "exam_date_millis"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -51,17 +51,10 @@ object AppPrefs {
         prefs(context).edit().putFloat(KEY_WIDGET_FONT_SCALE, scale).apply()
     }
 
-    fun getDDayDate(context: Context): String =
-        prefs(context).getString(KEY_DDAY_DATE, "2025-08-30") ?: "2025-08-30"
+    fun getGeminiApiKey(context: Context): String =
+        prefs(context).getString(KEY_GEMINI_API_KEY, "") ?: ""
 
-    fun setDDayDate(context: Context, dateStr: String) {
-        prefs(context).edit().putString(KEY_DDAY_DATE, dateStr).apply()
-    }
-
-    fun getLocalSyncTimestamp(context: Context): Long =
-        prefs(context).getLong(KEY_LOCAL_SYNC_TIME, 0L)
-
-    fun setLocalSyncTimestamp(context: Context, timeMs: Long) {
-        prefs(context).edit().putLong(KEY_LOCAL_SYNC_TIME, timeMs).apply()
+    fun setGeminiApiKey(context: Context, key: String) {
+        prefs(context).edit().putString(KEY_GEMINI_API_KEY, key).apply()
     }
 }

@@ -29,30 +29,12 @@ object CardStore {
     private fun orderFile(context: Context) = File(context.filesDir, "custom_order.json")
     private fun memoryFile(context: Context) = File(context.filesDir, "memory_levels.json")
 
-    private fun autoSync(context: Context) {
-        try {
-            if (FirebaseSyncManager.isSignedIn()) {
-                FirebaseSyncManager.pushDataToCloud(context) { _, _ -> }
-            }
-        } catch (e: Exception) {
-            // ignore
-        }
-    }
-
-    private fun sanitizeSubject(subj: String): String {
-        if (subj.contains("계약법") || subj.contains("민법-계약법") || subj.contains("민법(계약)")) {
-            return "민법"
-        }
-        return subj
-    }
-
     private fun readUserCards(context: Context): MutableList<Card> {
         val f = userCardsFile(context)
         if (!f.exists()) return mutableListOf()
         val type = object : TypeToken<MutableList<Card>>() {}.type
         return try {
-            val list: MutableList<Card> = gson.fromJson(f.readText(Charsets.UTF_8), type) ?: mutableListOf()
-            list.map { it.copy(subject = sanitizeSubject(it.subject)) }.toMutableList()
+            gson.fromJson(f.readText(Charsets.UTF_8), type) ?: mutableListOf()
         } catch (e: Exception) {
             mutableListOf()
         }
@@ -60,8 +42,6 @@ object CardStore {
 
     private fun writeUserCards(context: Context, cards: List<Card>) {
         userCardsFile(context).writeText(gson.toJson(cards), Charsets.UTF_8)
-        CardRepository.clearCache()
-        autoSync(context)
     }
 
     private fun readEditedCards(context: Context): MutableMap<String, Card> {
@@ -69,8 +49,7 @@ object CardStore {
         if (!f.exists()) return mutableMapOf()
         val type = object : TypeToken<MutableMap<String, Card>>() {}.type
         return try {
-            val map: MutableMap<String, Card> = gson.fromJson(f.readText(Charsets.UTF_8), type) ?: mutableMapOf()
-            map.entries.associate { (k, v) -> k to v.copy(subject = sanitizeSubject(v.subject)) }.toMutableMap()
+            gson.fromJson(f.readText(Charsets.UTF_8), type) ?: mutableMapOf()
         } catch (e: Exception) {
             mutableMapOf()
         }
@@ -78,8 +57,6 @@ object CardStore {
 
     private fun writeEditedCards(context: Context, map: Map<String, Card>) {
         editedCardsFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
-        CardRepository.clearCache()
-        autoSync(context)
     }
 
     private fun readDeletedIds(context: Context): MutableSet<String> {
@@ -95,8 +72,6 @@ object CardStore {
 
     private fun writeDeletedIds(context: Context, ids: Set<String>) {
         deletedIdsFile(context).writeText(gson.toJson(ids), Charsets.UTF_8)
-        CardRepository.clearCache()
-        autoSync(context)
     }
 
     /** 기본 카드 + 사용자 추가 카드를 합치고, 수정본을 반영하고, 삭제된 것을 뺀 최종 목록 */
@@ -107,11 +82,41 @@ object CardStore {
         val deleted = readDeletedIds(context)
 
         val merged = (base + userAdded)
-            .filter { it.type != "mnemonic" }
             .filter { it.id !in deleted }
             .map { edited[it.id] ?: it }
 
         return merged
+    }
+
+    fun getAllMnemonicCards(context: Context): List<Card> =
+        getAllCards(context).filter { it.type == "mnemonic" && it.mnemonic.isNotBlank() }
+
+    /** 새 두문자 카드 추가 */
+    fun addMnemonicCard(
+        context: Context,
+        topicTitle: String,
+        mnemonic: String,
+        contextText: String,
+        subject: String = "",
+        num: String = ""
+    ) {
+        val id = "user_" + UUID.randomUUID().toString().take(8)
+        val card = Card(
+            id = id,
+            type = "mnemonic",
+            subject = subject,
+            num = num,
+            title = "두문자: $mnemonic",
+            topicTitle = topicTitle,
+            mnemonic = mnemonic,
+            grade = "",
+            front = "[$topicTitle]\n두문자 '$mnemonic' 은(는) 무엇의 앞글자일까?",
+            back = contextText,
+            mnemonics = listOf(mnemonic)
+        )
+        val list = readUserCards(context)
+        list.add(card)
+        writeUserCards(context, list)
     }
 
     /** 새 주제(개념카드) 추가. 맨 마지막 순서로 붙인다. */
@@ -143,7 +148,7 @@ object CardStore {
             order.addAll(existing.map { it.id })
         }
         order.add(id)
-        setCustomOrder(context, subject, order)
+        writeOrder(context, subject, order)
         return card
     }
 
@@ -198,7 +203,6 @@ object CardStore {
 
     private fun writeWrongIds(context: Context, ids: Set<String>) {
         wrongIdsFile(context).writeText(gson.toJson(ids), Charsets.UTF_8)
-        autoSync(context)
     }
 
     fun getWrongIds(context: Context): Set<String> = readWrongIds(context)
@@ -228,7 +232,6 @@ object CardStore {
 
     private fun writeMemos(context: Context, map: Map<String, String>) {
         memosFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
-        autoSync(context)
     }
 
     fun getMemo(context: Context, cardId: String): String {
@@ -266,7 +269,6 @@ object CardStore {
 
     private fun writeAllOrders(context: Context, map: Map<String, List<String>>) {
         orderFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
-        autoSync(context)
     }
 
     private fun readOrder(context: Context, subject: String): List<String> {
@@ -299,7 +301,6 @@ object CardStore {
 
     private fun writeMemoryLevels(context: Context, map: Map<String, Int>) {
         memoryFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
-        autoSync(context)
     }
 
     /** 1(거의 모름) ~ 5(완벽히 암기) 사이 값. 아직 설정 안 했으면 기본값 3. */

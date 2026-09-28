@@ -14,17 +14,8 @@ object CardRepository {
             .bufferedReader(Charsets.UTF_8)
             .use { it.readText() }
         val type = object : TypeToken<List<Card>>() {}.type
-        val list: List<Card> = Gson().fromJson<List<Card>>(json, type) ?: emptyList()
-        val filtered = list.filter { 
-            it.type != "mnemonic" && 
-            !it.title.startsWith("두문자") && 
-            !it.front.contains("두문자 '")
-        }
-        cache = filtered
-        return filtered
-    }
-
-    fun clearCache() {
-        cache = null
+        val list: List<Card> = Gson().fromJson(json, type)
+        cache = list
+        return list
     }
 }

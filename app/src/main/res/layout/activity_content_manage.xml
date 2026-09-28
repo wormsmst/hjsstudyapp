@@ -22,6 +22,40 @@
             android:textStyle="bold"
             android:layout_marginBottom="10dp"/>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="10dp">
+
+            <Button
+                android:id="@+id/btnTabConcept"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:textSize="12sp"
+                android:text="📄 개념카드"/>
+
+            <Button
+                android:id="@+id/btnTabMnemonic"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:textSize="12sp"
+                android:text="🔑 두문자"/>
+
+            <Button
+                android:id="@+id/btnTabUnregistered"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:textSize="12sp"
+                android:text="➕ 두문자미등록"/>
+        </LinearLayout>
+
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

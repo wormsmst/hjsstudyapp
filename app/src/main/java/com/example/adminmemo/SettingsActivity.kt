@@ -1,28 +1,18 @@
 package com.example.adminmemo
 
-import android.appwidget.AppWidgetManager
-import android.content.ComponentName
-import android.content.Intent
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.RadioGroup
 import android.widget.SeekBar
 import android.widget.TextView
-import android.widget.Toast
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.GoogleAuthProvider
 
 class SettingsActivity : BaseActivity() {
 
-    private val fontScales = floatArrayOf(0.9f, 1.0f, 1.15f, 1.35f, 1.55f, 1.8f, 2.1f)
+    private val fontScales = floatArrayOf(0.9f, 1.0f, 1.15f, 1.35f)
     private val widgetColors = listOf(
         0xFFFFFF, // 흰색
         0x1E2126, // 다크
@@ -37,8 +27,6 @@ class SettingsActivity : BaseActivity() {
     private lateinit var widgetPreviewBg: View
     private lateinit var widgetPreviewText: TextView
     private lateinit var colorButtons: MutableList<View>
-    private lateinit var googleSignInClient: GoogleSignInClient
-    private val RC_SIGN_IN = 9001
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,109 +35,19 @@ class SettingsActivity : BaseActivity() {
         setupThemeSection()
         setupFontSection()
         setupWidgetSection()
-        setupCloudSyncSection()
+        setupGeminiSection()
 
         findViewById<Button>(R.id.btnApplySettings).setOnClickListener {
             AppPrefs.setFontScale(this, fontScales[findViewById<SeekBar>(R.id.seekFontScale).progress])
             AppPrefs.setWidgetColor(this, selectedWidgetColor)
             AppPrefs.setWidgetOpacity(this, 100 - findViewById<SeekBar>(R.id.seekWidgetOpacity).progress)
             AppPrefs.setWidgetFontScale(this, fontScales[findViewById<SeekBar>(R.id.seekWidgetFont).progress])
-            AppWidgetManager.getInstance(this).let { mgr ->
-                val ids = mgr.getAppWidgetIds(ComponentName(this, CardWidgetProvider::class.java))
+            AppPrefs.setGeminiApiKey(this, findViewById<EditText>(R.id.etGeminiKey).text.toString().trim())
+            android.appwidget.AppWidgetManager.getInstance(this).let { mgr ->
+                val ids = mgr.getAppWidgetIds(android.content.ComponentName(this, CardWidgetProvider::class.java))
                 ids.forEach { CardWidgetProvider.updateWidget(this, mgr, it) }
             }
             recreate()
-        }
-    }
-
-    private fun setupCloudSyncSection() {
-        val tvStatus = findViewById<TextView>(R.id.tvLoginStatus)
-        val btnLogin = findViewById<Button>(R.id.btnGoogleLogin)
-        val btnSync = findViewById<Button>(R.id.btnCloudSync)
-
-        fun updateUI() {
-            val user = FirebaseSyncManager.currentUser
-            if (user != null) {
-                tvStatus.text = "로그인됨: ${user.email ?: user.displayName}"
-                btnLogin.text = "로그아웃"
-            } else {
-                tvStatus.text = "로그인 상태: 비로그인"
-                btnLogin.text = "구글 로그인"
-            }
-        }
-
-        updateUI()
-
-        val gsoBuilder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-        try {
-            val webClientRes = resources.getIdentifier("default_web_client_id", "string", packageName)
-            if (webClientRes != 0) {
-                gsoBuilder.requestIdToken(getString(webClientRes))
-            }
-        } catch (e: Exception) {
-            // ignore
-        }
-        googleSignInClient = GoogleSignIn.getClient(this, gsoBuilder.build())
-
-        btnLogin.setOnClickListener {
-            if (FirebaseSyncManager.isSignedIn()) {
-                FirebaseAuth.getInstance().signOut()
-                googleSignInClient.signOut().addOnCompleteListener {
-                    Toast.makeText(this, "로그아웃 되었어요", Toast.LENGTH_SHORT).show()
-                    updateUI()
-                }
-            } else {
-                val signInIntent = googleSignInClient.signInIntent
-                startActivityForResult(signInIntent, RC_SIGN_IN)
-            }
-        }
-
-        btnSync.setOnClickListener {
-            if (!FirebaseSyncManager.isSignedIn()) {
-                Toast.makeText(this, "먼저 구글 로그인을 해주세요", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            btnSync.isEnabled = false
-            Toast.makeText(this, "스마트 클라우드 동기화 중...", Toast.LENGTH_SHORT).show()
-            FirebaseSyncManager.smartSync(this) { success, err ->
-                btnSync.isEnabled = true
-                if (success) {
-                    Toast.makeText(this, "스마트 동기화 완료! (최신 데이터 반영됨) ☁️", Toast.LENGTH_SHORT).show()
-                    recreate()
-                } else {
-                    Toast.makeText(this, "동기화 실패: $err", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == RC_SIGN_IN) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
-            try {
-                val account = task.getResult(ApiException::class.java)
-                val idToken = account.idToken
-                if (idToken != null) {
-                    val credential = GoogleAuthProvider.getCredential(idToken, null)
-                    FirebaseAuth.getInstance().signInWithCredential(credential)
-                        .addOnCompleteListener(this) { authTask ->
-                            if (authTask.isSuccessful) {
-                                Toast.makeText(this, "구글 로그인 성공!", Toast.LENGTH_SHORT).show()
-                                FirebaseSyncManager.smartSync(this) { _, _ -> }
-                                recreate()
-                            } else {
-                                Toast.makeText(this, "인증 실패: ${authTask.exception?.localizedMessage}", Toast.LENGTH_LONG).show()
-                            }
-                        }
-                } else {
-                    Toast.makeText(this, "인증 토큰을 가져오지 못했어요", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: ApiException) {
-                Toast.makeText(this, "구글 로그인 실패 (코드 ${e.statusCode})", Toast.LENGTH_SHORT).show()
-            }
         }
     }
 
@@ -201,8 +99,8 @@ class SettingsActivity : BaseActivity() {
             val lp = LinearLayout.LayoutParams(dpSize, dpSize)
             lp.marginEnd = margin
             swatch.layoutParams = lp
-            val gd = GradientDrawable()
-            gd.shape = GradientDrawable.OVAL
+            val gd = android.graphics.drawable.GradientDrawable()
+            gd.shape = android.graphics.drawable.GradientDrawable.OVAL
             gd.setColor(Color.rgb(colorRgb shr 16 and 0xFF, colorRgb shr 8 and 0xFF, colorRgb and 0xFF))
             gd.setStroke(
                 if (colorRgb == selectedWidgetColor) (3 * resources.displayMetrics.density).toInt() else 0,
@@ -243,8 +141,8 @@ class SettingsActivity : BaseActivity() {
     private fun refreshSwatchBorders() {
         colorButtons.forEachIndexed { i, view ->
             val colorRgb = widgetColors[i]
-            val gd = GradientDrawable()
-            gd.shape = GradientDrawable.OVAL
+            val gd = android.graphics.drawable.GradientDrawable()
+            gd.shape = android.graphics.drawable.GradientDrawable.OVAL
             gd.setColor(Color.rgb(colorRgb shr 16 and 0xFF, colorRgb shr 8 and 0xFF, colorRgb and 0xFF))
             gd.setStroke(
                 if (colorRgb == selectedWidgetColor) (3 * resources.displayMetrics.density).toInt() else 0,
@@ -262,5 +160,9 @@ class SettingsActivity : BaseActivity() {
         val b = selectedWidgetColor and 0xFF
         widgetPreviewBg.setBackgroundColor(Color.argb(alpha, r, g, b))
         widgetPreviewText.setTextColor(if ((r + g + b) / 3 < 128) Color.WHITE else Color.parseColor("#1A1C1E"))
+    }
+
+    private fun setupGeminiSection() {
+        findViewById<EditText>(R.id.etGeminiKey).setText(AppPrefs.getGeminiApiKey(this))
     }
 }

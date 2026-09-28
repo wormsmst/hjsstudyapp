@@ -44,14 +44,10 @@ class SubjectSelectActivity : BaseActivity() {
             PURPOSE_MANAGE -> "🗂️ 학습내용관리 — 과목 선택"
             PURPOSE_OUTLINE -> "🗺️ 목차학습 — 과목 선택"
             PURPOSE_EXAM -> "⏱️ 모의고사 — 과목 선택"
-            PURPOSE_HONESTY -> "🏆 핵심키워드 연습 — 과목 선택"
             else -> "📖 본문학습 — 과목 선택"
         }
 
-        val subjects = CardStore.getSubjects(this).toMutableList()
-        if (purpose == PURPOSE_EXAM && subjects.isNotEmpty()) {
-            subjects.add(0, ALL_SUBJECTS_KEY)
-        }
+        val subjects = CardStore.getSubjects(this)
         val rv = findViewById<RecyclerView>(R.id.rvSubjects)
         rv.layoutManager = LinearLayoutManager(this)
 
@@ -61,13 +57,7 @@ class SubjectSelectActivity : BaseActivity() {
 
         rv.adapter = SubjectAdapter(subjects) { subject ->
             if (purpose == PURPOSE_EXAM) {
-                val intent = Intent(this, ExamSetupActivity::class.java)
-                intent.putExtra(EXTRA_SUBJECT, subject)
-                startActivity(intent)
-                return@SubjectAdapter
-            }
-            if (purpose == PURPOSE_HONESTY) {
-                val intent = Intent(this, HonestyQuizActivity::class.java)
+                val intent = Intent(this, ExamSessionActivity::class.java)
                 intent.putExtra(EXTRA_SUBJECT, subject)
                 startActivity(intent)
                 return@SubjectAdapter

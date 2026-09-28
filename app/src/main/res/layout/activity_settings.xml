@@ -66,7 +66,7 @@
         android:id="@+id/seekFontScale"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:max="6"
+        android:max="3"
         android:layout_marginBottom="4dp"/>
 
     <LinearLayout
@@ -76,19 +76,13 @@
         android:layout_marginBottom="28dp">
 
         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="작게" android:textColor="@color/text_sub" android:textSize="10sp" android:gravity="start"/>
+            android:text="작게" android:textColor="@color/text_sub" android:textSize="11sp" android:gravity="start"/>
         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="보통" android:textColor="@color/text_sub" android:textSize="10sp" android:gravity="center"/>
+            android:text="보통" android:textColor="@color/text_sub" android:textSize="11sp" android:gravity="center"/>
         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="크게" android:textColor="@color/text_sub" android:textSize="10sp" android:gravity="center"/>
+            android:text="크게" android:textColor="@color/text_sub" android:textSize="11sp" android:gravity="center"/>
         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="아주크게" android:textColor="@color/text_sub" android:textSize="10sp" android:gravity="center"/>
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="특대" android:textColor="@color/text_sub" android:textSize="10sp" android:gravity="center"/>
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="거대" android:textColor="@color/text_sub" android:textSize="10sp" android:gravity="center"/>
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:text="태블릿용" android:textColor="@color/text_sub" android:textSize="10sp" android:gravity="end"/>
+            android:text="아주 크게" android:textColor="@color/text_sub" android:textSize="11sp" android:gravity="end"/>
     </LinearLayout>
 
     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22808080" android:layout_marginBottom="20dp"/>
@@ -179,43 +173,27 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="☁️ 구글 계정 동기화 (클라우드 백업)"
+        android:text="✨ Gemini에게 질문하기"
         android:textColor="@color/text_main"
         android:textStyle="bold"
         android:textSize="15sp"
         android:layout_marginBottom="6dp"/>
 
     <TextView
-        android:id="@+id/tvLoginStatus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="로그인 상태: 비로그인"
+        android:text="본문학습에서 텍스트를 드래그해 질문하려면 API 키가 필요해요"
         android:textColor="@color/text_sub"
-        android:textSize="12sp"
-        android:layout_marginBottom="12dp"/>
+        android:textSize="11sp"
+        android:layout_marginBottom="8dp"/>
 
-    <LinearLayout
+    <EditText
+        android:id="@+id/etGeminiKey"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="24dp">
-
-        <Button
-            android:id="@+id/btnGoogleLogin"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="6dp"
-            android:text="구글 로그인"/>
-
-        <Button
-            android:id="@+id/btnCloudSync"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:text="클라우드 동기화"/>
-    </LinearLayout>
+        android:hint="Gemini API 키 붙여넣기"
+        android:inputType="textPassword"
+        android:layout_marginBottom="24dp"/>
 
     <Button
         android:id="@+id/btnApplySettings"

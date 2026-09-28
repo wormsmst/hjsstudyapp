@@ -3,49 +3,44 @@ package com.example.adminmemo
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.speech.RecognizerIntent
 import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 
 /**
- * 학습퀴즈 통합 화면.
- * 매 라운드(문제)마다 비두문자 유형(키워드/목차퀴즈/문장목차찾기/사례논점/목차퍼즐) 중
+ * 두문자퀴즈 통합 화면.
+ * 매 라운드(문제)마다 6가지 유형(객관식/순서배열/OX/빈칸채우기/거꾸로/매칭) 중
  * 하나를 무작위로 고르되, 바로 이전 라운드와 같은 유형은 피한다.
  * 듀오링고 스타일: 두꺼운 알약형 버튼, 상단 진행바, 하단 고정 확인 버튼.
  */
 class QuizSessionActivity : BaseActivity() {
 
-    private enum class QType { KEYWORD, OUTLINE, SENTENCE, CASE_ISSUE, OUTLINE_PUZZLE }
+    private enum class QType { CHOICE, ORDER, OX, FILLBLANK, REVERSE, MATCH, KEYWORD, OUTLINE, SENTENCE }
 
     private lateinit var subject: String
     private var reviewOnly = false
 
-    private var basePool: List<Card> = emptyList()
-    private var conceptPool: List<Card> = emptyList()
-    private var keywordPool: List<String> = emptyList()
-    private var outlineGroups: List<OutlineGroup> = emptyList()
-    private var outlineLabelPool: List<String> = emptyList()
-    private var sentenceItems: List<SentenceQuizItem> = emptyList()
-    private var eligibleTypes: List<QType> = emptyList()
+    private lateinit var basePool: List<Card>       // 중복 없는 두문자 카드 풀
+    private lateinit var orderablePool: List<Card>   // 글자 2개 이상인 두문자만
+    private lateinit var allTokens: List<String>
+    private lateinit var conceptPool: List<Card>     // 키워드 맞추기용 개념카드 풀
+    private lateinit var keywordPool: List<String>   // 키워드 맞추기 오답 후보 단어 풀
+    private lateinit var outlineGroups: List<OutlineGroup>  // 목차퀴즈용 형제/하위 목차 묶음
+    private lateinit var outlineLabelPool: List<String>     // 목차퀴즈 오답 후보 라벨 풀
+    private lateinit var sentenceItems: List<SentenceQuizItem>  // 문장→목차 찾기 문제 풀
+    private lateinit var eligibleTypes: List<QType>
 
     private var roundTypes: List<QType> = emptyList()
     private var roundIndex = 0
@@ -73,43 +68,27 @@ class QuizSessionActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        try {
-            setContentView(R.layout.activity_quiz_session)
+        setContentView(R.layout.activity_quiz_session)
 
-            subject = intent.getStringExtra(EXTRA_SUBJECT) ?: ""
-            reviewOnly = intent.getBooleanExtra(EXTRA_REVIEW_ONLY, false)
+        subject = intent.getStringExtra(EXTRA_SUBJECT) ?: ""
+        reviewOnly = intent.getBooleanExtra(EXTRA_REVIEW_ONLY, false)
 
-            tvHeader = findViewById(R.id.tvQuizHeader)
-            tvHeader.text = if (reviewOnly) "🔁 오답 복습" else "🎲 학습퀴즈"
-            tvProgress = findViewById(R.id.tvQuizProgress)
-            tvScore = findViewById(R.id.tvQuizScore)
-            pbProgress = findViewById(R.id.pbQuizProgress)
-            container = findViewById(R.id.quizContainer)
-            btnNext = findViewById(R.id.btnQuizNext)
+        tvHeader = findViewById(R.id.tvQuizHeader)
+        tvHeader.text = if (reviewOnly) "🔁 오답 복습" else "🎲 학습퀴즈"
+        tvProgress = findViewById(R.id.tvQuizProgress)
+        tvScore = findViewById(R.id.tvQuizScore)
+        pbProgress = findViewById(R.id.pbQuizProgress)
+        container = findViewById(R.id.quizContainer)
+        btnNext = findViewById(R.id.btnQuizNext)
 
-            btnNext.setOnClickListener {
-                roundIndex++
-                if (roundIndex >= roundTypes.size) showResultDialog() else renderRound()
-            }
-            findViewById<Button>(R.id.btnQuizShowContext).setOnClickListener { showContextDialog() }
-
-            if (!buildSession()) return
-            renderRound()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Toast.makeText(this, "퀴즈 로딩 오류: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-            finish()
+        btnNext.setOnClickListener {
+            roundIndex++
+            if (roundIndex >= roundTypes.size) showResultDialog() else renderRound()
         }
-    }
+        findViewById<Button>(R.id.btnQuizShowContext).setOnClickListener { showContextDialog() }
 
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
-        AlertDialog.Builder(this)
-            .setTitle("퀴즈 나가기")
-            .setMessage("퀴즈를 그만두고 나가시겠어요? 진행 중인 점수는 저장되지 않아요.")
-            .setPositiveButton("나가기") { _, _ -> super.onBackPressed() }
-            .setNegativeButton("계속 풀기", null)
-            .show()
+        if (!buildSession()) return
+        renderRound()
     }
 
     // ---------- 크기/스타일 헬퍼 ----------
@@ -135,9 +114,8 @@ class QuizSessionActivity : BaseActivity() {
         b.setPadding(dp(20), dp(14), dp(20), dp(14))
         b.textSize = 15.5f
         b.isAllCaps = false
-        b.setTypeface(b.typeface, Typeface.BOLD)
+        b.setTypeface(b.typeface, android.graphics.Typeface.BOLD)
         b.background = pill(defaultFill, defaultStroke)
-        b.backgroundTintList = null
         b.setTextColor(defaultText)
         b.elevation = 0f
         b.gravity = Gravity.CENTER
@@ -148,58 +126,72 @@ class QuizSessionActivity : BaseActivity() {
 
     private fun markCorrect(b: Button) {
         b.background = pill(colorCorrect, colorCorrect)
-        b.backgroundTintList = null
         b.setTextColor(colorWhite)
     }
 
     private fun markWrong(b: Button) {
         b.background = pill(colorWrong, colorWrong)
-        b.backgroundTintList = null
         b.setTextColor(colorWhite)
     }
 
     // ---------- 세션 구성 ----------
 
     private fun buildSession(): Boolean {
-        try {
-            val allCards = CardStore.getAllCards(this) ?: emptyList()
-            basePool = if (allCards.isNotEmpty()) allCards else listOf(Card(id = "dummy", type = "concept", subject = "기본", title = "기본", topicTitle = "기본 주제", grade = "A+", front = "내용", back = "내용", mnemonics = emptyList()))
-            conceptPool = basePool.filter { it.type == "concept" }.ifEmpty { basePool }
-            outlineGroups = buildOutlineGroups(conceptPool)
-            outlineLabelPool = outlineGroups.flatMap { it.siblingLabels }
-            keywordPool = conceptPool.flatMap { extractKeywordCandidates(it.back) }.distinct()
-            sentenceItems = buildSentenceQuizItems(conceptPool)
-
-            val types = mutableListOf<QType>()
-            types.add(QType.KEYWORD)
-            types.add(QType.OUTLINE)
-            types.add(QType.SENTENCE)
-            types.add(QType.CASE_ISSUE)
-            types.add(QType.OUTLINE_PUZZLE)
-            eligibleTypes = types
-
-            val roundCount = 10
-            val seq = mutableListOf<QType>()
-            var last: QType? = null
-            repeat(roundCount) {
-                val candidates = if (eligibleTypes.size > 1) eligibleTypes.filter { it != last } else eligibleTypes
-                val picked = if (candidates.isNotEmpty()) candidates.random() else QType.KEYWORD
-                seq.add(picked)
-                last = picked
-            }
-            roundTypes = seq
-            roundIndex = 0
-            totalPoints = 0.0
-            totalPossible = 0.0
-            return true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            roundTypes = List(10) { QType.KEYWORD }
-            roundIndex = 0
-            totalPoints = 0.0
-            totalPossible = 0.0
-            return true
+        val allMnemonics = CardStore.getAllMnemonicCards(this)
+            .filter { it.subject == subject && it.topicTitle.isNotBlank() && it.mnemonic.isNotBlank() }
+            .distinctBy { it.mnemonic }
+        basePool = applyQuizFilters(this, allMnemonics, reviewOnly)
+        orderablePool = basePool.filter {
+            it.mnemonic.contains(".") &&
+                it.mnemonic.split(".").map { t -> t.trim() }.filter { t -> t.isNotEmpty() }.size >= 2
         }
+        allTokens = orderablePool.flatMap {
+            it.mnemonic.split(".").map { t -> t.trim() }.filter { t -> t.isNotEmpty() }
+        }.distinct()
+
+        val allConcepts = CardStore.getAllCards(this).filter { it.type == "concept" && it.subject == subject }
+        conceptPool = applyQuizFilters(this, allConcepts, reviewOnly)
+            .filter { extractKeywordCandidates(it.back).size >= 1 }
+        keywordPool = conceptPool.flatMap { extractKeywordCandidates(it.back) }.distinct()
+
+        val outlineSourceConcepts = applyQuizFilters(this, allConcepts, reviewOnly)
+        outlineGroups = buildOutlineGroups(outlineSourceConcepts)
+        outlineLabelPool = outlineGroups.flatMap { it.siblingLabels }.distinct()
+        sentenceItems = buildSentenceQuizItems(outlineSourceConcepts)
+
+        val types = mutableListOf<QType>()
+        if (basePool.size >= 4) types.add(QType.CHOICE)
+        if (basePool.size >= 2) types.add(QType.OX)
+        if (basePool.distinctBy { it.topicTitle }.size >= 4) types.add(QType.REVERSE)
+        if (orderablePool.isNotEmpty()) types.add(QType.ORDER)
+        if (orderablePool.isNotEmpty() && allTokens.size >= 4) types.add(QType.FILLBLANK)
+        if (basePool.size >= 5) types.add(QType.MATCH)
+        if (conceptPool.isNotEmpty() && keywordPool.size >= 4) types.add(QType.KEYWORD)
+        if (outlineGroups.isNotEmpty()) types.add(QType.OUTLINE)
+        if (sentenceItems.isNotEmpty()) types.add(QType.SENTENCE)
+        eligibleTypes = types
+
+        if (eligibleTypes.isEmpty()) {
+            val msg = if (reviewOnly) "복습할 오답 카드가 부족해요" else "학습 카드가 부족해서 퀴즈를 만들 수 없어요"
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            finish()
+            return false
+        }
+
+        val roundCount = 10
+        val seq = mutableListOf<QType>()
+        var last: QType? = null
+        repeat(roundCount) {
+            val candidates = if (eligibleTypes.size > 1) eligibleTypes.filter { it != last } else eligibleTypes
+            val picked = candidates.random()
+            seq.add(picked)
+            last = picked
+        }
+        roundTypes = seq
+        roundIndex = 0
+        totalPoints = 0.0
+        totalPossible = 0.0
+        return true
     }
 
     /** 본문에서 빈칸 후보로 쓸 만한 핵심 단어를 뽑아낸다 (아주 단순한 규칙 기반) */
@@ -233,156 +225,15 @@ class QuizSessionActivity : BaseActivity() {
         pbProgress.progress = roundIndex
 
         when (roundTypes[roundIndex]) {
+            QType.CHOICE -> renderChoiceRound()
+            QType.ORDER -> renderOrderRound()
+            QType.OX -> renderOxRound()
+            QType.FILLBLANK -> renderFillBlankRound()
+            QType.REVERSE -> renderReverseRound()
+            QType.MATCH -> renderMatchRound()
             QType.KEYWORD -> renderKeywordRound()
             QType.OUTLINE -> renderOutlineRound()
             QType.SENTENCE -> renderSentenceRound()
-            QType.CASE_ISSUE -> renderCaseIssueRound()
-            QType.OUTLINE_PUZZLE -> renderOutlinePuzzleRound()
-        }
-    }
-
-    private fun renderOutlinePuzzleRound() {
-        val groups = buildOutlineGroups(conceptPool).filter { it.siblingLabels.size >= 3 }
-        val group = if (groups.isNotEmpty()) groups.randomOrNull() else buildOutlineGroups(conceptPool).randomOrNull()
-        if (group == null || group.siblingLabels.size < 2) {
-            renderKeywordRound()
-            return
-        }
-
-        val targetCard = basePool.firstOrNull { it.id == group.cardId } ?: conceptPool.randomOrNull()
-        if (targetCard == null) {
-            renderKeywordRound()
-            return
-        }
-        currentRoundCards = listOf(targetCard)
-
-        val correctOrder = group.siblingLabels.map { cleanOutlineLabel(it) }.filter { it.isNotBlank() }.take(6)
-        if (correctOrder.size < 2) {
-            renderKeywordRound()
-            return
-        }
-
-        var shuffledOrder: List<String>
-        do {
-            shuffledOrder = correctOrder.shuffled()
-        } while (correctOrder.size > 1 && shuffledOrder == correctOrder)
-
-        container.addView(sectionLabel("🧩 목차 퍼즐 (동일 수준 뼈대 정렬)"))
-        container.addView(questionCard("[${group.parentLabel}]\n\n동일한 수준의 아래 목차 블록들을 드래그하여 올바른 순서대로 정렬하세요"))
-
-        val rv = RecyclerView(this).apply {
-            layoutManager = LinearLayoutManager(this@QuizSessionActivity)
-            isNestedScrollingEnabled = false
-        }
-        val puzzleAdapter = OutlinePuzzleAdapter(shuffledOrder.toMutableList())
-        rv.adapter = puzzleAdapter
-
-        val touchCallback = object : ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0) {
-            override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
-                val from = viewHolder.bindingAdapterPosition
-                val to = target.bindingAdapterPosition
-                if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
-                puzzleAdapter.moveItem(from, to)
-                return true
-            }
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
-        }
-        ItemTouchHelper(touchCallback).attachToRecyclerView(rv)
-
-        val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        lp.bottomMargin = dp(14)
-        rv.layoutParams = lp
-        container.addView(rv)
-
-        val btnSubmit = Button(this)
-        btnSubmit.text = "제출하기"
-        styleOptionButton(btnSubmit)
-        btnSubmit.background = pill(ContextCompat.getColor(this, R.color.primary), ContextCompat.getColor(this, R.color.primary))
-        btnSubmit.setTextColor(Color.WHITE)
-        btnSubmit.setOnClickListener {
-            if (roundAnswered) return@setOnClickListener
-            val userOrder = puzzleAdapter.currentList()
-            val correct = userOrder == correctOrder
-
-            val feedbackTv = TextView(this).apply {
-                textSize = 14f
-                setPadding(0, dp(8), 0, dp(8))
-                gravity = Gravity.CENTER
-                text = if (correct) "🎉 완벽한 답안 설계도 완성!" else "❌ 정답 순서:\n" + correctOrder.joinToString(" ➔ ") { "• $it" }
-                setTextColor(if (correct) colorCorrect else colorWrong)
-            }
-            container.addView(feedbackTv)
-            btnSubmit.isEnabled = false
-            finishRound(correct, listOf(targetCard.id))
-        }
-        container.addView(btnSubmit)
-    }
-
-    private class OutlinePuzzleAdapter(
-        private val items: MutableList<String>
-    ) : RecyclerView.Adapter<OutlinePuzzleAdapter.VH>() {
-        class VH(v: View) : RecyclerView.ViewHolder(v) {
-            val tvText: TextView = v.findViewById(R.id.tvRowTitle)
-        }
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            val v = LayoutInflater.from(parent.context).inflate(R.layout.item_content_row, parent, false)
-            return VH(v)
-        }
-        override fun onBindViewHolder(holder: VH, position: Int) {
-            holder.tvText.text = "☰  ${items[position]}"
-            holder.itemView.findViewById<View>(R.id.tvRowSubtitle)?.visibility = View.GONE
-        }
-        override fun getItemCount() = items.size
-        fun moveItem(from: Int, to: Int) {
-            if (from == to || from !in items.indices || to !in items.indices) return
-            val item = items.removeAt(from)
-            items.add(to, item)
-            notifyItemMoved(from, to)
-        }
-        fun currentList(): List<String> = items
-    }
-
-    private fun renderCaseIssueRound() {
-        val allMock = MockExamRepository.loadMockExams(this)
-        val matchMock = allMock.filter { subject == ALL_SUBJECTS_KEY || it.subject == subject || subject.contains(it.subject) || it.subject.contains(subject) }
-        val casePool = if (matchMock.any { it.issues.isNotEmpty() }) matchMock.filter { it.issues.isNotEmpty() } else allMock.filter { it.issues.isNotEmpty() }
-
-        if (casePool.isEmpty()) {
-            renderOutlineRound()
-            return
-        }
-        val exam = casePool.randomOrNull()
-        if (exam == null || exam.issues.isEmpty()) {
-            renderOutlineRound()
-            return
-        }
-        val correctIssue = exam.issues.random()
-
-        val allOtherIssues = allMock.flatMap { it.issues }.filter { it != correctIssue }.distinct()
-        val distractors = allOtherIssues.shuffled().take(3)
-        val choices = (distractors + correctIssue).shuffled()
-
-        container.addView(sectionLabel("⚖️ 사례 논점 맞히기"))
-        val snippet = if (exam.question.length > 120) exam.question.take(120) + "..." else exam.question
-        container.addView(questionCard("[${exam.title}]\n\n$snippet\n\nQ. 다음 중 이 사례의 주요 논점으로 옳은 것은?"))
-
-        val buttons = mutableListOf<View>()
-        choices.forEach { choiceText ->
-            val b = choiceButton(choiceText, 13.5f) { pressed ->
-                if (!roundAnswered) {
-                    val correct = choiceText == correctIssue
-                    buttons.forEach { btn ->
-                        when {
-                            getChoiceText(btn) == correctIssue -> markCorrect(btn)
-                            btn === pressed && !correct -> markWrong(btn)
-                        }
-                        btn.isEnabled = false
-                    }
-                    finishRound(correct, listOf(exam.id))
-                }
-            }
-            buttons.add(b)
-            container.addView(b)
         }
     }
 
@@ -395,7 +246,7 @@ class QuizSessionActivity : BaseActivity() {
         tv.text = text
         tv.setTextColor(ContextCompat.getColor(this, R.color.primary))
         tv.textSize = 12.5f
-        tv.setTypeface(tv.typeface, Typeface.BOLD)
+        tv.setTypeface(tv.typeface, android.graphics.Typeface.BOLD)
         tv.background = pill(Color.parseColor("#1F2962FF"), Color.TRANSPARENT, strokeWidthDp = 0, radiusDp = 20)
         tv.setPadding(dp(14), dp(6), dp(14), dp(6))
         val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -423,57 +274,12 @@ class QuizSessionActivity : BaseActivity() {
         return cv
     }
 
-    private fun getChoiceText(view: View): String {
-        return (view.tag as? String) ?: ((view as? ViewGroup)?.getChildAt(0) as? TextView)?.text?.toString() ?: (view as? Button)?.text?.toString() ?: ""
-    }
-
-    private fun choiceButton(text: String, textSize: Float = 15.5f, onClick: (View) -> Unit): View {
-        val cv = CardView(this)
-        val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        lp.topMargin = dp(6)
-        lp.bottomMargin = dp(6)
-        cv.layoutParams = lp
-        cv.radius = dp(16).toFloat()
-        cv.cardElevation = 0f
-        cv.setCardBackgroundColor(defaultFill)
-        cv.tag = text
-        cv.isClickable = true
-        cv.isFocusable = true
-        cv.foreground = ContextCompat.getDrawable(this, android.R.drawable.list_selector_background)
-
-        val tv = TextView(this)
-        tv.text = text
-        tv.textSize = textSize
-        tv.setTypeface(tv.typeface, Typeface.BOLD)
-        tv.setTextColor(ContextCompat.getColor(this, R.color.primary)) // Blue for choices!
-        tv.gravity = Gravity.CENTER
-        tv.setPadding(dp(20), dp(16), dp(20), dp(16))
-        cv.addView(tv)
-
-        cv.setOnClickListener { onClick(cv) }
-        return cv
-    }
-
-    private fun markCorrect(view: View) {
-        if (view is CardView) {
-            view.setCardBackgroundColor(colorCorrect)
-            (view.getChildAt(0) as? TextView)?.setTextColor(Color.WHITE)
-        } else if (view is Button) {
-            view.background = pill(colorCorrect, colorCorrect)
-            view.backgroundTintList = null
-            view.setTextColor(Color.WHITE)
-        }
-    }
-
-    private fun markWrong(view: View) {
-        if (view is CardView) {
-            view.setCardBackgroundColor(colorWrong)
-            (view.getChildAt(0) as? TextView)?.setTextColor(Color.WHITE)
-        } else if (view is Button) {
-            view.background = pill(colorWrong, colorWrong)
-            view.backgroundTintList = null
-            view.setTextColor(Color.WHITE)
-        }
+    private fun choiceButton(text: String, onClick: (Button) -> Unit): Button {
+        val b = Button(this)
+        b.text = text
+        styleOptionButton(b)
+        b.setOnClickListener { onClick(b) }
+        return b
     }
 
     private fun finishRound(correct: Boolean, cardIds: List<String>) {
@@ -491,15 +297,336 @@ class QuizSessionActivity : BaseActivity() {
         btnNext.isEnabled = true
     }
 
+    // ---------- 객관식 (주제 -> 두문자) ----------
+    private fun renderChoiceRound() {
+        val target = weightedRandomCard(this, basePool)
+        currentRoundCards = listOf(target)
+        container.addView(sectionLabel("📝 객관식"))
+        container.addView(questionCard("[${target.topicTitle}]\n이 주제의 두문자는?"))
+
+        val wrong = basePool.filter { it.mnemonic != target.mnemonic }.shuffled().take(3)
+        val choices = (wrong.map { it.mnemonic } + target.mnemonic).shuffled()
+        val buttons = mutableListOf<Button>()
+        choices.forEach { choiceText ->
+            val b = choiceButton(choiceText) { pressed ->
+                if (roundAnswered) return@choiceButton
+                val isCorrect = choiceText == target.mnemonic
+                buttons.forEach { btn ->
+                    when {
+                        btn.text == target.mnemonic -> markCorrect(btn)
+                        btn === pressed && !isCorrect -> markWrong(btn)
+                    }
+                    btn.isEnabled = false
+                }
+                finishRound(isCorrect, listOf(target.id))
+            }
+            buttons.add(b)
+            container.addView(b)
+        }
+    }
+
+    // ---------- 순서 배열 ----------
+    private fun renderOrderRound() {
+        val target = weightedRandomCard(this, orderablePool)
+        currentRoundCards = listOf(target)
+        val tokens = target.mnemonic.split(".").map { it.trim() }.filter { it.isNotEmpty() }
+        var shuffled: List<String>
+        do { shuffled = tokens.shuffled() } while (tokens.size > 1 && shuffled == tokens)
+
+        container.addView(sectionLabel("🔤 순서 배열"))
+        container.addView(questionCard("[${target.topicTitle}]\n두문자를 순서대로 탭하세요"))
+
+        val answerCard = CardView(this)
+        val alp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        alp.bottomMargin = dp(10)
+        answerCard.layoutParams = alp
+        answerCard.radius = dp(18).toFloat()
+        answerCard.cardElevation = 0f
+        answerCard.setCardBackgroundColor(Color.parseColor("#1F2962FF"))
+        val tvAnswer = TextView(this)
+        tvAnswer.text = "탭한 글자가 여기 표시돼요"
+        tvAnswer.gravity = Gravity.CENTER
+        tvAnswer.setPadding(dp(20), dp(22), dp(20), dp(22))
+        tvAnswer.setTextColor(ContextCompat.getColor(this, R.color.primary))
+        tvAnswer.textSize = 19f
+        tvAnswer.setTypeface(tvAnswer.typeface, android.graphics.Typeface.BOLD)
+        answerCard.addView(tvAnswer)
+        container.addView(answerCard)
+
+        val tvReveal = TextView(this)
+        tvReveal.gravity = Gravity.CENTER
+        tvReveal.setTextColor(ContextCompat.getColor(this, R.color.text_sub))
+        tvReveal.textSize = 12f
+        tvReveal.setPadding(0, dp(8), 0, dp(14))
+        container.addView(tvReveal)
+
+        val grid = GridLayout(this)
+        grid.columnCount = 4
+        grid.useDefaultMargins = false
+        container.addView(grid)
+
+        val userSeq = mutableListOf<String>()
+        val used = mutableSetOf<Int>()
+        val tileButtons = mutableListOf<Button>()
+
+        shuffled.forEachIndexed { idx, token ->
+            val b = Button(this)
+            val glp = GridLayout.LayoutParams()
+            glp.width = 0
+            glp.height = GridLayout.LayoutParams.WRAP_CONTENT
+            glp.columnSpec = GridLayout.spec(idx % 4, 1f)
+            glp.setMargins(dp(6), dp(6), dp(6), dp(6))
+            b.layoutParams = glp
+            b.text = token
+            b.textSize = 19f
+            b.isAllCaps = false
+            b.setTypeface(b.typeface, android.graphics.Typeface.BOLD)
+            b.background = pill(defaultFill, defaultStroke, radiusDp = 14)
+            b.setTextColor(defaultText)
+            b.elevation = 0f
+            b.setPadding(0, dp(10), 0, dp(10))
+            b.minHeight = dp(64)
+            b.setOnClickListener {
+                if (roundAnswered || idx in used) return@setOnClickListener
+                used.add(idx)
+                userSeq.add(token)
+                b.isEnabled = false
+                b.background = pill(Color.parseColor("#33808080"), Color.TRANSPARENT, strokeWidthDp = 0, radiusDp = 14)
+                tvAnswer.text = userSeq.joinToString(" . ")
+                if (userSeq.size == tokens.size) {
+                    val correct = userSeq == tokens
+                    if (correct) {
+                        answerCard.setCardBackgroundColor(colorCorrect)
+                        tvAnswer.setTextColor(colorWhite)
+                    } else {
+                        answerCard.setCardBackgroundColor(colorWrong)
+                        tvAnswer.setTextColor(colorWhite)
+                        tvReveal.text = "정답: ${tokens.joinToString(" . ")}"
+                    }
+                    finishRound(correct, listOf(target.id))
+                }
+            }
+            tileButtons.add(b)
+            grid.addView(b)
+        }
+    }
+
+    // ---------- OX ----------
+    private fun renderOxRound() {
+        val target = weightedRandomCard(this, basePool)
+        currentRoundCards = listOf(target)
+        val isTrue = (0..1).random() == 0
+        val shown = if (isTrue) target.mnemonic else basePool.filter { it.mnemonic != target.mnemonic }.random().mnemonic
+
+        container.addView(sectionLabel("⭕❌ OX 퀴즈"))
+        container.addView(questionCard("[${target.topicTitle}]\n이 주제의 두문자는 '$shown' 이다."))
+
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        val rowLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        row.layoutParams = rowLp
+
+        val trueBtn = Button(this)
+        trueBtn.text = "⭕ 참"
+        val falseBtn = Button(this)
+        falseBtn.text = "❌ 거짓"
+        for (b in listOf(trueBtn, falseBtn)) {
+            b.textSize = 18f
+            b.minHeight = dp(76)
+            b.setPadding(dp(8), dp(14), dp(8), dp(14))
+            b.isAllCaps = false
+            b.setTypeface(b.typeface, android.graphics.Typeface.BOLD)
+            b.background = pill(defaultFill, defaultStroke, radiusDp = 18)
+            b.setTextColor(defaultText)
+            b.elevation = 0f
+        }
+        val lpT = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f); lpT.marginEnd = dp(6)
+        val lpF = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f); lpF.marginStart = dp(6)
+        trueBtn.layoutParams = lpT
+        falseBtn.layoutParams = lpF
+        row.addView(trueBtn); row.addView(falseBtn)
+        container.addView(row)
+
+        fun answer(chooseTrue: Boolean, pressed: Button) {
+            if (roundAnswered) return
+            val correct = chooseTrue == isTrue
+            trueBtn.isEnabled = false; falseBtn.isEnabled = false
+            if (correct) {
+                markCorrect(pressed)
+            } else {
+                markWrong(pressed)
+                markCorrect(if (isTrue) trueBtn else falseBtn)
+            }
+            finishRound(correct, listOf(target.id))
+        }
+        trueBtn.setOnClickListener { answer(true, trueBtn) }
+        falseBtn.setOnClickListener { answer(false, falseBtn) }
+    }
+
+    // ---------- 빈칸 채우기 ----------
+    private fun renderFillBlankRound() {
+        val target = weightedRandomCard(this, orderablePool)
+        currentRoundCards = listOf(target)
+        val tokens = target.mnemonic.split(".").map { it.trim() }.filter { it.isNotEmpty() }
+        val blankIdx = tokens.indices.random()
+        val correctToken = tokens[blankIdx]
+        val displayed = tokens.mapIndexed { i, t -> if (i == blankIdx) "＿" else t }.joinToString(".")
+
+        container.addView(sectionLabel("✏️ 빈칸 채우기"))
+        container.addView(questionCard("[${target.topicTitle}]\n두문자: $displayed\n빈칸에 들어갈 글자는?"))
+
+        val distractors = allTokens.filter { it != correctToken }.shuffled().take(3)
+        val choices = (distractors + correctToken).shuffled()
+        val buttons = mutableListOf<Button>()
+        choices.forEach { choiceText ->
+            val b = choiceButton(choiceText) { pressed ->
+                if (roundAnswered) return@choiceButton
+                val correct = choiceText == correctToken
+                buttons.forEach { btn ->
+                    when {
+                        btn.text == correctToken -> markCorrect(btn)
+                        btn === pressed && !correct -> markWrong(btn)
+                    }
+                    btn.isEnabled = false
+                }
+                finishRound(correct, listOf(target.id))
+            }
+            buttons.add(b)
+            container.addView(b)
+        }
+    }
+
+    // ---------- 거꾸로 (두문자 -> 주제) ----------
+    private fun renderReverseRound() {
+        val topicPool = basePool.distinctBy { it.topicTitle }
+        val target = weightedRandomCard(this, topicPool)
+        currentRoundCards = listOf(target)
+        container.addView(sectionLabel("🔄 두문자로 주제 맞히기"))
+        container.addView(questionCard("두문자: ${target.mnemonic}\n이 두문자가 가리키는 주제는?"))
+
+        val wrong = topicPool.filter { it.topicTitle != target.topicTitle }.shuffled().take(3)
+        val choices = (wrong.map { it.topicTitle } + target.topicTitle).shuffled()
+        val buttons = mutableListOf<Button>()
+        choices.forEach { choiceText ->
+            val b = choiceButton(choiceText) { pressed ->
+                if (roundAnswered) return@choiceButton
+                val correct = choiceText == target.topicTitle
+                buttons.forEach { btn ->
+                    when {
+                        btn.text == target.topicTitle -> markCorrect(btn)
+                        btn === pressed && !correct -> markWrong(btn)
+                    }
+                    btn.isEnabled = false
+                }
+                finishRound(correct, listOf(target.id))
+            }
+            b.textSize = 14f
+            buttons.add(b)
+            container.addView(b)
+        }
+    }
+
+    // ---------- 매칭 ----------
+    private fun renderMatchRound() {
+        val cards5 = basePool.shuffled().take(5)
+        currentRoundCards = cards5
+        container.addView(sectionLabel("🧩 매칭 (왼쪽 → 오른쪽 순서로 탭)"))
+
+        val leftOrder = cards5.indices.shuffled()
+        val rightOrder = cards5.indices.shuffled()
+        val matchedLeft = mutableSetOf<Int>()
+        val matchedRight = mutableSetOf<Int>()
+        var selectedLeftPos: Int? = null
+
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        val leftCol = LinearLayout(this); leftCol.orientation = LinearLayout.VERTICAL
+        val rightCol = LinearLayout(this); rightCol.orientation = LinearLayout.VERTICAL
+        val leftLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f); leftLp.marginEnd = dp(6)
+        val rightLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f); rightLp.marginStart = dp(6)
+        leftCol.layoutParams = leftLp
+        rightCol.layoutParams = rightLp
+        row.addView(leftCol); row.addView(rightCol)
+        container.addView(row)
+
+        fun tileBg(fill: Int, stroke: Int) = pill(fill, stroke, radiusDp = 16)
+
+        fun makeTile(text: String): CardView {
+            val cv = CardView(this)
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.topMargin = dp(6); lp.bottomMargin = dp(6)
+            cv.layoutParams = lp
+            cv.minimumHeight = dp(60)
+            cv.radius = dp(16).toFloat()
+            cv.cardElevation = 0f
+            cv.setCardBackgroundColor(defaultFill)
+            val tv = TextView(this)
+            tv.text = text
+            tv.textSize = 13f
+            tv.isAllCaps = false
+            tv.setTypeface(tv.typeface, android.graphics.Typeface.BOLD)
+            tv.setTextColor(defaultText)
+            tv.gravity = Gravity.CENTER
+            tv.setPadding(dp(12), dp(10), dp(12), dp(10))
+            cv.addView(tv)
+            return cv
+        }
+
+        val leftViews = mutableListOf<CardView>()
+        val rightViews = mutableListOf<CardView>()
+
+        leftOrder.forEachIndexed { pos, cardIdx ->
+            val tile = makeTile(cards5[cardIdx].topicTitle)
+            tile.setOnClickListener {
+                if (cardIdx in matchedLeft) return@setOnClickListener
+                selectedLeftPos = pos
+                leftViews.forEachIndexed { i, v -> v.setCardBackgroundColor(if (i == pos) colorSelected else defaultFill) }
+            }
+            leftCol.addView(tile)
+            leftViews.add(tile)
+        }
+        rightOrder.forEachIndexed { pos, cardIdx ->
+            val tile = makeTile(cards5[cardIdx].mnemonic)
+            tile.setOnClickListener {
+                val rightCardIdx = cardIdx
+                if (rightCardIdx in matchedRight) return@setOnClickListener
+                val leftPos = selectedLeftPos
+                if (leftPos == null) {
+                    Toast.makeText(this, "먼저 왼쪽 주제를 골라주세요", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val leftCardIdx = leftOrder[leftPos]
+                if (leftCardIdx == rightCardIdx) {
+                    matchedLeft.add(leftCardIdx); matchedRight.add(rightCardIdx)
+                    leftViews[leftPos].setCardBackgroundColor(colorCorrect)
+                    tile.setCardBackgroundColor(colorCorrect)
+                    CardStore.removeWrong(this, cards5[leftCardIdx].id)
+                    selectedLeftPos = null
+                    if (matchedLeft.size == cards5.size) {
+                        finishRound(true, cards5.map { it.id })
+                    }
+                } else {
+                    CardStore.addWrong(this, cards5[leftCardIdx].id)
+                    CardStore.addWrong(this, cards5[rightCardIdx].id)
+                    tile.setCardBackgroundColor(colorWrong)
+                    leftViews[leftPos].setCardBackgroundColor(colorWrong)
+                    handler.postDelayed({
+                        if (leftCardIdx !in matchedLeft) leftViews[leftPos].setCardBackgroundColor(defaultFill)
+                        if (rightCardIdx !in matchedRight) tile.setCardBackgroundColor(defaultFill)
+                    }, 400)
+                    selectedLeftPos = null
+                }
+            }
+            rightCol.addView(tile)
+            rightViews.add(tile)
+        }
+    }
+
     // ---------- 키워드 맞추기 ----------
     private fun renderKeywordRound() {
         val target = weightedRandomCard(this, conceptPool)
         currentRoundCards = listOf(target)
-        val candidates = extractKeywordCandidates(target.back).filter { it.isNotBlank() }.shuffled()
-        if (candidates.isEmpty()) {
-            renderOutlineRound()
-            return
-        }
+        val candidates = extractKeywordCandidates(target.back).shuffled()
         val blankCount = (1..3).random().coerceAtMost(candidates.size)
         val blanks = candidates.take(blankCount)
 
@@ -549,25 +676,24 @@ class QuizSessionActivity : BaseActivity() {
 
             val distractors = keywordPool.filter { it != correctWord && it !in blanks }.shuffled().take(3)
             val choices = (distractors + correctWord).shuffled()
-            val buttons = mutableListOf<View>()
+            val buttons = mutableListOf<Button>()
             val row = LinearLayout(this)
             row.orientation = LinearLayout.VERTICAL
             choices.forEach { choiceText ->
                 val b = choiceButton(choiceText) { pressed ->
-                    if (!roundAnswered && !allAnswered[blankIdx]) {
-                        allAnswered[blankIdx] = true
-                        val isCorrect = choiceText == correctWord
-                        if (isCorrect) correctSubCount++
-                        buttons.forEach { btn ->
-                            when {
-                                getChoiceText(btn) == correctWord -> markCorrect(btn)
-                                btn === pressed && !isCorrect -> markWrong(btn)
-                            }
-                            btn.isEnabled = false
+                    if (roundAnswered || allAnswered[blankIdx]) return@choiceButton
+                    allAnswered[blankIdx] = true
+                    val isCorrect = choiceText == correctWord
+                    if (isCorrect) correctSubCount++
+                    buttons.forEach { btn ->
+                        when {
+                            btn.text == correctWord -> markCorrect(btn)
+                            btn === pressed && !isCorrect -> markWrong(btn)
                         }
-                        if (allAnswered.all { it }) {
-                            finishRoundPoints(correctSubCount.toDouble(), totalBlanks.toDouble(), listOf(target.id))
-                        }
+                        btn.isEnabled = false
+                    }
+                    if (allAnswered.all { it }) {
+                        finishRoundPoints(correctSubCount.toDouble(), totalBlanks.toDouble(), listOf(target.id))
                     }
                 }
                 buttons.add(b)
@@ -595,7 +721,9 @@ class QuizSessionActivity : BaseActivity() {
 
         val btnVoice = Button(this)
         btnVoice.text = "🎤"
-        val vlp = LinearLayout.LayoutParams(dp(56), dp(56)); vlp.marginStart = dp(8)
+        btnVoice.minWidth = dp(56)
+        btnVoice.minHeight = dp(56)
+        val vlp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT); vlp.marginStart = dp(8)
         btnVoice.layoutParams = vlp
         btnVoice.background = pill(defaultFill, defaultStroke, radiusDp = 14)
         btnVoice.setOnClickListener { startVoiceInput(et) }
@@ -660,41 +788,27 @@ class QuizSessionActivity : BaseActivity() {
     }
 
     // ---------- 목차퀴즈 ----------
-    private fun cleanOutlineLabel(label: String): String {
-        return label.replace(Regex("^(\\d+[\\.\\)]\\s*|\\(\\d+\\)\\s*|[①②③④⑤⑥⑦⑧⑨⑩\\-·]\\s*)"), "").trim()
-    }
-
     private fun renderOutlineRound() {
-        if (outlineGroups.isEmpty()) {
-            renderOutlinePuzzleRound()
-            return
-        }
         val group = outlineGroups.random()
         currentRoundCards = listOfNotNull(
             basePool.firstOrNull { it.topicTitle == group.topicTitle }
                 ?: conceptPool.firstOrNull { it.id == group.cardId }
         )
 
-        val cleanedSiblings = group.siblingLabels.map { cleanOutlineLabel(it) }.filter { it.isNotBlank() }
-        if (cleanedSiblings.size < 2) {
-            renderOutlinePuzzleRound()
-            return
-        }
-
         val useTypeB = (0..1).random() == 0
         val questionText: String
         var correctInOrder: List<String>
 
         if (useTypeB) {
-            correctInOrder = cleanedSiblings
+            correctInOrder = group.siblingLabels
             if (correctInOrder.size > 6) {
                 val picked = correctInOrder.indices.shuffled().take(6).sorted()
                 correctInOrder = picked.map { correctInOrder[it] }
             }
             questionText = "[${group.parentLabel}]\n이 목차의 하위 항목을 순서대로 고르세요 (${correctInOrder.size}개)"
         } else {
-            val target = cleanedSiblings.randomOrNull() ?: cleanedSiblings.firstOrNull() ?: "기본"
-            var rest = cleanedSiblings.filter { it != target }
+            val target = group.siblingLabels.random()
+            var rest = group.siblingLabels.filter { it != target }
             if (rest.size > 6) {
                 val picked = rest.indices.shuffled().take(6).sorted()
                 rest = picked.map { rest[it] }
@@ -706,11 +820,10 @@ class QuizSessionActivity : BaseActivity() {
         container.addView(sectionLabel("📚 목차퀴즈"))
         container.addView(questionCard(questionText))
 
-        val cleanedPool = outlineLabelPool.map { cleanOutlineLabel(it) }.filter { it.isNotBlank() }
         val neededDistractors = correctInOrder.size.coerceAtLeast(1)
-        var distractors = cleanedPool.filter { it !in cleanedSiblings }.shuffled().take(neededDistractors)
+        var distractors = outlineLabelPool.filter { it !in group.siblingLabels }.shuffled().take(neededDistractors)
         if (distractors.size < neededDistractors) {
-            val more = cleanedPool.filter { it !in correctInOrder && it !in distractors }.shuffled()
+            val more = outlineLabelPool.filter { it !in correctInOrder && it !in distractors }.shuffled()
             distractors = distractors + more.take(neededDistractors - distractors.size)
         }
         val allChoices = (correctInOrder + distractors).shuffled()
@@ -723,7 +836,7 @@ class QuizSessionActivity : BaseActivity() {
         container.addView(tvSelected)
 
         val selected = mutableListOf<String>()
-        val buttons = mutableListOf<View>()
+        val buttons = mutableListOf<Button>()
 
         fun updateSelectedText() {
             tvSelected.text = if (selected.isEmpty()) "선택 순서: (없음)"
@@ -732,18 +845,15 @@ class QuizSessionActivity : BaseActivity() {
 
         allChoices.forEach { label ->
             val b = choiceButton(label) { pressed ->
-                if (!roundAnswered) {
-                    if (label in selected) {
-                        selected.remove(label)
-                        (pressed as? CardView)?.setCardBackgroundColor(defaultFill)
-                        (pressed as? CardView)?.let { (it.getChildAt(0) as? TextView)?.setTextColor(ContextCompat.getColor(this, R.color.primary)) }
-                    } else {
-                        selected.add(label)
-                        (pressed as? CardView)?.setCardBackgroundColor(colorSelected)
-                        (pressed as? CardView)?.let { (it.getChildAt(0) as? TextView)?.setTextColor(colorWhite) }
-                    }
-                    updateSelectedText()
+                if (roundAnswered) return@choiceButton
+                if (label in selected) {
+                    selected.remove(label)
+                    pressed.background = pill(defaultFill, defaultStroke)
+                } else {
+                    selected.add(label)
+                    pressed.background = pill(colorSelected, ContextCompat.getColor(this, R.color.primary))
                 }
+                updateSelectedText()
             }
             buttons.add(b)
             container.addView(b)
@@ -767,10 +877,10 @@ class QuizSessionActivity : BaseActivity() {
             val possible = correctInOrder.size.toDouble() + 1.0
 
             buttons.forEach { btn ->
-                val label = getChoiceText(btn)
+                val label = btn.text.toString()
                 when {
                     label in correctSet && label in selected -> markCorrect(btn)
-                    label in correctSet && label !in selected -> (btn as? CardView)?.setCardBackgroundColor(Color.parseColor("#553D2F00"))
+                    label in correctSet && label !in selected -> btn.background = pill(Color.parseColor("#553D2F00"), Color.parseColor("#FFC107"))
                     label !in correctSet && label in selected -> markWrong(btn)
                 }
                 btn.isEnabled = false
@@ -786,10 +896,6 @@ class QuizSessionActivity : BaseActivity() {
 
     // ---------- 문장→목차 찾기 ----------
     private fun renderSentenceRound() {
-        if (sentenceItems.isEmpty()) {
-            renderCaseIssueRound()
-            return
-        }
         val item = sentenceItems.random()
         currentRoundCards = listOfNotNull(
             conceptPool.firstOrNull { it.id == item.cardId }
@@ -800,22 +906,22 @@ class QuizSessionActivity : BaseActivity() {
         container.addView(questionCard("[${item.parentLabel}]\n다음 문장은 어느 목차에 속할까요?\n\n“${item.sentence}”"))
 
         val choices = item.siblingLabels.shuffled()
-        val buttons = mutableListOf<View>()
+        val buttons = mutableListOf<Button>()
         choices.forEach { label ->
-            val b = choiceButton(label, 14f) { pressed ->
-                if (!roundAnswered) {
-                    val correct = label == item.correctLabel
-                    buttons.forEach { btn ->
-                        when {
-                            getChoiceText(btn) == item.correctLabel -> markCorrect(btn)
-                            btn === pressed && !correct -> markWrong(btn)
-                        }
-                        btn.isEnabled = false
+            val b = choiceButton(label) { pressed ->
+                if (roundAnswered) return@choiceButton
+                val correct = label == item.correctLabel
+                buttons.forEach { btn ->
+                    when {
+                        btn.text == item.correctLabel -> markCorrect(btn)
+                        btn === pressed && !correct -> markWrong(btn)
                     }
-                    val cardId = currentRoundCards.firstOrNull()?.id
-                    finishRoundPoints(if (correct) 1.0 else 0.0, 1.0, listOfNotNull(cardId))
+                    btn.isEnabled = false
                 }
+                val cardId = currentRoundCards.firstOrNull()?.id
+                finishRoundPoints(if (correct) 1.0 else 0.0, 1.0, listOfNotNull(cardId))
             }
+            b.textSize = 14f
             buttons.add(b)
             container.addView(b)
         }
@@ -825,13 +931,11 @@ class QuizSessionActivity : BaseActivity() {
 
     private fun showContextDialog() {
         if (currentRoundCards.isEmpty()) return
-        val allLatest = CardStore.getAllCards(this)
         val text = currentRoundCards.joinToString("\n\n━━━━━━━━━━\n\n") { c ->
-            val latest = allLatest.firstOrNull { it.id == c.id } ?: c
-            val mnemonicLine = if (latest.mnemonic.isNotBlank()) "두문자: ${latest.mnemonic}\n\n" else ""
-            "[${latest.topicTitle}]\n$mnemonicLine${latest.back.ifBlank { "본문 내용이 없어요" }}"
+            val mnemonicLine = if (c.mnemonic.isNotBlank()) "두문자: ${c.mnemonic}\n\n" else ""
+            "[${c.topicTitle}]\n$mnemonicLine${c.back.ifBlank { "본문 내용이 없어요" }}"
         }
-        val scroll = ScrollView(this)
+        val scroll = android.widget.ScrollView(this)
         val tv = TextView(this)
         tv.text = text
         tv.setPadding(dp(20), dp(16), dp(20), dp(16))

@@ -46,7 +46,7 @@ class ContentStudyListActivity : BaseActivity() {
         })
 
         findViewById<android.widget.Button>(R.id.btnGoExam).setOnClickListener {
-            val intent = Intent(this, ExamSetupActivity::class.java)
+            val intent = Intent(this, ExamSessionActivity::class.java)
             intent.putExtra(EXTRA_SUBJECT, subject)
             startActivity(intent)
         }

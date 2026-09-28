@@ -163,19 +163,13 @@ fun parseOutline(text: String): List<OutlineNode> {
         val lvl = outlineLevelOf(line)
         if (lvl != null) {
             val node = OutlineNode(level = lvl, label = line)
-            while (stack.size > lvl) {
-                stack.removeAt(stack.size - 1)
-            }
-            val effectiveLvl = if (lvl > stack.size) stack.size else lvl
-            if (effectiveLvl == 0) {
+            while (stack.size > lvl) stack.removeAt(stack.size - 1)
+            if (stack.isEmpty()) {
                 roots.add(node)
             } else {
                 stack.last().children.add(node)
             }
-            while (stack.size <= effectiveLvl) {
-                stack.add(node)
-            }
-            stack[effectiveLvl] = node
+            if (stack.size == lvl) stack.add(node) else stack[lvl] = node
         } else {
             val target = stack.lastOrNull()
             if (target != null) {
