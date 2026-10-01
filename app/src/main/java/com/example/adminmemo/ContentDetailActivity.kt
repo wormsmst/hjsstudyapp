@@ -1,33 +1,31 @@
 package com.example.adminmemo
 
+import android.Manifest
 import android.app.AlertDialog
-import android.graphics.Typeface
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
-import android.text.SpannableStringBuilder
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
-import android.text.style.LeadingMarginSpan
-import android.text.style.RelativeSizeSpan
-import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
-import java.util.Locale
-import java.util.UUID
 
 class ContentDetailActivity : BaseActivity() {
 
     companion object {
         const val EXTRA_IDS = "extra_ids"
         const val EXTRA_INDEX = "extra_index"
+        const val EXTRA_QUEST_ID = "extra_quest_id"
+        private const val REQ_NOTIF = 4302
     }
 
     private lateinit var ids: List<String>
@@ -39,20 +37,27 @@ class ContentDetailActivity : BaseActivity() {
     private lateinit var cardMnemonicBox: CardView
     private lateinit var tvMnemonic: TextView
     private lateinit var tvBody: TextView
+    private lateinit var tvBodyRight: TextView
     private lateinit var etMemo: EditText
     private lateinit var memoryStars: List<TextView>
-
-    private var tts: TextToSpeech? = null
-    private var ttsReady = false
-    private var isSpeaking = false
     private lateinit var btnSpeak: ImageButton
+
+    private val ttsListener: (StudyTtsState) -> Unit = { st ->
+        if (st.ids.isNotEmpty() && st.ids == ids && st.index in ids.indices && st.index != index) {
+            saveCurrentMemoSilently()
+            index = st.index
+            render()
+        } else {
+            refreshSpeakButton()
+            updateProgressLabel()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_content_detail)
-
-        ids = intent.getStringArrayListExtra(EXTRA_IDS) ?: arrayListOf()
-        index = intent.getIntExtra(EXTRA_INDEX, 0).coerceIn(0, maxOf(0, ids.size - 1))
+        bindBookLayout()
+        applyIntent(intent)
 
         tvProgress = findViewById(R.id.tvDetailProgress)
         tvGrade = findViewById(R.id.tvDetailGrade)
@@ -60,7 +65,13 @@ class ContentDetailActivity : BaseActivity() {
         cardMnemonicBox = findViewById(R.id.cardMnemonicBox)
         tvMnemonic = findViewById(R.id.tvDetailMnemonic)
         tvBody = findViewById(R.id.tvDetailBody)
+        tvBodyRight = findViewById(R.id.tvDetailBodyRight)
         enableGeminiSelection(this, tvBody) { currentCard()?.back ?: "" }
+        enableGeminiSelection(this, tvBodyRight) { currentCard()?.back ?: "" }
+        enableGeminiSelection(this, tvMnemonic) { currentCard()?.let { "${it.topicTitle}\n${it.mnemonic}\n${it.back}" } ?: "" }
+        findViewById<Button>(R.id.btnAskGemini).setOnClickListener {
+            askGeminiAboutSelection(this, tvBody) { currentCard()?.back ?: "" }
+        }
         etMemo = findViewById(R.id.etMemo)
         btnSpeak = findViewById(R.id.btnSpeak)
 
@@ -76,81 +87,174 @@ class ContentDetailActivity : BaseActivity() {
             }
         }
 
-        tts = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                val result = tts?.setLanguage(Locale.KOREAN)
-                ttsReady = result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED
+        btnSpeak.setOnClickListener { onSpeakClicked() }
+        btnSpeak.setOnLongClickListener {
+            TtsVoiceUi.open(this) {
+                val st = StudyTtsHub.state
+                if (st.playing && st.ids == ids) StudyTtsService.play(this, ids, index)
             }
+            true
         }
-        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {}
-            override fun onDone(utteranceId: String?) {
-                runOnUiThread { setSpeakingUi(false) }
-            }
-            @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) {
-                runOnUiThread { setSpeakingUi(false) }
-            }
-        })
-
-        btnSpeak.setOnClickListener {
-            if (isSpeaking) {
-                stopSpeaking()
-            } else {
-                startSpeaking()
+        findViewById<ImageButton>(R.id.btnTtsVoice).setOnClickListener {
+            TtsVoiceUi.open(this) {
+                val st = StudyTtsHub.state
+                if (st.playing && st.ids == ids) StudyTtsService.play(this, ids, index)
             }
         }
 
         findViewById<ImageButton>(R.id.btnEditDetail).setOnClickListener {
-            stopSpeaking()
+            StudyTtsService.stop(this)
             showEditDialog()
         }
 
-        findViewById<ImageButton>(R.id.btnPrevDetail).setOnClickListener {
+        findViewById<Button>(R.id.btnPrevDetail).setOnClickListener {
             saveCurrentMemoSilently()
-            stopSpeaking()
-            if (index > 0) { index--; render() }
+            moveCard(-1)
         }
-        findViewById<ImageButton>(R.id.btnNextDetail).setOnClickListener {
+        findViewById<Button>(R.id.btnNextDetail).setOnClickListener {
             saveCurrentMemoSilently()
-            stopSpeaking()
-            if (index < ids.size - 1) { index++; render() }
+            moveCard(1)
         }
         findViewById<Button>(R.id.btnSaveMemo).setOnClickListener {
             saveCurrentMemoSilently()
             Toast.makeText(this, "메모를 저장했어요", Toast.LENGTH_SHORT).show()
         }
+        findViewById<Button>(R.id.btnQuestWrite).setOnClickListener {
+            val card = currentCard() ?: return@setOnClickListener
+            startActivity(
+                Intent(this, RecallActivity::class.java)
+                    .putStringArrayListExtra(EXTRA_RECALL_CARD_IDS, arrayListOf(card.id))
+                    .putExtra(
+                        EXTRA_RECALL_BODY,
+                        DailyQuestStore.openQuestForCard(this, card.id)?.type == DailyQuestStore.TYPE_BODY
+                    )
+            )
+        }
 
+        StudyTtsHub.addListener(ttsListener)
         render()
     }
 
-    private fun startSpeaking() {
-        val card = currentCard() ?: return
-        if (!ttsReady) {
-            Toast.makeText(this, "음성 엔진을 준비 중이에요. 잠시 후 다시 눌러주세요", Toast.LENGTH_SHORT).show()
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (::etMemo.isInitialized) saveCurrentMemoSilently()
+        bindBookLayout()
+        if (::tvBody.isInitialized) render()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        applyIntent(intent)
+        render()
+        refreshSpeakButton()
+    }
+
+    private fun applyIntent(intent: Intent) {
+        ids = intent.getStringArrayListExtra(EXTRA_IDS) ?: arrayListOf()
+        index = intent.getIntExtra(EXTRA_INDEX, 0).coerceIn(0, maxOf(0, ids.size - 1))
+        val st = StudyTtsHub.state
+        if (st.ids == ids && st.index in ids.indices) {
+            index = st.index
+        }
+    }
+
+    private fun onSpeakClicked() {
+        val st = StudyTtsHub.state
+        if (st.ids == ids && st.index == index && (st.playing || st.paused)) {
+            StudyTtsService.toggle(this)
+        } else {
+            startPlaylist()
+        }
+    }
+
+    private fun startPlaylist() {
+        if (ids.isEmpty()) return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIF)
             return
         }
-        val parts = mutableListOf(card.topicTitle)
-        if (card.mnemonic.isNotBlank()) parts.add("두문자, ${card.mnemonic.replace(".", ", ")}")
-        parts.add(card.back.ifBlank { "본문 내용이 없어요" })
-        val fullText = parts.joinToString(". ")
-
-        val utteranceId = UUID.randomUUID().toString()
-        tts?.speak(fullText, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
-        setSpeakingUi(true)
+        StudyTtsService.play(this, ids, index)
     }
 
-    private fun stopSpeaking() {
-        tts?.stop()
-        setSpeakingUi(false)
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_NOTIF) StudyTtsService.play(this, ids, index)
     }
 
-    private fun setSpeakingUi(speaking: Boolean) {
-        isSpeaking = speaking
+    private fun moveCard(delta: Int) {
+        val st = StudyTtsHub.state
+        val listening = st.ids == ids && (st.playing || st.paused)
+        if (listening) {
+            StudyTtsService.skip(this, delta)
+            return
+        }
+        val next = index + delta
+        if (next in ids.indices) {
+            index = next
+            render()
+        }
+    }
+
+    private fun refreshSpeakButton() {
+        val st = StudyTtsHub.state
+        val onThis = st.ids == ids && st.index == index && st.playing
         btnSpeak.setImageResource(
-            if (speaking) android.R.drawable.ic_media_pause
+            if (onThis) android.R.drawable.ic_media_pause
             else android.R.drawable.ic_lock_silent_mode_off
         )
+    }
+
+    private fun updateProgressLabel() {
+        if (!::tvProgress.isInitialized) return
+        tvProgress.text = progressLabel()
+    }
+
+    private fun progressLabel(): String {
+        val base = "${index + 1} / ${ids.size}"
+        val st = StudyTtsHub.state
+        val onThis = st.ids == ids && st.index == index && (st.playing || st.paused)
+        return if (onThis && st.repeat > 1) "$base  ·  ${st.pass}/${st.repeat}회" else base
+    }
+
+    private fun bindBookLayout() {
+        val split = findViewById<LinearLayout>(R.id.layoutDetailSplit) ?: return
+        val leftInner = findViewById<LinearLayout>(R.id.layoutDetailLeftInner) ?: return
+        val rightInner = findViewById<LinearLayout>(R.id.layoutDetailRightInner) ?: return
+        val tools = findViewById<LinearLayout>(R.id.layoutDetailTools) ?: return
+        val rightScroll = findViewById<View>(R.id.scrollDetailRight) ?: return
+        val gutter = findViewById<View>(R.id.viewDetailGutter)
+        val land = isLandscape()
+        split.orientation = if (land) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        (tools.parent as? ViewGroup)?.removeView(tools)
+        val leftScroll = split.getChildAt(0)
+        if (land) {
+            rightInner.addView(tools)
+            rightScroll.visibility = View.VISIBLE
+            gutter?.visibility = View.VISIBLE
+            leftScroll.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            rightScroll.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+            gutter?.layoutParams = LinearLayout.LayoutParams(
+                (resources.displayMetrics.density).toInt().coerceAtLeast(1),
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
+        } else {
+            leftInner.addView(tools)
+            rightScroll.visibility = View.GONE
+            gutter?.visibility = View.GONE
+            leftScroll.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        }
     }
 
     private fun currentCard(): Card? {
@@ -165,7 +269,7 @@ class ContentDetailActivity : BaseActivity() {
             tvBody.text = ""
             return
         }
-        tvProgress.text = "${index + 1} / ${ids.size}"
+        tvProgress.text = progressLabel()
         tvGrade.text = card.grade
         tvTitle.text = card.topicTitle
 
@@ -176,97 +280,47 @@ class ContentDetailActivity : BaseActivity() {
             cardMnemonicBox.visibility = View.GONE
         }
 
-        tvBody.text = buildStyledBody(formatBodyText(reflowBody(card.back.ifBlank { "본문 내용이 없어요" })))
+        val formatted = formatStudyOutlineText(
+            displayStudyBody(
+                card.back.ifBlank { "본문 내용이 없어요" },
+                keepTypedBreaks = CardStore.isLocallyEdited(this, card.id)
+            )
+        )
+        if (isLandscape()) {
+            val pages = splitStudySpread(formatted)
+            tvBody.text = buildStyledStudyBody(this, pages.first)
+            if (pages.second.isBlank()) {
+                tvBodyRight.visibility = View.GONE
+                tvBodyRight.text = ""
+            } else {
+                tvBodyRight.visibility = View.VISIBLE
+                tvBodyRight.text = buildStyledStudyBody(this, pages.second)
+            }
+        } else {
+            tvBody.text = buildStyledStudyBody(this, formatted)
+            tvBodyRight.visibility = View.GONE
+            tvBodyRight.text = ""
+        }
         etMemo.setText(CardStore.getMemo(this, card.id))
         renderMemoryStars(CardStore.getMemoryLevel(this, card.subject, card.topicTitle))
+        StudyProgressStore.markTopic(this, card.subject, card.topicTitle)
 
-        findViewById<ImageButton>(R.id.btnPrevDetail).isEnabled = index > 0
-        findViewById<ImageButton>(R.id.btnNextDetail).isEnabled = index < ids.size - 1
+        findViewById<Button>(R.id.btnPrevDetail).isEnabled = index > 0
+        findViewById<Button>(R.id.btnNextDetail).isEnabled = index < ids.size - 1
+        refreshSpeakButton()
+        bindQuestWrite()
     }
 
-    /**
-     * 본문을 목차 레벨에 맞게 꾸민다.
-     * "1. " (대목차) → 굵게 + 큰 글씨 + 들여쓰기 없음
-     * "1) " (중목차) → 굵게 + 들여쓰기 1단계
-     * "(1) " (소목차) → 들여쓰기 2단계
-     * "①", "-", "·" 등 → 들여쓰기 2단계
-     * 그 외 줄바꿈된 설명 문장은 바로 위 목차와 같은 들여쓰기를 따라간다.
-     */
-    private fun buildStyledBody(text: String): SpannableStringBuilder {
-        val density = resources.displayMetrics.density
-        fun dp(v: Int) = (v * density).toInt()
-
-        val majorRe = Regex("^\\d+\\.\\s")
-        val sub1Re = Regex("^\\d+\\)\\s")
-        val sub2Re = Regex("^\\(\\d+\\)\\s")
-        val sub3Re = Regex("^([①②③④⑤⑥⑦⑧⑨⑩]|[-·])\\s?")
-
-        val primaryColor = ContextCompat.getColor(this, R.color.primary)
-        val lines = text.split("\n")
-        val sb = SpannableStringBuilder()
-        var currentIndent = 0
-
-        for (line in lines) {
-            val trimmed = line.trimStart()
-            val start = sb.length
-            var indent = currentIndent
-            var sizeRel = 1.0f
-            var bold = false
-            var color: Int? = null
-
-            when {
-                trimmed.isBlank() -> {
-                    indent = 0
-                }
-                majorRe.containsMatchIn(trimmed) -> {
-                    indent = 0; sizeRel = 1.12f; bold = true; color = primaryColor
-                    currentIndent = 0
-                }
-                sub1Re.containsMatchIn(trimmed) -> {
-                    indent = dp(18); bold = true
-                    currentIndent = dp(18)
-                }
-                sub2Re.containsMatchIn(trimmed) -> {
-                    indent = dp(36); sizeRel = 0.97f
-                    currentIndent = dp(36)
-                }
-                sub3Re.containsMatchIn(trimmed) -> {
-                    indent = dp(36); sizeRel = 0.97f
-                    currentIndent = dp(36)
-                }
-                else -> {
-                    indent = currentIndent
-                }
-            }
-
-            sb.append(line)
-            val end = sb.length
-            sb.append("\n")
-
-            if (end > start) {
-                sb.setSpan(LeadingMarginSpan.Standard(indent, indent), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-                if (sizeRel != 1.0f) sb.setSpan(RelativeSizeSpan(sizeRel), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-                if (bold) sb.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-                if (color != null) sb.setSpan(ForegroundColorSpan(color), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-            }
+    private fun bindQuestWrite() {
+        val btn = findViewById<Button>(R.id.btnQuestWrite)
+        val card = currentCard()
+        val quest = card?.let { DailyQuestStore.openQuestForCard(this, it.id) }
+        if (quest == null) {
+            btn.visibility = View.GONE
+            return
         }
-        return sb
-    }
-
-    /** "1. ", "2. " 같은 최상위 번호 목차 앞에 빈 줄을 넣어 읽기 편하게 만든다. */
-    private fun formatBodyText(text: String): String {
-        val headingRegex = Regex("^\\d+\\.\\s")
-        val lines = text.split("\n")
-        val out = mutableListOf<String>()
-        for ((i, line) in lines.withIndex()) {
-            val isHeading = headingRegex.containsMatchIn(line.trimStart())
-            if (i > 0 && isHeading) {
-                val prevBlank = out.isNotEmpty() && out.last().isBlank()
-                if (!prevBlank) out.add("")
-            }
-            out.add(line)
-        }
-        return out.joinToString("\n")
+        btn.visibility = View.VISIBLE
+        btn.text = "${DailyQuestStore.kindLabel(quest)}  ·  ${quest.progress}/${quest.target}"
     }
 
     private fun renderMemoryStars(level: Int) {
@@ -290,7 +344,7 @@ class ContentDetailActivity : BaseActivity() {
         AlertDialog.Builder(this)
             .setTitle("내용 수정")
             .setView(view)
-            .setPositiveButton("저장") { _, _ ->
+            .showWithEditConfirms(this, onSave = {
                 val newTitle = etTitle.text.toString().trim().ifEmpty { "(제목없음)" }
                 val newBody = etBody.text.toString().trim()
                 val updated = card.copy(
@@ -302,9 +356,8 @@ class ContentDetailActivity : BaseActivity() {
                 CardStore.updateCard(this, updated)
                 render()
                 Toast.makeText(this, "저장했어요", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("취소", null)
-            .show()
+                true
+            })
     }
 
     private fun saveCurrentMemoSilently() {
@@ -315,13 +368,10 @@ class ContentDetailActivity : BaseActivity() {
     override fun onPause() {
         super.onPause()
         saveCurrentMemoSilently()
-        stopSpeaking()
     }
 
     override fun onDestroy() {
-        tts?.stop()
-        tts?.shutdown()
-        tts = null
+        StudyTtsHub.removeListener(ttsListener)
         super.onDestroy()
     }
 }

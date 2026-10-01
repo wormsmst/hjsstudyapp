@@ -36,7 +36,8 @@
             android:layout_height="wrap_content"
             android:minLines="8"
             android:gravity="top"
-            android:hint="본문 내용"/>
+            android:inputType="textMultiLine|textCapSentences"
+            android:hint="본문. 문단을 나누려면 Enter를 두 번 누르세요."/>
 
     </LinearLayout>
 </ScrollView>

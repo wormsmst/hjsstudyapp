@@ -46,7 +46,10 @@ class QuizWidgetProvider : AppWidgetProvider() {
         }
 
         fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int) {
-            val pool = CardStore.getAllCards(context).filter { it.type == "concept" && it.topicTitle.isNotBlank() && it.mnemonic.isNotBlank() }
+            val pool = conceptMnemonicQuizPool(
+                context,
+                CardStore.getAllCards(context).filter { it.type == "concept" && it.topicTitle.isNotBlank() }
+            )
             if (pool.isEmpty()) return
 
             val p = prefs(context)
@@ -61,9 +64,12 @@ class QuizWidgetProvider : AppWidgetProvider() {
             val selectedIdx = p.getInt(selectedIdxKey(widgetId), -1)
 
             if (target == null || choice0.isEmpty() || choice1.isEmpty() || choice2.isEmpty()) {
+                if (pool.size < 3) return
                 target = pool.random()
-                val wrong = pool.filter { it.mnemonic != target.mnemonic }.shuffled().take(2)
+                val wrong = pool.filter { it.mnemonic != target.mnemonic }.distinctBy { it.mnemonic }.shuffled().take(2)
+                if (wrong.size < 2) return
                 val choices = (wrong.map { it.mnemonic } + target.mnemonic).shuffled()
+                if (choices.size < 3) return
                 choice0 = choices[0]
                 choice1 = choices[1]
                 choice2 = choices[2]

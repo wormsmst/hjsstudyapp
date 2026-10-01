@@ -8,6 +8,10 @@ object CardRepository {
 
     private var cache: List<Card>? = null
 
+    fun invalidateCache() {
+        cache = null
+    }
+
     fun loadCards(context: Context): List<Card> {
         cache?.let { return it }
         val json = context.assets.open("cards.json")

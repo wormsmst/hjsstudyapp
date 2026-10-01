@@ -8,22 +8,26 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.speech.RecognizerIntent
+import android.text.SpannableStringBuilder
 import android.view.Gravity
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.widget.AppCompatButton
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import com.google.android.material.button.MaterialButton
 
 /**
- * 두문자퀴즈 통합 화면.
- * 매 라운드(문제)마다 6가지 유형(객관식/순서배열/OX/빈칸채우기/거꾸로/매칭) 중
- * 하나를 무작위로 고르되, 바로 이전 라운드와 같은 유형은 피한다.
- * 듀오링고 스타일: 두꺼운 알약형 버튼, 상단 진행바, 하단 고정 확인 버튼.
+ * 학습퀴즈. 목차·키워드·문장 문제를 주로 내고,
+ * 두문자는 손본 카드이거나 본문 목차와 맞는 것만 섞는다.
  */
 class QuizSessionActivity : BaseActivity() {
 
@@ -47,6 +51,7 @@ class QuizSessionActivity : BaseActivity() {
     private var totalPoints = 0.0
     private var totalPossible = 0.0
     private var roundAnswered = false
+    private var quizFinished = false
     private var currentRoundCards: List<Card> = emptyList()
     private var voiceTargetEditText: EditText? = null
 
@@ -68,10 +73,17 @@ class QuizSessionActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_quiz_session)
+        try {
+            setContentView(R.layout.activity_quiz_session)
+        } catch (e: Exception) {
+            Toast.makeText(this, "퀴즈 화면을 열 수 없어요. ${e.message ?: ""}", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
 
-        subject = intent.getStringExtra(EXTRA_SUBJECT) ?: ""
+        subject = canonicalizeSubject(intent.getStringExtra(EXTRA_SUBJECT) ?: "")
         reviewOnly = intent.getBooleanExtra(EXTRA_REVIEW_ONLY, false)
+        AppPrefs.markQuizOpened(this)
 
         tvHeader = findViewById(R.id.tvQuizHeader)
         tvHeader.text = if (reviewOnly) "🔁 오답 복습" else "🎲 학습퀴즈"
@@ -88,7 +100,14 @@ class QuizSessionActivity : BaseActivity() {
         findViewById<Button>(R.id.btnQuizShowContext).setOnClickListener { showContextDialog() }
 
         if (!buildSession()) return
-        renderRound()
+        StudyProgressStore.markActivity(this, subject, StudyProgressStore.KIND_QUIZ)
+        try {
+            renderRound()
+        } catch (e: Exception) {
+            Toast.makeText(this, "퀴즈 문제를 만들지 못했어요. ${e.message ?: ""}", Toast.LENGTH_LONG).show()
+            finish()
+        }
+        confirmLeaveOnBack("퀴즈를 나갈까요? 지금 점수는 저장되지 않아요.") { !quizFinished }
     }
 
     // ---------- 크기/스타일 헬퍼 ----------
@@ -104,6 +123,14 @@ class QuizSessionActivity : BaseActivity() {
         }
     }
 
+    /** MaterialButton은 커스텀 background를 거부하므로 AppCompatButton을 쓴다. */
+    private fun newQuizButton(): AppCompatButton = AppCompatButton(this, null, 0)
+
+    private fun applyPill(view: android.view.View, drawable: GradientDrawable) {
+        (view as? MaterialButton)?.backgroundTintList = null
+        view.background = drawable
+    }
+
     private val defaultFill by lazy { ContextCompat.getColor(this, R.color.bg_card) }
     private val defaultStroke = Color.parseColor("#3A808080")
     private val defaultText by lazy { ContextCompat.getColor(this, R.color.text_main) }
@@ -115,7 +142,7 @@ class QuizSessionActivity : BaseActivity() {
         b.textSize = 15.5f
         b.isAllCaps = false
         b.setTypeface(b.typeface, android.graphics.Typeface.BOLD)
-        b.background = pill(defaultFill, defaultStroke)
+        applyPill(b, pill(defaultFill, defaultStroke))
         b.setTextColor(defaultText)
         b.elevation = 0f
         b.gravity = Gravity.CENTER
@@ -125,22 +152,32 @@ class QuizSessionActivity : BaseActivity() {
     }
 
     private fun markCorrect(b: Button) {
-        b.background = pill(colorCorrect, colorCorrect)
+        applyPill(b, pill(colorCorrect, colorCorrect))
         b.setTextColor(colorWhite)
     }
 
     private fun markWrong(b: Button) {
-        b.background = pill(colorWrong, colorWrong)
+        applyPill(b, pill(colorWrong, colorWrong))
         b.setTextColor(colorWhite)
     }
 
     // ---------- 세션 구성 ----------
 
     private fun buildSession(): Boolean {
-        val allMnemonics = CardStore.getAllMnemonicCards(this)
-            .filter { it.subject == subject && it.topicTitle.isNotBlank() && it.mnemonic.isNotBlank() }
+        val allConcepts = CardStore.getAllCards(this).filter {
+            it.type == "concept" &&
+                (subject == ALL_SUBJECTS_KEY || canonicalizeSubject(it.subject) == subject)
+        }
+        val rawMnemonics = CardStore.getAllMnemonicCards(this)
+            .filter {
+                (subject == ALL_SUBJECTS_KEY || canonicalizeSubject(it.subject) == subject) &&
+                    it.topicTitle.isNotBlank() && it.mnemonic.isNotBlank()
+            }
             .distinctBy { it.mnemonic }
-        basePool = applyQuizFilters(this, allMnemonics, reviewOnly)
+        val worthyMnemonics = filterMnemonicQuizPool(this, rawMnemonics, allConcepts)
+        val worthyConceptMnemonics = conceptMnemonicQuizPool(this, allConcepts)
+            .filter { c -> worthyMnemonics.none { it.mnemonic == c.mnemonic } }
+        basePool = applyQuizFilters(this, worthyMnemonics + worthyConceptMnemonics, reviewOnly)
         orderablePool = basePool.filter {
             it.mnemonic.contains(".") &&
                 it.mnemonic.split(".").map { t -> t.trim() }.filter { t -> t.isNotEmpty() }.size >= 2
@@ -149,27 +186,29 @@ class QuizSessionActivity : BaseActivity() {
             it.mnemonic.split(".").map { t -> t.trim() }.filter { t -> t.isNotEmpty() }
         }.distinct()
 
-        val allConcepts = CardStore.getAllCards(this).filter { it.type == "concept" && it.subject == subject }
         conceptPool = applyQuizFilters(this, allConcepts, reviewOnly)
             .filter { extractKeywordCandidates(it.back).size >= 1 }
         keywordPool = conceptPool.flatMap { extractKeywordCandidates(it.back) }.distinct()
 
         val outlineSourceConcepts = applyQuizFilters(this, allConcepts, reviewOnly)
-        outlineGroups = buildOutlineGroups(outlineSourceConcepts)
+        outlineGroups = try { buildOutlineGroups(outlineSourceConcepts) } catch (_: Exception) { emptyList() }
         outlineLabelPool = outlineGroups.flatMap { it.siblingLabels }.distinct()
-        sentenceItems = buildSentenceQuizItems(outlineSourceConcepts)
+        sentenceItems = try { buildSentenceQuizItems(outlineSourceConcepts) } catch (_: Exception) { emptyList() }
 
-        val types = mutableListOf<QType>()
-        if (basePool.size >= 4) types.add(QType.CHOICE)
-        if (basePool.size >= 2) types.add(QType.OX)
-        if (basePool.distinctBy { it.topicTitle }.size >= 4) types.add(QType.REVERSE)
-        if (orderablePool.isNotEmpty()) types.add(QType.ORDER)
-        if (orderablePool.isNotEmpty() && allTokens.size >= 4) types.add(QType.FILLBLANK)
-        if (basePool.size >= 5) types.add(QType.MATCH)
-        if (conceptPool.isNotEmpty() && keywordPool.size >= 4) types.add(QType.KEYWORD)
-        if (outlineGroups.isNotEmpty()) types.add(QType.OUTLINE)
-        if (sentenceItems.isNotEmpty()) types.add(QType.SENTENCE)
-        eligibleTypes = types
+        val contentTypes = mutableListOf<QType>()
+        if (conceptPool.isNotEmpty() && keywordPool.size >= 4) contentTypes.add(QType.KEYWORD)
+        if (outlineGroups.isNotEmpty()) contentTypes.add(QType.OUTLINE)
+        if (sentenceItems.isNotEmpty()) contentTypes.add(QType.SENTENCE)
+
+        val mnemonicTypes = mutableListOf<QType>()
+        if (basePool.size >= 4) mnemonicTypes.add(QType.CHOICE)
+        if (basePool.size >= 2) mnemonicTypes.add(QType.OX)
+        if (basePool.distinctBy { it.topicTitle }.size >= 4) mnemonicTypes.add(QType.REVERSE)
+        if (orderablePool.isNotEmpty()) mnemonicTypes.add(QType.ORDER)
+        if (orderablePool.isNotEmpty() && allTokens.size >= 4) mnemonicTypes.add(QType.FILLBLANK)
+        if (basePool.size >= 5) mnemonicTypes.add(QType.MATCH)
+
+        eligibleTypes = contentTypes + mnemonicTypes
 
         if (eligibleTypes.isEmpty()) {
             val msg = if (reviewOnly) "복습할 오답 카드가 부족해요" else "학습 카드가 부족해서 퀴즈를 만들 수 없어요"
@@ -178,11 +217,16 @@ class QuizSessionActivity : BaseActivity() {
             return false
         }
 
+        val bag = mutableListOf<QType>()
+        contentTypes.forEach { t -> repeat(3) { bag.add(t) } }
+        mnemonicTypes.forEach { bag.add(it) }
+        val pickFrom = if (bag.isNotEmpty()) bag else eligibleTypes
+
         val roundCount = 10
         val seq = mutableListOf<QType>()
         var last: QType? = null
         repeat(roundCount) {
-            val candidates = if (eligibleTypes.size > 1) eligibleTypes.filter { it != last } else eligibleTypes
+            val candidates = if (pickFrom.distinct().size > 1) pickFrom.filter { it != last } else pickFrom
             val picked = candidates.random()
             seq.add(picked)
             last = picked
@@ -275,7 +319,7 @@ class QuizSessionActivity : BaseActivity() {
     }
 
     private fun choiceButton(text: String, onClick: (Button) -> Unit): Button {
-        val b = Button(this)
+        val b = newQuizButton()
         b.text = text
         styleOptionButton(b)
         b.setOnClickListener { onClick(b) }
@@ -370,7 +414,7 @@ class QuizSessionActivity : BaseActivity() {
         val tileButtons = mutableListOf<Button>()
 
         shuffled.forEachIndexed { idx, token ->
-            val b = Button(this)
+            val b = newQuizButton()
             val glp = GridLayout.LayoutParams()
             glp.width = 0
             glp.height = GridLayout.LayoutParams.WRAP_CONTENT
@@ -381,7 +425,7 @@ class QuizSessionActivity : BaseActivity() {
             b.textSize = 19f
             b.isAllCaps = false
             b.setTypeface(b.typeface, android.graphics.Typeface.BOLD)
-            b.background = pill(defaultFill, defaultStroke, radiusDp = 14)
+            applyPill(b, pill(defaultFill, defaultStroke, radiusDp = 14))
             b.setTextColor(defaultText)
             b.elevation = 0f
             b.setPadding(0, dp(10), 0, dp(10))
@@ -391,7 +435,7 @@ class QuizSessionActivity : BaseActivity() {
                 used.add(idx)
                 userSeq.add(token)
                 b.isEnabled = false
-                b.background = pill(Color.parseColor("#33808080"), Color.TRANSPARENT, strokeWidthDp = 0, radiusDp = 14)
+                applyPill(b, pill(Color.parseColor("#33808080"), Color.TRANSPARENT, strokeWidthDp = 0, radiusDp = 14))
                 tvAnswer.text = userSeq.joinToString(" . ")
                 if (userSeq.size == tokens.size) {
                     val correct = userSeq == tokens
@@ -426,9 +470,9 @@ class QuizSessionActivity : BaseActivity() {
         val rowLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         row.layoutParams = rowLp
 
-        val trueBtn = Button(this)
+        val trueBtn = newQuizButton()
         trueBtn.text = "⭕ 참"
-        val falseBtn = Button(this)
+        val falseBtn = newQuizButton()
         falseBtn.text = "❌ 거짓"
         for (b in listOf(trueBtn, falseBtn)) {
             b.textSize = 18f
@@ -436,7 +480,7 @@ class QuizSessionActivity : BaseActivity() {
             b.setPadding(dp(8), dp(14), dp(8), dp(14))
             b.isAllCaps = false
             b.setTypeface(b.typeface, android.graphics.Typeface.BOLD)
-            b.background = pill(defaultFill, defaultStroke, radiusDp = 18)
+            applyPill(b, pill(defaultFill, defaultStroke, radiusDp = 18))
             b.setTextColor(defaultText)
             b.elevation = 0f
         }
@@ -719,13 +763,13 @@ class QuizSessionActivity : BaseActivity() {
         et.layoutParams = etLp
         et.setTextColor(defaultText)
 
-        val btnVoice = Button(this)
+        val btnVoice = newQuizButton()
         btnVoice.text = "🎤"
         btnVoice.minWidth = dp(56)
         btnVoice.minHeight = dp(56)
         val vlp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT); vlp.marginStart = dp(8)
         btnVoice.layoutParams = vlp
-        btnVoice.background = pill(defaultFill, defaultStroke, radiusDp = 14)
+        applyPill(btnVoice, pill(defaultFill, defaultStroke, radiusDp = 14))
         btnVoice.setOnClickListener { startVoiceInput(et) }
 
         inputRow.addView(et)
@@ -737,10 +781,10 @@ class QuizSessionActivity : BaseActivity() {
         tvFeedback.setPadding(0, dp(8), 0, dp(8))
         container.addView(tvFeedback)
 
-        val btnSubmit = Button(this)
+        val btnSubmit = newQuizButton()
         btnSubmit.text = "제출하기"
         styleOptionButton(btnSubmit)
-        btnSubmit.background = pill(ContextCompat.getColor(this, R.color.primary), ContextCompat.getColor(this, R.color.primary))
+        applyPill(btnSubmit, pill(ContextCompat.getColor(this, R.color.primary), ContextCompat.getColor(this, R.color.primary)))
         btnSubmit.setTextColor(Color.WHITE)
         btnSubmit.setOnClickListener {
             if (roundAnswered) return@setOnClickListener
@@ -848,10 +892,10 @@ class QuizSessionActivity : BaseActivity() {
                 if (roundAnswered) return@choiceButton
                 if (label in selected) {
                     selected.remove(label)
-                    pressed.background = pill(defaultFill, defaultStroke)
+                    applyPill(pressed, pill(defaultFill, defaultStroke))
                 } else {
                     selected.add(label)
-                    pressed.background = pill(colorSelected, ContextCompat.getColor(this, R.color.primary))
+                    applyPill(pressed, pill(colorSelected, ContextCompat.getColor(this, R.color.primary)))
                 }
                 updateSelectedText()
             }
@@ -859,10 +903,10 @@ class QuizSessionActivity : BaseActivity() {
             container.addView(b)
         }
 
-        val btnSubmit = Button(this)
+        val btnSubmit = newQuizButton()
         btnSubmit.text = "제출하기"
         styleOptionButton(btnSubmit)
-        btnSubmit.background = pill(ContextCompat.getColor(this, R.color.primary), ContextCompat.getColor(this, R.color.primary))
+        applyPill(btnSubmit, pill(ContextCompat.getColor(this, R.color.primary), ContextCompat.getColor(this, R.color.primary)))
         btnSubmit.setTextColor(Color.WHITE)
         btnSubmit.setOnClickListener {
             if (roundAnswered) return@setOnClickListener
@@ -880,7 +924,7 @@ class QuizSessionActivity : BaseActivity() {
                 val label = btn.text.toString()
                 when {
                     label in correctSet && label in selected -> markCorrect(btn)
-                    label in correctSet && label !in selected -> btn.background = pill(Color.parseColor("#553D2F00"), Color.parseColor("#FFC107"))
+                    label in correctSet && label !in selected -> applyPill(btn, pill(Color.parseColor("#553D2F00"), Color.parseColor("#FFC107")))
                     label !in correctSet && label in selected -> markWrong(btn)
                 }
                 btn.isEnabled = false
@@ -929,31 +973,68 @@ class QuizSessionActivity : BaseActivity() {
 
     // ---------- 본문 보기 / 결과 ----------
 
+    /** 두문자 카드 back은 PDF 발췌라 마지막 글자 구간이 잘린 경우가 많다. 같은 주제 개념카드를 우선 쓴다. */
+    private fun fullTopicBody(card: Card): CharSequence {
+        val subject = canonicalizeSubject(card.subject)
+        val concept = CardStore.getAllCards(this).firstOrNull {
+            it.type == "concept" &&
+                canonicalizeSubject(it.subject) == subject &&
+                it.topicTitle == card.topicTitle &&
+                it.back.isNotBlank()
+        }
+        val source = if (concept != null && concept.back.length >= card.back.length) concept else card
+        val raw = source.back.ifBlank { card.back }.ifBlank { "본문 내용이 없어요" }
+        val keep = CardStore.isLocallyEdited(this, source.id)
+        return styledStudyAnswer(this, raw, keep)
+    }
+
     private fun showContextDialog() {
         if (currentRoundCards.isEmpty()) return
-        val text = currentRoundCards.joinToString("\n\n━━━━━━━━━━\n\n") { c ->
-            val mnemonicLine = if (c.mnemonic.isNotBlank()) "두문자: ${c.mnemonic}\n\n" else ""
-            "[${c.topicTitle}]\n$mnemonicLine${c.back.ifBlank { "본문 내용이 없어요" }}"
+        val sb = SpannableStringBuilder()
+        currentRoundCards.forEachIndexed { i, c ->
+            if (i > 0) sb.append("\n\n━━━━━━━━━━\n\n")
+            sb.append("[${c.topicTitle}]\n")
+            if (c.mnemonic.isNotBlank()) sb.append("두문자: ${c.mnemonic}\n\n")
+            sb.append(fullTopicBody(c))
         }
-        val scroll = android.widget.ScrollView(this)
         val tv = TextView(this)
-        tv.text = text
-        tv.setPadding(dp(20), dp(16), dp(20), dp(16))
-        tv.textSize = 14f
+        tv.text = sb
+        tv.setTextIsSelectable(true)
+        tv.setPadding(dp(20), dp(12), dp(20), dp(32))
+        tv.textSize = 15f
+        tv.setLineSpacing(dp(4).toFloat(), 1f)
         tv.setTextColor(ContextCompat.getColor(this, R.color.text_main))
-        scroll.addView(tv)
+        val scroll = ScrollView(this)
+        scroll.isFillViewport = true
+        scroll.addView(
+            tv,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+        val maxH = (resources.displayMetrics.heightPixels * 0.72f).toInt()
+        val host = FrameLayout(this)
+        host.addView(
+            scroll,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, maxH)
+        )
         AlertDialog.Builder(this)
             .setTitle("본문 보기")
-            .setView(scroll)
+            .setView(host)
             .setPositiveButton("닫기", null)
             .show()
     }
 
     private fun showResultDialog() {
+        quizFinished = true
         AlertDialog.Builder(this)
             .setTitle("퀴즈 결과")
             .setMessage("총 ${fmtScore(totalPoints)} / ${fmtScore(totalPossible)}점을 받았어요!\n(문제 유형에 따라 만점이 달라요 — 목차퀴즈나 키워드 맞추기는 한 문제에 여러 점수가 걸려있어요)")
-            .setPositiveButton("다시 풀기") { _, _ -> if (buildSession()) renderRound() }
+            .setPositiveButton("다시 풀기") { _, _ ->
+                quizFinished = false
+                if (buildSession()) renderRound()
+            }
             .setNegativeButton("닫기") { _, _ -> finish() }
             .setCancelable(false)
             .show()

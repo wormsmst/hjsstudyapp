@@ -15,7 +15,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="10dp">
 
         <LinearLayout
             android:id="@+id/widgetHeaderRow"
@@ -23,51 +26,51 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingBottom="4dp">
+            android:paddingBottom="2dp">
 
             <TextView
                 android:id="@+id/widgetGrade"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="#FF6D00"
+                android:textColor="#C45A00"
                 android:textSize="11sp"
-                android:textStyle="bold"/>
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"/>
 
             <TextView
-                android:id="@+id/widgetHint"
+                android:id="@+id/widgetMemory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#5F6368"
-                android:textSize="10sp"
-                android:text="👆 탭: 정답 보기"/>
+                android:textColor="#D4A017"
+                android:textSize="12sp"
+                android:text="☆☆☆☆☆"/>
         </LinearLayout>
 
         <TextView
-            android:id="@+id/widgetMemory"
-            android:layout_width="wrap_content"
+            android:id="@+id/widgetTitle"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:textColor="#FFC107"
-            android:textSize="11sp"
-            android:text="☆☆☆☆☆"/>
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="6dp"
+            android:textColor="#1A1C1E"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:lineSpacingExtra="2dp"
+            android:maxLines="3"
+            android:ellipsize="end"
+            android:text="제목"/>
 
-        <ScrollView
+        <ListView
+            android:id="@+id/widgetListView"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:fillViewport="true"
-            android:scrollbars="vertical">
-
-            <TextView
-                android:id="@+id/widgetText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="#1A1C1E"
-                android:textSize="13sp"
-                android:lineSpacingExtra="3dp"
-                android:text="위젯을 탭해서 오늘의 암기카드를 확인하세요"/>
-        </ScrollView>
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            android:scrollbars="none"
+            android:fadeScrollbars="true"/>
 
         <TextView
             android:id="@+id/widgetNext"
@@ -75,11 +78,11 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:gravity="center"
-            android:textColor="#2962FF"
+            android:textColor="#2F6FED"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:padding="6dp"
-            android:text="다음 카드 ▶"/>
-
+            android:paddingTop="4dp"
+            android:paddingBottom="2dp"
+            android:text="다음 카드"/>
     </LinearLayout>
 </FrameLayout>

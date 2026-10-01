@@ -15,9 +15,10 @@ class ContentStudyListActivity : BaseActivity() {
     }
 
     private lateinit var adapter: ContentAdapter
-    private lateinit var allConcepts: List<Card>
+    private var allConcepts: List<Card> = emptyList()
     private lateinit var subject: String
     private var outlineMode = false
+    private var currentQuery: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,10 +33,19 @@ class ContentStudyListActivity : BaseActivity() {
         rv.layoutManager = LinearLayoutManager(this)
         adapter = ContentAdapter(
             titleFn = { it.topicTitle },
-            subtitleFn = { if (it.mnemonic.isNotBlank()) "두문자: ${it.mnemonic}" else "" },
-            onClick = { card -> openDetail(card.id) }
+            subtitleFn = {
+                if (outlineMode) ""
+                else if (it.mnemonic.isNotBlank()) "두문자: ${it.mnemonic}"
+                else ""
+            },
+            memoryFn = if (outlineMode) null else { card ->
+                CardStore.memoryStarsLabel(CardStore.getMemoryLevel(this, card.subject, card.topicTitle))
+            },
+            onClick = { card -> openCard(card.id) }
         )
         rv.adapter = adapter
+
+        loadConcepts()
 
         findViewById<EditText>(R.id.etSearch).addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -44,25 +54,21 @@ class ContentStudyListActivity : BaseActivity() {
             }
             override fun afterTextChanged(s: Editable?) {}
         })
-
-        findViewById<android.widget.Button>(R.id.btnGoExam).setOnClickListener {
-            val intent = Intent(this, ExamSessionActivity::class.java)
-            intent.putExtra(EXTRA_SUBJECT, subject)
-            startActivity(intent)
-        }
     }
 
     override fun onResume() {
         super.onResume()
+        loadConcepts()
+        applyFilter(currentQuery)
+    }
+
+    private fun loadConcepts() {
         allConcepts = sortConceptCards(
             this,
             CardStore.getAllCards(this).filter { it.type == "concept" && it.subject == subject },
             subject
         )
-        applyFilter(currentQuery)
     }
-
-    private var currentQuery: String = ""
 
     private fun applyFilter(query: String) {
         currentQuery = query
@@ -70,20 +76,23 @@ class ContentStudyListActivity : BaseActivity() {
         val filtered = if (q.isEmpty()) {
             allConcepts
         } else {
-            allConcepts.filter { it.topicTitle.contains(q, ignoreCase = true) || it.back.contains(q, ignoreCase = true) }
+            allConcepts.filter {
+                it.topicTitle.contains(q, ignoreCase = true) || it.back.contains(q, ignoreCase = true)
+            }
         }
         adapter.submitList(filtered)
     }
 
-    private fun openDetail(cardId: String) {
-        val ids = adapter.currentList().map { it.id }
-        val idx = ids.indexOf(cardId)
+    private fun openCard(cardId: String) {
         if (outlineMode) {
-            val intent = Intent(this, OutlineDrillActivity::class.java)
-            intent.putExtra(OutlineDrillActivity.EXTRA_CARD_ID, cardId)
-            startActivity(intent)
+            startActivity(
+                Intent(this, OutlineDrillActivity::class.java)
+                    .putExtra(OutlineDrillActivity.EXTRA_CARD_ID, cardId)
+            )
             return
         }
+        val ids = adapter.currentList().map { it.id }
+        val idx = ids.indexOf(cardId)
         val intent = Intent(this, ContentDetailActivity::class.java)
         intent.putExtra(ContentDetailActivity.EXTRA_IDS, ArrayList(ids))
         intent.putExtra(ContentDetailActivity.EXTRA_INDEX, idx)

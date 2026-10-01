@@ -11,12 +11,14 @@ class ContentAdapter(
     private val items: MutableList<Card> = mutableListOf(),
     private val titleFn: (Card) -> String,
     private val subtitleFn: (Card) -> String,
+    private val memoryFn: ((Card) -> String)? = null,
     private val onClick: (Card) -> Unit
 ) : RecyclerView.Adapter<ContentAdapter.VH>() {
 
     class VH(view: View) : RecyclerView.ViewHolder(view) {
         val tvTitle: TextView = view.findViewById(R.id.tvRowTitle)
         val tvSubtitle: TextView = view.findViewById(R.id.tvRowSubtitle)
+        val tvMemory: TextView = view.findViewById(R.id.tvRowMemory)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -30,6 +32,13 @@ class ContentAdapter(
         val sub = subtitleFn(card)
         holder.tvSubtitle.text = sub
         holder.tvSubtitle.visibility = if (sub.isBlank()) View.GONE else View.VISIBLE
+        val mem = memoryFn?.invoke(card).orEmpty()
+        if (mem.isBlank()) {
+            holder.tvMemory.visibility = View.GONE
+        } else {
+            holder.tvMemory.visibility = View.VISIBLE
+            holder.tvMemory.text = mem
+        }
         holder.itemView.setOnClickListener { onClick(card) }
     }
 

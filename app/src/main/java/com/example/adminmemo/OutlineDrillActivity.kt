@@ -1,41 +1,29 @@
 package com.example.adminmemo
 
-import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Bundle
-import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.View
 import android.widget.ImageButton
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.cardview.widget.CardView
-import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 
-/**
- * 목차학습: 대목차 -> 중목차 -> 소목차 -> 본문 순으로 탭할 때마다 한 단계씩
- * 내려가며 보여주는 화면. 더 내려갈 목차가 없으면 그 항목의 실제 내용을 보여준다.
- */
+/** 한 주제의 목차를 같은 화면에서 아코디언으로 펼친다. */
 class OutlineDrillActivity : BaseActivity() {
 
     companion object {
         const val EXTRA_CARD_ID = "extra_card_id"
     }
 
+    private val expandedTopics = mutableSetOf<String>()
+    private val expandedKeys = mutableSetOf<String>()
+    private val revealedKeys = mutableSetOf<String>()
+    private lateinit var adapter: OutlineTreeAdapter
     private lateinit var card: Card
-    private lateinit var roots: List<OutlineNode>
-    private val stack = mutableListOf<OutlineNode>()
-
-    private lateinit var tvBreadcrumb: TextView
-    private lateinit var container: LinearLayout
+    private lateinit var rootsByCard: Map<String, List<OutlineNode>>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_outline_drill)
-
-        tvBreadcrumb = findViewById(R.id.tvOutlineBreadcrumb)
-        container = findViewById(R.id.outlineContainer)
 
         val cardId = intent.getStringExtra(EXTRA_CARD_ID)
         val found = CardStore.getAllCards(this).firstOrNull { it.id == cardId }
@@ -45,152 +33,70 @@ class OutlineDrillActivity : BaseActivity() {
             return
         }
         card = found
-        roots = parseOutline(card.back).filter { it.level >= 0 }
-
-        findViewById<ImageButton>(R.id.btnOutlineBack).setOnClickListener { goBack() }
-
-        render()
-    }
-
-    override fun onBackPressed() {
-        if (stack.isNotEmpty()) {
-            goBack()
-        } else {
-            super.onBackPressed()
-        }
-    }
-
-    private fun goBack() {
-        if (stack.isNotEmpty()) {
-            stack.removeAt(stack.size - 1)
-            render()
-        } else {
-            finish()
-        }
-    }
-
-    private fun currentChildren(): List<OutlineNode> = if (stack.isEmpty()) roots else stack.last().children
-
-    private fun shortLabel(label: String): String {
-        return if (label.length > 14) label.take(14) + "…" else label
-    }
-
-    private fun render() {
-        val crumbs = mutableListOf(card.topicTitle)
-        crumbs.addAll(stack.map { shortLabel(it.label) })
-        tvBreadcrumb.text = crumbs.joinToString(" › ")
-
-        container.removeAllViews()
-
-        val node = stack.lastOrNull()
-        val children = currentChildren()
-
-        if (node != null && node.bodyText.isNotBlank()) {
-            container.addView(makeIntroText(node.bodyText))
-        }
-
-        if (children.isEmpty()) {
-            if (node != null) {
-                container.addView(makeLeafCard(node))
-            } else {
-                val tv = TextView(this)
-                tv.text = "이 주제에는 인식된 목차 구조가 없어요. 본문학습에서 전체 내용을 확인해주세요."
-                tv.setTextColor(ContextCompat.getColor(this, R.color.text_sub))
-                tv.textSize = 14f
-                container.addView(tv)
+        rootsByCard = mapOf(
+            card.id to try {
+                parseOutline(card.back).filter { it.level >= 0 }
+            } catch (_: Exception) {
+                emptyList()
             }
-        } else {
-            children.forEach { child ->
-                container.addView(makeRow(child))
+        )
+
+        findViewById<TextView>(R.id.tvOutlineBreadcrumb).text = card.topicTitle
+        StudyProgressStore.markTopic(this, card.subject, card.topicTitle)
+        findViewById<ImageButton>(R.id.btnOutlineBack).setOnClickListener { finish() }
+
+        adapter = OutlineTreeAdapter(
+            onTopicClick = { item ->
+                if (item.card.id in expandedTopics) {
+                    expandedTopics.remove(item.card.id)
+                    expandedKeys.removeAll { it.startsWith(item.card.id + "/") }
+                } else {
+                    expandedTopics.add(item.card.id)
+                }
+                refresh()
+            },
+            onHeadingClick = { item ->
+                if (item.node.level == 0) {
+                    when {
+                        !item.titleShown -> revealedKeys.add(item.key)
+                        !item.expanded -> {
+                            if (item.hasSubtree) expandedKeys.add(item.key)
+                            else revealedKeys.remove(item.key)
+                        }
+                        else -> {
+                            expandedKeys.remove(item.key)
+                            expandedKeys.removeAll { it.startsWith(item.key + "/") }
+                        }
+                    }
+                    refresh()
+                    return@OutlineTreeAdapter
+                }
+                if (!item.canExpand) return@OutlineTreeAdapter
+                if (item.key in expandedKeys) {
+                    expandedKeys.remove(item.key)
+                    expandedKeys.removeAll { it.startsWith(item.key + "/") }
+                } else {
+                    expandedKeys.add(item.key)
+                }
+                refresh()
             }
-        }
+        )
+        val rv = findViewById<RecyclerView>(R.id.rvOutlineTree)
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = adapter
+        refresh()
     }
 
-    private fun makeIntroText(text: String): TextView {
-        val tv = TextView(this)
-        tv.text = text
-        tv.setTextColor(ContextCompat.getColor(this, R.color.text_main))
-        tv.textSize = 15f
-        tv.setLineSpacing(6f, 1f)
-        val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        lp.bottomMargin = dp(16)
-        tv.layoutParams = lp
-        return tv
-    }
-
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-
-    private fun makeRow(node: OutlineNode): CardView {
-        val cv = CardView(this)
-        val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        lp.bottomMargin = dp(10)
-        cv.layoutParams = lp
-        cv.radius = dp(16).toFloat()
-        cv.cardElevation = dp(1).toFloat()
-        cv.foreground = ContextCompat.getDrawable(this, android.R.drawable.list_selector_background)
-        cv.setCardBackgroundColor(ContextCompat.getColor(this, R.color.bg_card))
-
-        val row = LinearLayout(this)
-        row.orientation = LinearLayout.HORIZONTAL
-        row.gravity = Gravity.CENTER_VERTICAL
-        row.setPadding(dp(18), dp(16), dp(18), dp(16))
-
-        val tv = TextView(this)
-        tv.text = node.label
-        tv.setTextColor(ContextCompat.getColor(this, R.color.text_main))
-        tv.textSize = 15f
-        val hasChildren = node.children.isNotEmpty()
-        if (hasChildren) tv.setTypeface(tv.typeface, Typeface.BOLD)
-        val tvLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        tv.layoutParams = tvLp
-
-        val arrow = TextView(this)
-        arrow.text = if (hasChildren) "›" else "📄"
-        arrow.setTextColor(ContextCompat.getColor(this, R.color.primary))
-        arrow.textSize = 18f
-
-        row.addView(tv)
-        row.addView(arrow)
-        cv.addView(row)
-
-        cv.setOnClickListener {
-            stack.add(node)
-            render()
-        }
-        return cv
-    }
-
-    private fun makeLeafCard(node: OutlineNode): CardView {
-        val cv = CardView(this)
-        val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        cv.layoutParams = lp
-        cv.radius = dp(18).toFloat()
-        cv.cardElevation = dp(1).toFloat()
-        cv.setCardBackgroundColor(Color.parseColor("#1F2962FF"))
-
-        val col = LinearLayout(this)
-        col.orientation = LinearLayout.VERTICAL
-        col.setPadding(dp(20), dp(20), dp(20), dp(20))
-
-        val tvTitle = TextView(this)
-        tvTitle.text = node.label
-        tvTitle.setTextColor(ContextCompat.getColor(this, R.color.primary))
-        tvTitle.setTypeface(tvTitle.typeface, Typeface.BOLD)
-        tvTitle.textSize = 16f
-        val tlp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        tlp.bottomMargin = dp(10)
-        tvTitle.layoutParams = tlp
-
-        val tvBody = TextView(this)
-        tvBody.text = node.bodyText.ifBlank { "(내용 없음)" }
-        tvBody.setTextColor(ContextCompat.getColor(this, R.color.text_main))
-        tvBody.textSize = 15f
-        tvBody.setLineSpacing(dp(4).toFloat(), 1f)
-        enableGeminiSelection(this, tvBody) { node.bodyText }
-
-        col.addView(tvTitle)
-        col.addView(tvBody)
-        cv.addView(col)
-        return cv
+    private fun refresh() {
+        adapter.submitList(
+            flattenOutlineTree(
+                listOf(card),
+                rootsByCard,
+                expandedTopics,
+                expandedKeys,
+                includeTopics = false,
+                revealedKeys = revealedKeys
+            )
+        )
     }
 }

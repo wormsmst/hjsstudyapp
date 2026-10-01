@@ -123,7 +123,12 @@ class ContentManageActivity : BaseActivity() {
         val rawConcepts = all.filter { it.type == "concept" }
         conceptCards = sortConceptCards(this, rawConcepts, subject)
         mnemonicCards = all.filter { it.type == "mnemonic" }
-            .sortedWith(compareBy({ numSortKey(it.num).first }, { numSortKey(it.num).second }))
+            .sortedWith(
+                compareBy<Card>(
+                    { numSortKey(it.num).first },
+                    { numSortKey(it.num).second }
+                ).thenComparator { a, b -> compareNatural(a.topicTitle, b.topicTitle) }
+            )
         val mnemonicTopics = mnemonicCards.map { it.topicTitle }.toSet()
         unregisteredCards = conceptCards.filter { it.topicTitle !in mnemonicTopics }
     }
@@ -192,25 +197,27 @@ class ContentManageActivity : BaseActivity() {
         AlertDialog.Builder(this)
             .setTitle("개념카드 수정")
             .setView(view)
-            .setPositiveButton("저장") { _, _ ->
-                val newTitle = etTitle.text.toString().trim().ifEmpty { "(제목없음)" }
-                val newBody = etBody.text.toString().trim()
-                val updated = card.copy(
-                    topicTitle = newTitle,
-                    title = "${card.num} $newTitle".trim(),
-                    front = if (card.grade.isNotBlank()) "$newTitle\n(${card.grade})" else newTitle,
-                    back = newBody
-                )
-                CardStore.updateCard(this, updated)
-                loadData(); refreshList()
-                Toast.makeText(this, "저장했어요", Toast.LENGTH_SHORT).show()
-            }
-            .setNeutralButton("삭제") { _, _ ->
-                CardStore.deleteCard(this, card.id)
-                loadData(); refreshList()
-            }
-            .setNegativeButton("취소", null)
-            .show()
+            .showWithEditConfirms(
+                this,
+                onSave = {
+                    val newTitle = etTitle.text.toString().trim().ifEmpty { "(제목없음)" }
+                    val newBody = etBody.text.toString().trim()
+                    val updated = card.copy(
+                        topicTitle = newTitle,
+                        title = "${card.num} $newTitle".trim(),
+                        front = if (card.grade.isNotBlank()) "$newTitle\n(${card.grade})" else newTitle,
+                        back = newBody
+                    )
+                    CardStore.updateCard(this, updated)
+                    loadData(); refreshList()
+                    Toast.makeText(this, "저장했어요", Toast.LENGTH_SHORT).show()
+                    true
+                },
+                onDelete = {
+                    CardStore.deleteCard(this, card.id)
+                    loadData(); refreshList()
+                }
+            )
     }
 
     // ---- 두문자 편집 ----
@@ -226,31 +233,34 @@ class ContentManageActivity : BaseActivity() {
         AlertDialog.Builder(this)
             .setTitle("두문자 수정")
             .setView(view)
-            .setPositiveButton("저장") { _, _ ->
-                val topic = etTopic.text.toString().trim().ifEmpty { "(제목없음)" }
-                val mnemonic = etMnemonic.text.toString().trim()
-                val ctx = etContext.text.toString().trim()
-                if (mnemonic.isEmpty()) {
-                    Toast.makeText(this, "두문자를 입력해주세요", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+            .showWithEditConfirms(
+                this,
+                onSave = {
+                    val topic = etTopic.text.toString().trim().ifEmpty { "(제목없음)" }
+                    val mnemonic = etMnemonic.text.toString().trim()
+                    val ctx = etContext.text.toString().trim()
+                    if (mnemonic.isEmpty()) {
+                        Toast.makeText(this, "두문자를 입력해주세요", Toast.LENGTH_SHORT).show()
+                        false
+                    } else {
+                        val updated = card.copy(
+                            topicTitle = topic,
+                            mnemonic = mnemonic,
+                            title = "두문자: $mnemonic",
+                            front = "[$topic]\n두문자 '$mnemonic' 은(는) 무엇의 앞글자일까?",
+                            back = ctx,
+                            mnemonics = listOf(mnemonic)
+                        )
+                        CardStore.updateCard(this, updated)
+                        loadData(); refreshList()
+                        true
+                    }
+                },
+                onDelete = {
+                    CardStore.deleteCard(this, card.id)
+                    loadData(); refreshList()
                 }
-                val updated = card.copy(
-                    topicTitle = topic,
-                    mnemonic = mnemonic,
-                    title = "두문자: $mnemonic",
-                    front = "[$topic]\n두문자 '$mnemonic' 은(는) 무엇의 앞글자일까?",
-                    back = ctx,
-                    mnemonics = listOf(mnemonic)
-                )
-                CardStore.updateCard(this, updated)
-                loadData(); refreshList()
-            }
-            .setNeutralButton("삭제") { _, _ ->
-                CardStore.deleteCard(this, card.id)
-                loadData(); refreshList()
-            }
-            .setNegativeButton("취소", null)
-            .show()
+            )
     }
 
     // ---- 새 두문자 추가 (두문자미등록 탭 또는 FAB) ----

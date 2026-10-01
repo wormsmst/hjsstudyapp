@@ -1,9 +1,26 @@
 <resources>
-    <color name="primary">#2962FF</color>
-    <color name="primary_dark">#0039CB</color>
-    <color name="accent">#FF6D00</color>
+    <color name="primary">#0D7EF5</color>
+    <color name="primary_dark">#0A64D6</color>
+    <color name="accent">#FF9F0A</color>
     <color name="bg_card">#FFFFFF</color>
-    <color name="bg_screen">#F2F4F8</color>
-    <color name="text_main">#1A1C1E</color>
-    <color name="text_sub">#5F6368</color>
+    <color name="bg_screen">#EEEEF2</color>
+    <color name="text_main">#1C1C1E</color>
+    <color name="text_sub">#6C6C70</color>
+    <color name="text_on_header">#FFFFFF</color>
+    <color name="text_on_header_muted">#E6F1FF</color>
+    <color name="tile_study">#E4EEFA</color>
+    <color name="tile_outline">#E2F3EA</color>
+    <color name="tile_exam">#FCEFD8</color>
+    <color name="tile_quiz">#EDE6FC</color>
+    <color name="tile_manage">#E0F2F6</color>
+    <color name="tile_settings">#E8E8EE</color>
+    <color name="tile_wrong">#F8E0E8</color>
+    <color name="tile_progress">#E2F2E6</color>
+    <color name="tile_today">#F3E6D4</color>
+    <color name="text_on_tile">#1C1C1E</color>
+    <color name="btn_prev">#C5DCF7</color>
+    <color name="mem_unseen">#C8C8CD</color>
+    <color name="mem_weak">#E8A23A</color>
+    <color name="mem_mid">#5B8FD9</color>
+    <color name="mem_master">#3D9A6E</color>
 </resources>

@@ -6,6 +6,13 @@
     android:orientation="vertical"
     android:background="@color/bg_screen">
 
+<LinearLayout
+    android:id="@+id/layoutExamSplit"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:orientation="vertical">
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -24,6 +31,15 @@
             android:textSize="40sp"/>
 
         <TextView
+            android:id="@+id/tvExamPace"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:textColor="@color/text_sub"
+            android:textSize="13sp"/>
+
+        <TextView
             android:id="@+id/tvExamSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -31,6 +47,13 @@
             android:textColor="@color/text_sub"
             android:textSize="12sp"
             android:text="문제를 확인하고 백지에 목차/답안을 작성해보세요"/>
+
+        <include
+            android:id="@+id/tvExamCoach"
+            layout="@layout/view_coach_pill"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"/>
     </LinearLayout>
 
     <ScrollView
@@ -46,6 +69,7 @@
             android:padding="16dp"/>
 
     </ScrollView>
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -57,7 +81,7 @@
             android:id="@+id/btnExamSubmit"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="56dp"
+            android:minHeight="@dimen/btn_min_height"
             android:paddingVertical="14dp"
             android:text="✅ 제출하고 해답 보기"
             android:textSize="15sp"

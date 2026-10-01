@@ -19,15 +19,17 @@
     <androidx.cardview.widget.CardView
         android:id="@+id/cardManageStudy"
         android:layout_width="match_parent"
-        android:layout_height="90dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/hub_card_min"
         android:layout_marginBottom="16dp"
         android:foreground="?android:attr/selectableItemBackground"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="3dp"
-        app:cardBackgroundColor="@color/bg_card">
+        app:cardCornerRadius="22dp"
+        app:cardElevation="2dp"
+        app:cardBackgroundColor="@color/tile_study">
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/hub_card_min"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="20dp">
@@ -45,15 +47,15 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="본문학습 내용 관리"
-                    android:textColor="@color/text_main"
+                    android:text="본문내용관리"
+                    android:textColor="@color/text_on_tile"
                     android:textStyle="bold"
-                    android:textSize="16sp"/>
+                    android:textSize="18sp"/>
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="과목별 개념 카드 추가 및 본문 내용 관리"
+                    android:text="cards.json 본문·두문자 추가·수정·삭제"
                     android:textColor="@color/text_sub"
                     android:textSize="12.5sp"/>
             </LinearLayout>
@@ -63,15 +65,17 @@
     <androidx.cardview.widget.CardView
         android:id="@+id/cardManageCase"
         android:layout_width="match_parent"
-        android:layout_height="90dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/hub_card_min"
         android:layout_marginBottom="16dp"
         android:foreground="?android:attr/selectableItemBackground"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="3dp"
-        app:cardBackgroundColor="@color/bg_card">
+        app:cardCornerRadius="22dp"
+        app:cardElevation="2dp"
+        app:cardBackgroundColor="@color/tile_manage">
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/hub_card_min"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="20dp">
@@ -89,15 +93,15 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="사례문제 내용 관리"
-                    android:textColor="@color/text_main"
+                    android:text="사례문제 관리"
+                    android:textColor="@color/text_on_tile"
                     android:textStyle="bold"
-                    android:textSize="16sp"/>
+                    android:textSize="18sp"/>
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="과목별 사례 문제 및 모범답안 해설 관리"
+                    android:text="mock_exams 사례문제·해설·키워드 수정"
                     android:textColor="@color/text_sub"
                     android:textSize="12.5sp"/>
             </LinearLayout>

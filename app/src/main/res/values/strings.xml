@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">행정사 암기카드</string>
+    <string name="app_name">행정사 2차 시험공부</string>
     <string name="widget_name">행정사 암기카드 위젯</string>
-    <string name="widget_desc">홈 화면에서 바로 암기카드를 확인해요</string>
+    <string name="widget_desc">제목과 본문을 한 화면에서 보고, 긴 내용은 스크롤해요</string>
 </resources>

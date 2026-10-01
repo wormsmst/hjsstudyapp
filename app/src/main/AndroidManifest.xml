@@ -2,8 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".AdminMemoApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -41,31 +46,84 @@
             android:label="모의고사" />
 
         <activity
+            android:name=".ExamPickActivity"
+            android:exported="false"
+            android:label="모의고사" />
+
+        <activity
             android:name=".ContentDetailActivity"
             android:exported="false"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:label="본문 상세" />
 
         <activity
-            android:name=".ContentManageActivity"
+            android:name=".ContentManageHubActivity"
             android:exported="false"
             android:label="학습내용관리" />
 
         <activity
-            android:name=".QuizSessionActivity"
+            android:name=".ContentManageActivity"
             android:exported="false"
-            android:label="학습퀴즈" />
+            android:label="본문내용관리" />
+
+        <activity
+            android:name=".CaseContentManageActivity"
+            android:exported="false"
+            android:label="사례문제 관리" />
 
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
             android:label="설정" />
 
+        <activity
+            android:name=".ExamSetupActivity"
+            android:exported="false"
+            android:label="모의고사 설정" />
+
+        <activity
+            android:name=".WrongNotesActivity"
+            android:exported="false"
+            android:label="오답노트" />
+
+        <activity
+            android:name=".ProgressActivity"
+            android:exported="false"
+            android:label="학습진도" />
+
+        <activity
+            android:name=".TodayTtsActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:label="오늘의 TTS" />
+
+        <activity
+            android:name=".RecallActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:label="인출학습" />
+
+        <activity
+            android:name=".RecallPickActivity"
+            android:exported="false"
+            android:label="인출학습" />
+
+        <activity
+            android:name=".QuestActivity"
+            android:exported="false"
+            android:label="퀘스트" />
+
+        <service
+            android:name=".StudyTtsService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
         <receiver
             android:name=".CardWidgetProvider"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.example.adminmemo.ACTION_FLIP" />
                 <action android:name="com.example.adminmemo.ACTION_NEXT" />
                 <action android:name="com.example.adminmemo.ACTION_CYCLE_MEMORY" />
             </intent-filter>
@@ -73,6 +131,11 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_info" />
         </receiver>
+
+        <service
+            android:name=".StudyWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
 
     </application>
 

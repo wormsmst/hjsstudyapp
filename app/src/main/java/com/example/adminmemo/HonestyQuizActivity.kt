@@ -45,7 +45,10 @@ class HonestyQuizActivity : BaseActivity() {
             tvResult = findViewById(R.id.tvHonestyResult)
             btnAction = findViewById(R.id.btnHonestyAction)
 
-            findViewById<ImageButton>(R.id.btnHonestyBack).setOnClickListener { finish() }
+            findViewById<ImageButton>(R.id.btnHonestyBack).setOnClickListener {
+                confirmChoice("퀴즈를 나갈까요?", "나가기") { finish() }
+            }
+            confirmLeaveOnBack("퀴즈를 나갈까요?")
             findViewById<Button>(R.id.btnHonestyViewBody).setOnClickListener {
                 currentCard?.let { card ->
                     val fullText = reflowBody(card.back.ifBlank { card.front.ifBlank { "본문 내용이 없어요" } })
@@ -72,6 +75,7 @@ class HonestyQuizActivity : BaseActivity() {
                 finish()
                 return
             }
+            StudyProgressStore.markActivity(this, subject, StudyProgressStore.KIND_QUIZ)
 
             loadNextQuestion()
 

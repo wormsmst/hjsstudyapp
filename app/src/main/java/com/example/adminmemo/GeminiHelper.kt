@@ -17,22 +17,44 @@ private const val GEMINI_MENU_ID = 92001
  * 텍스트를 드래그로 선택했을 때 "✨ Gemini에게 질문" 메뉴가 뜨도록 TextView를 설정한다.
  * contextProvider는 그 순간의 "이 문단이 속한 주제/본문 맥락" 문자열을 돌려준다.
  */
+fun selectedTextOf(textView: TextView): String {
+    val start = textView.selectionStart
+    val end = textView.selectionEnd
+    if (start in 0 until end && end <= textView.text.length) {
+        return textView.text.subSequence(start, end).toString().trim()
+    }
+    return ""
+}
+
+/** 버튼에서 호출: 드래그 선택한 구간이 있으면 질문 창을 연다. */
+fun askGeminiAboutSelection(activity: Activity, textView: TextView, contextProvider: () -> String) {
+    val selected = selectedTextOf(textView)
+    if (selected.isEmpty()) {
+        android.widget.Toast.makeText(
+            activity,
+            "본문을 길게 눌러 궁금한 문장을 선택한 뒤, 다시 눌러 주세요.",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
+    showGeminiAskDialog(activity, selected, contextProvider())
+}
+
 fun enableGeminiSelection(activity: Activity, textView: TextView, contextProvider: () -> String) {
     textView.setTextIsSelectable(true)
-    textView.customSelectionActionModeCallback = object : ActionMode.Callback {
+    val callback = object : ActionMode.Callback {
         override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
             menu?.add(0, GEMINI_MENU_ID, 0, "✨ Gemini에게 질문")
+                ?.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
             return true
         }
 
-        override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean = false
+        override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean = true
 
         override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean {
             if (item?.itemId == GEMINI_MENU_ID) {
-                val start = textView.selectionStart
-                val end = textView.selectionEnd
-                if (start in 0 until end && end <= textView.text.length) {
-                    val selected = textView.text.subSequence(start, end).toString()
+                val selected = selectedTextOf(textView)
+                if (selected.isNotEmpty()) {
                     mode?.finish()
                     showGeminiAskDialog(activity, selected, contextProvider())
                 }
@@ -43,6 +65,8 @@ fun enableGeminiSelection(activity: Activity, textView: TextView, contextProvide
 
         override fun onDestroyActionMode(mode: ActionMode?) {}
     }
+    textView.customSelectionActionModeCallback = callback
+    textView.customInsertionActionModeCallback = callback
 }
 
 fun showGeminiAskDialog(activity: Activity, selectedText: String, contextText: String) {
@@ -82,8 +106,8 @@ fun showGeminiAskDialog(activity: Activity, selectedText: String, contextText: S
             progress.visibility = View.VISIBLE
             tvAnswer.text = ""
             askBtn.isEnabled = false
-            val fullContext = if (contextText.length > 4000) contextText.take(4000) else contextText
-            GeminiClient.ask(apiKey, question, "$fullContext\n\n[특히 이 부분]: $trimmed") { answer, error ->
+            val clipped = clipStudyContext(contextText, trimmed)
+            GeminiClient.ask(apiKey, question, clipped) { answer, error ->
                 activity.runOnUiThread {
                     progress.visibility = View.GONE
                     askBtn.isEnabled = true
@@ -93,4 +117,19 @@ fun showGeminiAskDialog(activity: Activity, selectedText: String, contextText: S
         }
     }
     dialog.show()
+}
+
+/** 선택한 문장 주변만 보내서 응답을 빠르게 한다. */
+private fun clipStudyContext(full: String, selected: String): String {
+    val focus = selected.trim()
+    if (full.isBlank()) return "[질문 구간]: $focus"
+    val idx = full.indexOf(focus)
+    val window = if (idx >= 0) {
+        val start = (idx - 280).coerceAtLeast(0)
+        val end = (idx + focus.length + 520).coerceAtMost(full.length)
+        full.substring(start, end)
+    } else {
+        full.take(900)
+    }
+    return "$window\n\n[질문 구간]: $focus"
 }

@@ -42,6 +42,7 @@ object CardStore {
 
     private fun writeUserCards(context: Context, cards: List<Card>) {
         userCardsFile(context).writeText(gson.toJson(cards), Charsets.UTF_8)
+        AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
     }
 
     private fun readEditedCards(context: Context): MutableMap<String, Card> {
@@ -57,6 +58,7 @@ object CardStore {
 
     private fun writeEditedCards(context: Context, map: Map<String, Card>) {
         editedCardsFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
+        AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
     }
 
     private fun readDeletedIds(context: Context): MutableSet<String> {
@@ -72,6 +74,7 @@ object CardStore {
 
     private fun writeDeletedIds(context: Context, ids: Set<String>) {
         deletedIdsFile(context).writeText(gson.toJson(ids), Charsets.UTF_8)
+        AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
     }
 
     /** 기본 카드 + 사용자 추가 카드를 합치고, 수정본을 반영하고, 삭제된 것을 뺀 최종 목록 */
@@ -84,6 +87,10 @@ object CardStore {
         val merged = (base + userAdded)
             .filter { it.id !in deleted }
             .map { edited[it.id] ?: it }
+            .map { card ->
+                val subject = canonicalizeSubject(card.subject)
+                if (card.subject == subject) card else card.copy(subject = subject)
+            }
 
         return merged
     }
@@ -104,7 +111,7 @@ object CardStore {
         val card = Card(
             id = id,
             type = "mnemonic",
-            subject = subject,
+            subject = canonicalizeSubject(subject),
             num = num,
             title = "두문자: $mnemonic",
             topicTitle = topicTitle,
@@ -121,11 +128,12 @@ object CardStore {
 
     /** 새 주제(개념카드) 추가. 맨 마지막 순서로 붙인다. */
     fun addConceptCard(context: Context, subject: String, topicTitle: String, body: String): Card {
+        val subjectName = canonicalizeSubject(subject)
         val id = "user_" + UUID.randomUUID().toString().take(8)
         val card = Card(
             id = id,
             type = "concept",
-            subject = subject,
+            subject = subjectName,
             num = "",
             title = topicTitle,
             topicTitle = topicTitle,
@@ -140,30 +148,35 @@ object CardStore {
         writeUserCards(context, list)
 
         // 순서 목록 맨 끝에 추가 (아직 순서 목록이 없으면 기존 카드들로 먼저 초기화)
-        val order = readOrder(context, subject).toMutableList()
+        val order = readOrder(context, subjectName).toMutableList()
         if (order.isEmpty()) {
             val existing = getAllCards(context)
-                .filter { it.subject == subject && it.type == "concept" && it.id != id }
+                .filter { it.subject == subjectName && it.type == "concept" && it.id != id }
                 .sortedWith(compareBy({ numSortKey(it.num).first }, { numSortKey(it.num).second }))
             order.addAll(existing.map { it.id })
         }
         order.add(id)
-        writeOrder(context, subject, order)
+        setCustomOrder(context, subjectName, order)
         return card
     }
 
+    /** 이 기기에서 본문을 고쳤거나, 사용자가 새로 만든 카드인지. */
+    fun isLocallyEdited(context: Context, id: String): Boolean =
+        id.startsWith("user_") || readEditedCards(context).containsKey(id)
+
     /** 카드 수정 (사용자 추가 카드든 기본 카드든 동일하게 처리) */
     fun updateCard(context: Context, updated: Card) {
-        if (updated.id.startsWith("user_")) {
+        val card = updated.copy(subject = canonicalizeSubject(updated.subject))
+        if (card.id.startsWith("user_")) {
             val list = readUserCards(context)
-            val idx = list.indexOfFirst { it.id == updated.id }
+            val idx = list.indexOfFirst { it.id == card.id }
             if (idx >= 0) {
-                list[idx] = updated
+                list[idx] = card
                 writeUserCards(context, list)
             }
         } else {
             val map = readEditedCards(context)
-            map[updated.id] = updated
+            map[card.id] = card
             writeEditedCards(context, map)
         }
     }
@@ -188,6 +201,23 @@ object CardStore {
         if (changed) writeAllOrders(context, orders)
     }
 
+    fun isCaseStudyCard(card: Card): Boolean {
+        val topic = card.topicTitle.trim()
+        val title = card.title.trim()
+        return topic.startsWith("사례)") || title.startsWith("사례)")
+    }
+
+    fun purgeCaseStudyCards(context: Context) {
+        val ids = getAllCards(context).filter { isCaseStudyCard(it) }.map { it.id }
+        ids.forEach { deleteCard(context, it) }
+        val edited = readEditedCards(context)
+        val drop = edited.filter { isCaseStudyCard(it.value) }.keys.toList()
+        if (drop.isNotEmpty()) {
+            drop.forEach { edited.remove(it) }
+            writeEditedCards(context, edited)
+        }
+    }
+
     // ---- 오답 복습(review) 지원 ----
 
     private fun readWrongIds(context: Context): MutableSet<String> {
@@ -203,18 +233,17 @@ object CardStore {
 
     private fun writeWrongIds(context: Context, ids: Set<String>) {
         wrongIdsFile(context).writeText(gson.toJson(ids), Charsets.UTF_8)
+        AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
     }
 
-    fun getWrongIds(context: Context): Set<String> = readWrongIds(context)
+    fun getWrongIds(context: Context): Set<String> = WrongNoteStore.cardIds(context)
 
     fun addWrong(context: Context, id: String) {
-        val set = readWrongIds(context)
-        if (set.add(id)) writeWrongIds(context, set)
+        WrongNoteStore.recordWrongCard(context, id)
     }
 
     fun removeWrong(context: Context, id: String) {
-        val set = readWrongIds(context)
-        if (set.remove(id)) writeWrongIds(context, set)
+        WrongNoteStore.recordCorrectCard(context, id)
     }
 
     // ---- 메모 ----
@@ -232,6 +261,7 @@ object CardStore {
 
     private fun writeMemos(context: Context, map: Map<String, String>) {
         memosFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
+        AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
     }
 
     fun getMemo(context: Context, cardId: String): String {
@@ -251,7 +281,7 @@ object CardStore {
     // ---- 과목 ----
 
     fun getSubjects(context: Context): List<String> {
-        return getAllCards(context).map { it.subject }.distinct().sorted()
+        return orderedSubjects(getAllCards(context).map { it.subject })
     }
 
     // ---- 주제(개념카드) 순서 ----
@@ -269,16 +299,38 @@ object CardStore {
 
     private fun writeAllOrders(context: Context, map: Map<String, List<String>>) {
         orderFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
+        AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+    }
+
+    private fun subjectOrderAliases(subject: String): List<String> {
+        val key = canonicalizeSubject(subject)
+        return if (key == "민법") {
+            listOf("민법", "민법-계약법", "민법(계약)", "계약법")
+        } else {
+            listOf(key, subject)
+        }
     }
 
     private fun readOrder(context: Context, subject: String): List<String> {
-        return readAllOrders(context)[subject] ?: emptyList()
+        val all = readAllOrders(context)
+        val merged = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+        for (key in subjectOrderAliases(subject)) {
+            for (id in all[key].orEmpty()) {
+                if (seen.add(id)) merged.add(id)
+            }
+        }
+        return merged
     }
 
     /** 과목 내 주제(개념카드) id 순서를 저장한다. 본문학습/학습내용관리 목록 정렬에 쓰인다. */
     fun setCustomOrder(context: Context, subject: String, orderedIds: List<String>) {
         val all = readAllOrders(context)
-        all[subject] = orderedIds.toMutableList()
+        val key = canonicalizeSubject(subject)
+        for (alias in subjectOrderAliases(key)) {
+            if (alias != key) all.remove(alias)
+        }
+        all[key] = orderedIds.toMutableList()
         writeAllOrders(context, all)
     }
 
@@ -286,7 +338,18 @@ object CardStore {
 
     // ---- 암기정도 (주제 단위로 저장: 과목+주제제목 기준) ----
 
-    private fun memoryKey(subject: String, topicTitle: String) = "$subject|$topicTitle"
+    private fun memoryKey(subject: String, topicTitle: String) =
+        "${canonicalizeSubject(subject)}|$topicTitle"
+
+    private fun memoryKeyAliases(subject: String, topicTitle: String): List<String> {
+        val canon = memoryKey(subject, topicTitle)
+        return listOf(
+            canon,
+            "민법-계약법|$topicTitle",
+            "민법(계약)|$topicTitle",
+            "$subject|$topicTitle"
+        ).distinct()
+    }
 
     private fun readMemoryLevels(context: Context): MutableMap<String, Int> {
         val f = memoryFile(context)
@@ -301,16 +364,41 @@ object CardStore {
 
     private fun writeMemoryLevels(context: Context, map: Map<String, Int>) {
         memoryFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
+        AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
     }
 
-    /** 1(거의 모름) ~ 5(완벽히 암기) 사이 값. 아직 설정 안 했으면 기본값 3. */
+    /** 1(거의 모름) ~ 5(완벽히 암기) 사이 값. 아직 설정 안 했으면 1. */
     fun getMemoryLevel(context: Context, subject: String, topicTitle: String): Int {
-        return readMemoryLevels(context)[memoryKey(subject, topicTitle)] ?: 3
+        val map = readMemoryLevels(context)
+        for (key in memoryKeyAliases(subject, topicTitle)) {
+            map[key]?.let { return it }
+        }
+        return 1
+    }
+
+    fun memoryStarsLabel(level: Int): String {
+        val n = level.coerceIn(1, 5)
+        return "★".repeat(n) + "☆".repeat(5 - n)
+    }
+
+    fun resetAllMemoryLevels(context: Context, level: Int) {
+        val lv = level.coerceIn(1, 5)
+        val map = LinkedHashMap<String, Int>()
+        getAllCards(context)
+            .filter { it.type == "concept" && it.topicTitle.isNotBlank() }
+            .forEach { card ->
+                map[memoryKey(card.subject, card.topicTitle)] = lv
+            }
+        writeMemoryLevels(context, map)
     }
 
     fun setMemoryLevel(context: Context, subject: String, topicTitle: String, level: Int) {
         val map = readMemoryLevels(context)
-        map[memoryKey(subject, topicTitle)] = level.coerceIn(1, 5)
+        val canon = memoryKey(subject, topicTitle)
+        for (key in memoryKeyAliases(subject, topicTitle)) {
+            if (key != canon) map.remove(key)
+        }
+        map[canon] = level.coerceIn(1, 5)
         writeMemoryLevels(context, map)
     }
 
@@ -320,5 +408,102 @@ object CardStore {
         val next = if (cur >= 5) 1 else cur + 1
         setMemoryLevel(context, subject, topicTitle, next)
         return next
+    }
+
+    fun mergeMemoryJson(localJson: String, cloudJson: String): String {
+        val type = object : TypeToken<MutableMap<String, Int>>() {}.type
+        fun map(json: String): Map<String, Int> = try {
+            if (json.isBlank()) emptyMap() else gson.fromJson<MutableMap<String, Int>>(json, type) ?: emptyMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
+        val out = map(cloudJson).toMutableMap()
+        map(localJson).forEach { (k, v) ->
+            out[k] = maxOf(out[k] ?: 1, v)
+        }
+        return gson.toJson(out)
+    }
+
+    fun mergeMemosJson(localJson: String, cloudJson: String): String {
+        val type = object : TypeToken<MutableMap<String, String>>() {}.type
+        fun map(json: String): Map<String, String> = try {
+            if (json.isBlank()) emptyMap() else gson.fromJson<MutableMap<String, String>>(json, type) ?: emptyMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
+        val out = map(cloudJson).toMutableMap()
+        map(localJson).forEach { (k, v) ->
+            val other = out[k].orEmpty()
+            out[k] = when {
+                v.isBlank() -> other
+                other.isBlank() -> v
+                v.length >= other.length -> v
+                else -> other
+            }
+        }
+        return gson.toJson(out.filterValues { it.isNotBlank() })
+    }
+
+    fun mergeIdSetJson(localJson: String, cloudJson: String): String {
+        val type = object : TypeToken<MutableSet<String>>() {}.type
+        fun ids(json: String): Set<String> = try {
+            if (json.isBlank()) emptySet() else gson.fromJson<MutableSet<String>>(json, type) ?: emptySet()
+        } catch (_: Exception) {
+            emptySet()
+        }
+        return gson.toJson(ids(localJson) + ids(cloudJson))
+    }
+
+    fun mergeUserCardsJson(localJson: String, cloudJson: String): String {
+        val type = object : TypeToken<MutableList<Card>>() {}.type
+        fun list(json: String): List<Card> = try {
+            if (json.isBlank()) emptyList() else gson.fromJson<MutableList<Card>>(json, type) ?: emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val byId = linkedMapOf<String, Card>()
+        (list(cloudJson) + list(localJson)).forEach { card ->
+            val old = byId[card.id]
+            byId[card.id] = if (old == null) card else richerCard(old, card)
+        }
+        return gson.toJson(byId.values.toList())
+    }
+
+    fun mergeEditedCardsJson(localJson: String, cloudJson: String): String {
+        val type = object : TypeToken<MutableMap<String, Card>>() {}.type
+        fun map(json: String): Map<String, Card> = try {
+            if (json.isBlank()) emptyMap() else gson.fromJson<MutableMap<String, Card>>(json, type) ?: emptyMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
+        val out = map(cloudJson).toMutableMap()
+        map(localJson).forEach { (id, card) ->
+            val old = out[id]
+            out[id] = if (old == null) card else richerCard(old, card)
+        }
+        return gson.toJson(out)
+    }
+
+    fun mergeOrderJson(localJson: String, cloudJson: String): String {
+        val type = object : TypeToken<MutableMap<String, MutableList<String>>>() {}.type
+        fun map(json: String): Map<String, List<String>> = try {
+            if (json.isBlank()) emptyMap()
+            else gson.fromJson<MutableMap<String, MutableList<String>>>(json, type) ?: emptyMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
+        val out = map(cloudJson).mapValues { it.value.toMutableList() }.toMutableMap()
+        map(localJson).forEach { (sub, ids) ->
+            val cur = out.getOrPut(sub) { mutableListOf() }
+            val seen = cur.toMutableSet()
+            ids.forEach { if (seen.add(it)) cur.add(it) }
+        }
+        return gson.toJson(out)
+    }
+
+    private fun richerCard(a: Card, b: Card): Card {
+        val aLen = a.back.length + a.front.length + a.mnemonic.length
+        val bLen = b.back.length + b.front.length + b.mnemonic.length
+        return if (bLen > aLen) b else a
     }
 }

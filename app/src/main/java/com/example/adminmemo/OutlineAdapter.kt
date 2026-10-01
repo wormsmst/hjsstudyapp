@@ -1,7 +1,5 @@
 package com.example.adminmemo
 
-import android.content.res.Configuration
-import android.graphics.Color
 import android.graphics.Typeface
 import android.view.Gravity
 import android.view.ViewGroup
@@ -11,152 +9,233 @@ import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 
-sealed class OutlineListItem {
-    data class RowItem(
+sealed class OutlineUiItem {
+    data class Topic(val card: Card, val expanded: Boolean) : OutlineUiItem()
+    data class Heading(
+        val cardId: String,
         val node: OutlineNode,
-        val path: String,
         val key: String,
-        val isExpanded: Boolean,
-        val isLocked: Boolean,
-        val displayLabel: String,
-        val hasExpandable: Boolean
-    ) : OutlineListItem()
-
-    data class BodyItem(
-        val bodyText: String,
-        val level: Int,
-        val key: String
-    ) : OutlineListItem()
+        val expanded: Boolean,
+        val titleShown: Boolean,
+        val canExpand: Boolean,
+        val hasSubtree: Boolean
+    ) : OutlineUiItem()
+    data class Body(val text: String, val indentLevel: Int) : OutlineUiItem()
 }
 
-class OutlineAdapter(
-    private val onItemClick: (OutlineListItem.RowItem) -> Unit
+fun flattenOutlineTree(
+    cards: List<Card>,
+    rootsByCard: Map<String, List<OutlineNode>>,
+    expandedTopics: Set<String>,
+    expandedKeys: Set<String>,
+    includeTopics: Boolean = true,
+    revealedKeys: Set<String> = emptySet()
+): List<OutlineUiItem> {
+    val out = mutableListOf<OutlineUiItem>()
+    for (card in cards) {
+        val open = !includeTopics || card.id in expandedTopics
+        if (includeTopics) {
+            out.add(OutlineUiItem.Topic(card, open))
+        }
+        if (!open) continue
+        appendNodes(card.id, rootsByCard[card.id].orEmpty(), "", expandedKeys, revealedKeys, out)
+    }
+    return out
+}
+
+private fun appendNodes(
+    cardId: String,
+    nodes: List<OutlineNode>,
+    parentPath: String,
+    expandedKeys: Set<String>,
+    revealedKeys: Set<String>,
+    out: MutableList<OutlineUiItem>
+) {
+    nodes.forEachIndexed { i, node ->
+        val path = if (parentPath.isEmpty()) i.toString() else "$parentPath/$i"
+        val key = "$cardId/$path"
+        val hasSubtree = node.children.isNotEmpty() || node.bodyText.isNotBlank()
+        val canExpand = node.level == 0 || hasSubtree
+        val expanded = key in expandedKeys
+        val titleShown = node.level != 0 || key in revealedKeys || expanded
+        out.add(
+            OutlineUiItem.Heading(
+                cardId = cardId,
+                node = node,
+                key = key,
+                expanded = expanded,
+                titleShown = titleShown,
+                canExpand = canExpand,
+                hasSubtree = hasSubtree
+            )
+        )
+        if (!expanded) return@forEachIndexed
+        if (node.bodyText.isNotBlank()) {
+            out.add(OutlineUiItem.Body(node.bodyText, node.level.coerceAtLeast(0) + 1))
+        }
+        appendNodes(cardId, node.children, path, expandedKeys, revealedKeys, out)
+    }
+}
+
+class OutlineTreeAdapter(
+    private val onTopicClick: (OutlineUiItem.Topic) -> Unit,
+    private val onHeadingClick: (OutlineUiItem.Heading) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    private val items = mutableListOf<OutlineListItem>()
+    private val items = mutableListOf<OutlineUiItem>()
 
-    fun submitList(newItems: List<OutlineListItem>) {
+    fun submitList(newItems: List<OutlineUiItem>) {
         items.clear()
         items.addAll(newItems)
         notifyDataSetChanged()
     }
 
-    override fun getItemViewType(position: Int): Int {
-        return when (items[position]) {
-            is OutlineListItem.RowItem -> 0
-            is OutlineListItem.BodyItem -> 1
-        }
+    override fun getItemViewType(position: Int): Int = when (items[position]) {
+        is OutlineUiItem.Topic -> 0
+        is OutlineUiItem.Heading -> 1
+        is OutlineUiItem.Body -> 2
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val context = parent.context
-        val density = context.resources.displayMetrics.density
-        fun dp(v: Int) = (v * density).toInt()
-
-        return if (viewType == 0) {
-            val cv = CardView(context).apply {
-                layoutParams = ViewGroup.MarginLayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ).also { it.bottomMargin = dp(8) }
-                radius = dp(14).toFloat()
-                cardElevation = 1.5f * density
+        val d = context.resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
+        val cv = CardView(context).apply {
+            layoutParams = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            radius = dp(16).toFloat()
+            cardElevation = 2f * d
+        }
+        return when (viewType) {
+            0 -> TopicVH(cv)
+            2 -> {
+                val tv = TextView(context).apply {
+                    setTextColor(ContextCompat.getColor(context, R.color.text_main))
+                    textSize = 15f
+                    setLineSpacing(dp(4).toFloat(), 1f)
+                    setPadding(dp(16), dp(14), dp(16), dp(14))
+                }
+                cv.addView(tv)
+                BodyVH(cv, tv)
             }
-            RowVH(cv)
-        } else {
-            val isDark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-            val cv = CardView(context).apply {
-                layoutParams = ViewGroup.MarginLayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ).also { it.bottomMargin = dp(10) }
-                radius = dp(12).toFloat()
-                cardElevation = 0.5f * density
-                setCardBackgroundColor(if (isDark) Color.parseColor("#1E293B") else Color.parseColor("#D2E3FC"))
-            }
-            val tv = TextView(context).apply {
-                setTextColor(ContextCompat.getColor(context, R.color.text_main))
-                textSize = 13.5f
-                setLineSpacing(dp(4).toFloat(), 1f)
-                setPadding(dp(16), dp(14), dp(16), dp(14))
-            }
-            cv.addView(tv)
-            BodyVH(cv, tv)
+            else -> HeadingVH(cv)
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val item = items[position]
         val context = holder.itemView.context
-        val density = context.resources.displayMetrics.density
-        fun dp(v: Int) = (v * density).toInt()
+        val d = context.resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
 
-        if (holder is RowVH && item is OutlineListItem.RowItem) {
-            val lp = holder.itemView.layoutParams as ViewGroup.MarginLayoutParams
-            val indent = (item.node.level.coerceAtLeast(0) * dp(16))
-            lp.marginStart = indent
-            holder.itemView.layoutParams = lp
-
-            val isDark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-
-            // 수준별 색상: 상위목차=조금 더 진한 미색/베이지, 중목차=조금 더 진한 하늘색, 세부=화이트
-            val bgColor = when {
-                item.isLocked -> if (isDark) Color.parseColor("#1E3A8A") else Color.parseColor("#C7D2FE")
-                item.node.level == 0 -> if (isDark) Color.parseColor("#383431") else Color.parseColor("#E6E2D8") // 조금 더 진한 미색
-                item.node.level == 1 -> if (isDark) Color.parseColor("#1E293B") else Color.parseColor("#D2E3FC") // 조금 더 진한 하늘색
-                else -> if (isDark) Color.parseColor("#1E2126") else Color.parseColor("#FFFFFF")
+        when {
+            holder is TopicVH && item is OutlineUiItem.Topic -> {
+                val lp = holder.itemView.layoutParams as ViewGroup.MarginLayoutParams
+                lp.marginStart = dp(16)
+                lp.marginEnd = dp(16)
+                lp.topMargin = dp(8)
+                lp.bottomMargin = dp(6)
+                holder.itemView.layoutParams = lp
+                holder.card.setCardBackgroundColor(ContextCompat.getColor(context, R.color.bg_card))
+                holder.tvTitle.text = item.card.topicTitle
+                holder.tvArrow.text = if (item.expanded) "▼" else "▶"
+                holder.itemView.setOnClickListener { onTopicClick(item) }
             }
-            holder.cardView.setCardBackgroundColor(bgColor)
-
-            holder.tvLabel.text = item.displayLabel
-            val textColor = if (item.isLocked) {
-                if (isDark) Color.parseColor("#93C5FD") else Color.parseColor("#1D4ED8")
-            } else {
-                ContextCompat.getColor(context, R.color.text_main)
+            holder is HeadingVH && item is OutlineUiItem.Heading -> {
+                val lp = holder.itemView.layoutParams as ViewGroup.MarginLayoutParams
+                val indent = dp(16) + item.node.level.coerceAtLeast(0) * dp(12)
+                lp.marginStart = indent
+                lp.marginEnd = dp(16)
+                lp.topMargin = dp(4)
+                lp.bottomMargin = dp(4)
+                holder.itemView.layoutParams = lp
+                holder.card.setCardBackgroundColor(ContextCompat.getColor(context, R.color.bg_card))
+                holder.tvLabel.text = if (item.node.level == 0 && !item.titleShown) {
+                    outlineMarkerOf(item.node.label)
+                } else {
+                    item.node.label
+                }
+                holder.tvLabel.setTextColor(ContextCompat.getColor(context, R.color.text_main))
+                holder.tvLabel.textSize = if (item.node.level == 0) 17f else 16f
+                holder.tvLabel.setTypeface(null, if (item.node.level == 0) Typeface.BOLD else Typeface.NORMAL)
+                holder.tvArrow.text = when {
+                    item.node.level == 0 && !item.titleShown -> "▶"
+                    item.node.level == 0 && item.titleShown && !item.expanded ->
+                        if (item.hasSubtree) "▶" else ""
+                    item.expanded -> "▼"
+                    !item.canExpand -> ""
+                    else -> "▶"
+                }
+                holder.itemView.setOnClickListener { onHeadingClick(item) }
             }
-            holder.tvLabel.setTextColor(textColor)
-
-            if (item.node.level == 0 || item.node.children.isNotEmpty()) {
-                holder.tvLabel.setTypeface(null, Typeface.BOLD)
-            } else {
-                holder.tvLabel.setTypeface(null, Typeface.NORMAL)
+            holder is BodyVH && item is OutlineUiItem.Body -> {
+                val lp = holder.itemView.layoutParams as ViewGroup.MarginLayoutParams
+                lp.marginStart = dp(16) + item.indentLevel * dp(12)
+                lp.marginEnd = dp(16)
+                lp.topMargin = dp(2)
+                lp.bottomMargin = dp(8)
+                holder.itemView.layoutParams = lp
+                holder.card.setCardBackgroundColor(ContextCompat.getColor(context, R.color.bg_card))
+                holder.tvBody.text = item.text
             }
-
-            holder.tvArrow.text = if (item.isLocked) "🔑" else if (!item.hasExpandable) "📄" else if (item.isExpanded) "▼" else "▶"
-            holder.itemView.setOnClickListener { onItemClick(item) }
-        } else if (holder is BodyVH && item is OutlineListItem.BodyItem) {
-            val lp = holder.itemView.layoutParams as ViewGroup.MarginLayoutParams
-            lp.marginStart = (item.level.coerceAtLeast(0) * dp(16)) + dp(12)
-            holder.itemView.layoutParams = lp
-            holder.tvBody.text = item.bodyText
         }
     }
 
     override fun getItemCount() = items.size
 
-    class RowVH(val cardView: CardView) : RecyclerView.ViewHolder(cardView) {
-        val tvLabel: TextView
+    class TopicVH(val card: CardView) : RecyclerView.ViewHolder(card) {
+        val tvTitle: TextView
         val tvArrow: TextView
         init {
-            val row = LinearLayout(cardView.context).apply {
+            val density = card.context.resources.displayMetrics.density
+            fun dp(v: Int) = (v * density).toInt()
+            val row = LinearLayout(card.context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                val d = cardView.context.resources.displayMetrics.density
-                setPadding((16 * d).toInt(), (14 * d).toInt(), (16 * d).toInt(), (14 * d).toInt())
+                setPadding(dp(18), dp(16), dp(16), dp(16))
             }
-            tvLabel = TextView(cardView.context).apply {
-                textSize = 14.5f
+            tvTitle = TextView(card.context).apply {
+                textSize = 20f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(ContextCompat.getColor(card.context, R.color.text_main))
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
-            tvArrow = TextView(cardView.context).apply {
-                textSize = 13f
-                setTextColor(ContextCompat.getColor(cardView.context, R.color.primary))
+            tvArrow = TextView(card.context).apply {
+                textSize = 16f
+                setTextColor(ContextCompat.getColor(card.context, R.color.primary))
             }
-            row.addView(tvLabel)
+            row.addView(tvTitle)
             row.addView(tvArrow)
-            cardView.addView(row)
+            card.addView(row)
         }
     }
 
-    class BodyVH(cardView: CardView, val tvBody: TextView) : RecyclerView.ViewHolder(cardView)
+    class HeadingVH(val card: CardView) : RecyclerView.ViewHolder(card) {
+        val tvLabel: TextView
+        val tvArrow: TextView
+        init {
+            val density = card.context.resources.displayMetrics.density
+            fun dp(v: Int) = (v * density).toInt()
+            val row = LinearLayout(card.context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(16), dp(14), dp(14), dp(14))
+            }
+            tvLabel = TextView(card.context).apply {
+                setTextColor(ContextCompat.getColor(card.context, R.color.text_main))
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            tvArrow = TextView(card.context).apply {
+                textSize = 14f
+                setTextColor(ContextCompat.getColor(card.context, R.color.primary))
+            }
+            row.addView(tvLabel)
+            row.addView(tvArrow)
+            card.addView(row)
+        }
+    }
+
+    class BodyVH(val card: CardView, val tvBody: TextView) : RecyclerView.ViewHolder(card)
 }

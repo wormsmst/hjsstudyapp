@@ -16,7 +16,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🗂️ 학습내용관리"
+            android:text="📄 본문내용관리"
             android:textColor="@color/text_main"
             android:textSize="20sp"
             android:textStyle="bold"

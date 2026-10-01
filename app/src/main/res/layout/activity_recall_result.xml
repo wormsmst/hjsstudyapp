@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_screen"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="오늘 인출 끝"
+            android:textColor="@color/text_main"
+            android:textSize="22sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/tvRecallResultSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/text_main"
+            android:textSize="16sp"/>
+
+        <include
+            android:id="@+id/tvRecallResultCoach"
+            layout="@layout/view_coach_pill"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="오늘의 퀘스트"
+            android:textColor="@color/text_main"
+            android:textSize="17sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/tvRecallResultQuests"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:lineSpacingExtra="5dp"
+            android:textColor="@color/text_sub"
+            android:textSize="14sp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRecallOpenMissed"
+            style="@style/Widget.AdminMemo.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="못 한 장 다시 인출"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRecallOpenTts"
+            style="@style/Widget.AdminMemo.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="막힌 장 TTS로 듣기"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRecallOpenQuests"
+            style="@style/Widget.AdminMemo.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="퀘스트 보기"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRecallHome"
+            style="@style/Widget.AdminMemo.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="홈으로"/>
+    </LinearLayout>
+</ScrollView>

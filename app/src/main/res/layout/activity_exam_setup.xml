@@ -89,7 +89,8 @@
     <Button
         android:id="@+id/btnStartExam"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/btn_min_height"
         android:text="🚀 시작하기"
         android:textSize="16sp"
         android:textStyle="bold"/>

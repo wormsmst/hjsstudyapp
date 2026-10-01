@@ -24,4 +24,35 @@ open class BaseActivity : AppCompatActivity() {
         }
         super.onCreate(savedInstanceState)
     }
+
+    protected fun isLandscape(): Boolean =
+        resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    protected fun bindLandscapeSplit(splitId: Int) {
+        val split = findViewById<android.widget.LinearLayout>(splitId) ?: return
+        val land = isLandscape()
+        split.orientation = if (land) {
+            android.widget.LinearLayout.HORIZONTAL
+        } else {
+            android.widget.LinearLayout.VERTICAL
+        }
+        val splitLp = split.layoutParams
+        val splitFills = splitLp.height == android.view.ViewGroup.LayoutParams.MATCH_PARENT ||
+            ((splitLp as? android.widget.LinearLayout.LayoutParams)?.weight ?: 0f) > 0f
+        for (i in 0 until split.childCount) {
+            val child = split.getChildAt(i)
+            val lp = child.layoutParams as android.widget.LinearLayout.LayoutParams
+            if (land) {
+                lp.width = 0
+                lp.weight = 1f
+                lp.height = if (splitFills) android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                else android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            } else {
+                lp.width = android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                lp.weight = if (splitFills) 1f else 0f
+                lp.height = if (splitFills) 0 else android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            child.layoutParams = lp
+        }
+    }
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="touch_icon">48sp</dimen>
+    <dimen name="btn_min_height">52sp</dimen>
+    <dimen name="home_tile_min">134sp</dimen>
+    <dimen name="subject_tile_min">280sp</dimen>
+    <dimen name="hub_card_min">96sp</dimen>
+</resources>

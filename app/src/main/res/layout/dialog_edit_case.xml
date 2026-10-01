@@ -45,9 +45,37 @@
             android:id="@+id/etCaseBody"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minLines="8"
+            android:minLines="6"
             android:gravity="top"
             android:hint="사례 문제 내용"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="모범답안 해설"
+            android:textColor="@color/text_sub"
+            android:textSize="12sp"/>
+        <EditText
+            android:id="@+id/etCaseExplanation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minLines="6"
+            android:gravity="top"
+            android:hint="해설"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="키워드 (쉼표로 구분)"
+            android:textColor="@color/text_sub"
+            android:textSize="12sp"/>
+        <EditText
+            android:id="@+id/etCaseKeywords"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="예: 동시이행의 항변권, 선이행의무"/>
 
     </LinearLayout>
 </ScrollView>

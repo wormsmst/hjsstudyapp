@@ -15,8 +15,8 @@
 
         <ImageButton
             android:id="@+id/btnHonestyBack"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
+            android:layout_width="@dimen/touch_icon"
+            android:layout_height="@dimen/touch_icon"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
             app:tint="@color/primary"/>
@@ -140,12 +140,14 @@
         <Button
             android:id="@+id/btnHonestyAction"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/btn_min_height"
             android:text="정답 및 채점표 확인"
             android:textAllCaps="false"
             android:textSize="16sp"
             android:textColor="#FFFFFF"
-            android:background="@drawable/bg_btn_primary_pill"/>
+            android:background="@drawable/bg_btn_primary_pill"
+            app:backgroundTint="@null"/>
     </LinearLayout>
 
 </LinearLayout>

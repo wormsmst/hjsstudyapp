@@ -6,11 +6,40 @@
         <item name="android:windowBackground">@color/bg_screen</item>
     </style>
 
+    <style name="Widget.AdminMemo.Button" parent="Widget.MaterialComponents.Button">
+        <item name="android:minHeight">@dimen/btn_min_height</item>
+        <item name="android:paddingTop">12sp</item>
+        <item name="android:paddingBottom">12sp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="Widget.AdminMemo.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:minHeight">@dimen/btn_min_height</item>
+        <item name="android:paddingTop">12sp</item>
+        <item name="android:paddingBottom">12sp</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="Widget.AdminMemo.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:minHeight">@dimen/btn_min_height</item>
+        <item name="android:paddingTop">12sp</item>
+        <item name="android:paddingBottom">12sp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
     <style name="MemoryStar">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:text">☆</item>
-        <item name="android:textSize">20sp</item>
+        <item name="android:textSize">22sp</item>
         <item name="android:textColor">@color/text_sub</item>
         <item name="android:paddingHorizontal">2dp</item>
         <item name="android:background">?android:attr/selectableItemBackgroundBorderless</item>

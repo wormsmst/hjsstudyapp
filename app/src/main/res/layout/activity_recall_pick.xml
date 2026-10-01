@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_screen"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:text="인출학습"
+            android:textColor="@color/text_main"
+            android:textSize="22sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:text="새 주제·약한 주제는 한 과목을 진득하게. 섞는 건 모의고사와 시험 직전입니다."
+            android:textColor="@color/text_sub"
+            android:textSize="13sp"/>
+
+        <include
+            android:id="@+id/tvRecallPickCoach"
+            layout="@layout/view_coach_pill"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"/>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/tileRecallSubject"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/home_tile_min"
+            android:layout_margin="6dp"
+            android:foreground="?android:attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/tile_outline"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="12dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="한 과목" android:textColor="@color/text_on_tile" android:textSize="22sp" android:textStyle="bold"/>
+                <TextView
+                    android:id="@+id/tvRecallSubjectNext"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="앱이 골라 줍니다"
+                    android:textColor="@color/text_on_tile"
+                    android:textSize="14sp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/tileRecallAll"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/home_tile_min"
+            android:layout_margin="6dp"
+            android:foreground="?android:attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/tile_today"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="12dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="오늘 전체" android:textColor="@color/text_on_tile" android:textSize="22sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="시험 직전용 · 과목을 섞음" android:textColor="@color/text_on_tile" android:textSize="14sp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/tileRecallPeriod1"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/home_tile_min"
+            android:layout_margin="6dp"
+            android:foreground="?android:attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/tile_exam"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="12dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="1교시만" android:textColor="@color/text_on_tile" android:textSize="22sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="민법 + 행정절차론" android:textColor="@color/text_on_tile" android:textSize="14sp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/tileRecallPeriod2"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/home_tile_min"
+            android:layout_margin="6dp"
+            android:foreground="?android:attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/tile_study"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="12dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="2교시만" android:textColor="@color/text_on_tile" android:textSize="22sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="사무관리론 + 행정사실무법" android:textColor="@color/text_on_tile" android:textSize="14sp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/tileRecallCase"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/home_tile_min"
+            android:layout_margin="6dp"
+            android:foreground="?android:attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/tile_exam"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="12dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="사례 인출" android:textColor="@color/text_on_tile" android:textSize="22sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="결론 → 이유 → 목차" android:textColor="@color/text_on_tile" android:textSize="14sp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/tileRecallUnseen"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/home_tile_min"
+            android:layout_margin="6dp"
+            android:foreground="?android:attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/tile_manage"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="2dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="12dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="이번 달 미인출" android:textColor="@color/text_on_tile" android:textSize="22sp" android:textStyle="bold"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="아직 한 번도 안 쓴 주제" android:textColor="@color/text_on_tile" android:textSize="14sp"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+    </LinearLayout>
+</ScrollView>
