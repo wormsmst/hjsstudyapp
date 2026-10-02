@@ -1,6 +1,8 @@
 package com.example.adminmemo
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
@@ -44,6 +46,69 @@ object FirebaseSyncManager {
 
     private val backupFiles = progressFiles + contentFiles
     private const val KEEP_REVISIONS = 5
+    private const val PROGRESS_DEBOUNCE_MS = 8_000L
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile private var syncing = false
+    @Volatile private var pendingAfterSync = false
+    @Volatile private var scheduled = false
+    private var appCtx: Context? = null
+
+    private val debounceRun = Runnable {
+        scheduled = false
+        val ctx = appCtx ?: return@Runnable
+        runSmart(ctx, null)
+    }
+
+    /** 진도 파일이 바뀌면 잠시 기다렸다가 클라우드와 합친 뒤 올린다. */
+    fun notifyProgressChanged(context: Context) {
+        if (!isSignedIn()) return
+        appCtx = context.applicationContext
+        if (syncing) {
+            pendingAfterSync = true
+            return
+        }
+        scheduled = true
+        mainHandler.removeCallbacks(debounceRun)
+        mainHandler.postDelayed(debounceRun, PROGRESS_DEBOUNCE_MS)
+    }
+
+    /** 화면을 떠나거나 앱이 백그라운드로 갈 때, 대기 중인 진도만 바로 합친다. */
+    fun flushPendingProgressSync(context: Context) {
+        if (!isSignedIn()) return
+        if (!scheduled && !pendingAfterSync) return
+        mainHandler.removeCallbacks(debounceRun)
+        scheduled = false
+        runSmart(context.applicationContext, null)
+    }
+
+    /** 앱을 켤 때·로그인 직후: 클라우드 진도를 받아 합친다. */
+    fun syncProgressNow(context: Context, onComplete: ((Boolean, String?) -> Unit)? = null) {
+        if (!isSignedIn()) {
+            onComplete?.invoke(false, null)
+            return
+        }
+        mainHandler.removeCallbacks(debounceRun)
+        scheduled = false
+        runSmart(context.applicationContext, onComplete)
+    }
+
+    private fun runSmart(context: Context, onComplete: ((Boolean, String?) -> Unit)?) {
+        if (syncing) {
+            pendingAfterSync = true
+            return
+        }
+        syncing = true
+        smartSync(context) { ok, msg ->
+            syncing = false
+            val extra = pendingAfterSync
+            pendingAfterSync = false
+            onComplete?.invoke(ok, msg)
+            if (extra) {
+                mainHandler.post { runSmart(context, null) }
+            }
+        }
+    }
 
     fun smartSync(context: Context, onComplete: (Boolean, String?) -> Unit) {
         val user = currentUser ?: run {

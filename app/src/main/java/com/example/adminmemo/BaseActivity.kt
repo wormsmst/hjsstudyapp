@@ -25,6 +25,11 @@ open class BaseActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
     }
 
+    override fun onStop() {
+        FirebaseSyncManager.flushPendingProgressSync(this)
+        super.onStop()
+    }
+
     protected fun isLandscape(): Boolean =
         resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 

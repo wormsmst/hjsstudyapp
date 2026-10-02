@@ -1,12 +1,14 @@
 package com.example.adminmemo
 
 import android.content.Intent
+import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.TextView
 import androidx.cardview.widget.CardView
+import androidx.core.content.ContextCompat
 
 class HomeActivity : BaseActivity() {
 
@@ -33,12 +35,6 @@ class HomeActivity : BaseActivity() {
         findViewById<CardView>(R.id.tileExam).setOnClickListener {
             startActivity(Intent(this, ExamPickActivity::class.java))
         }
-        findViewById<CardView>(R.id.tileManage).setOnClickListener {
-            startActivity(Intent(this, ContentManageHubActivity::class.java))
-        }
-        findViewById<CardView>(R.id.tileSettings).setOnClickListener {
-            startActivity(Intent(this, SettingsActivity::class.java))
-        }
         findViewById<CardView>(R.id.tileWrongNotes).setOnClickListener {
             startActivity(Intent(this, WrongNotesActivity::class.java))
         }
@@ -48,7 +44,17 @@ class HomeActivity : BaseActivity() {
         findViewById<CardView>(R.id.tileTodayTts).setOnClickListener {
             startActivity(Intent(this, TodayTtsActivity::class.java))
         }
+        findViewById<CardView>(R.id.tileManage).setOnClickListener {
+            startActivity(Intent(this, ContentManageHubActivity::class.java))
+        }
+        findViewById<CardView>(R.id.tileSettings).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         findViewById<TextView>(R.id.tvHomeCoach).text = CoachHints.HOME
+        findViewById<TextView>(R.id.tabHomeToday).setOnClickListener { showHomeTab("today") }
+        findViewById<TextView>(R.id.tabHomeReview).setOnClickListener { showHomeTab("review") }
+        findViewById<TextView>(R.id.tabHomeSettings).setOnClickListener { showHomeTab("tools") }
+        showHomeTab(AppPrefs.getHomeTab(this))
     }
 
     override fun onStart() {
@@ -56,7 +62,7 @@ class HomeActivity : BaseActivity() {
         refreshHomeHeader()
         scheduleTipRefresh()
         if (FirebaseSyncManager.isSignedIn()) {
-            FirebaseSyncManager.smartSync(this) { _, _ ->
+            FirebaseSyncManager.syncProgressNow(this) { _, _ ->
                 runOnUiThread { refreshHomeHeader() }
             }
         }
@@ -106,9 +112,38 @@ class HomeActivity : BaseActivity() {
         }
     }
 
+    private fun showHomeTab(tab: String) {
+        val key = when (tab) {
+            "review" -> "review"
+            "tools" -> "tools"
+            else -> "today"
+        }
+        AppPrefs.setHomeTab(this, key)
+        findViewById<View>(R.id.layoutTilesToday).visibility =
+            if (key == "today") View.VISIBLE else View.GONE
+        findViewById<View>(R.id.layoutTilesReview).visibility =
+            if (key == "review") View.VISIBLE else View.GONE
+        findViewById<View>(R.id.layoutTilesTools).visibility =
+            if (key == "tools") View.VISIBLE else View.GONE
+        findViewById<CardView>(R.id.cardHomeQuests).visibility =
+            if (key == "today") View.VISIBLE else View.GONE
+        styleHomeTab(findViewById(R.id.tabHomeToday), key == "today")
+        styleHomeTab(findViewById(R.id.tabHomeReview), key == "review")
+        styleHomeTab(findViewById(R.id.tabHomeSettings), key == "tools")
+    }
+
+    private fun styleHomeTab(tab: TextView, on: Boolean) {
+        tab.setTextColor(ContextCompat.getColor(this, if (on) R.color.primary else R.color.text_sub))
+        tab.setTypeface(null, if (on) Typeface.BOLD else Typeface.NORMAL)
+    }
+
     private fun bindHomeQuests() {
         val card = findViewById<CardView>(R.id.cardHomeQuests)
-        card.visibility = View.VISIBLE
+        if (AppPrefs.getHomeTab(this) != "today") {
+            card.visibility = View.GONE
+        } else {
+            card.visibility = View.VISIBLE
+        }
         val open = DailyQuestStore.openQuests(this)
         val backlog = DailyQuestStore.backlog(this).size
         findViewById<TextView>(R.id.tvHomeQuests).text = when {

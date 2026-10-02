@@ -40,6 +40,7 @@ object WrongNoteStore {
     private fun write(context: Context, list: List<WrongEntry>) {
         file(context).writeText(gson.toJson(list), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+        FirebaseSyncManager.notifyProgressChanged(context)
         val cardIds = list.filter { it.kind == "card" }.map { it.targetId }.toSet()
         File(context.filesDir, "wrong_ids.json").writeText(gson.toJson(cardIds), Charsets.UTF_8)
     }

@@ -59,6 +59,7 @@ object RecallStore {
     private fun write(context: Context, book: RecallBook) {
         file(context).writeText(gson.toJson(book), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+        FirebaseSyncManager.notifyProgressChanged(context)
     }
 
     fun lapses(context: Context, cardId: String): Int =

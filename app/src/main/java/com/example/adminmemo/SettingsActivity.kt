@@ -2,6 +2,7 @@ package com.example.adminmemo
 
 import android.app.AlertDialog
 import android.app.DatePickerDialog
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
@@ -192,12 +193,13 @@ class SettingsActivity : BaseActivity() {
 
     private fun setupAccountSection() {
         refreshAccountUi()
-        refreshSyncDates()
         findViewById<Button>(R.id.btnGoogleLogin).setOnClickListener { startGoogleLogin() }
         findViewById<Button>(R.id.btnGoogleLogout).setOnClickListener { startGoogleLogout() }
-        findViewById<Button>(R.id.btnCloudSync).setOnClickListener { runCloudSync() }
         findViewById<Button>(R.id.btnContentPush).setOnClickListener { confirmContentPush() }
         findViewById<Button>(R.id.btnContentPull).setOnClickListener { confirmContentPull() }
+        findViewById<Button>(R.id.btnContentManage).setOnClickListener {
+            startActivity(Intent(this, ContentManageHubActivity::class.java))
+        }
     }
 
     private fun setupDdaySection() {
@@ -242,62 +244,17 @@ class SettingsActivity : BaseActivity() {
         ).show()
     }
 
-    private fun refreshSyncDates() {
-        val tv = findViewById<TextView>(R.id.tvSyncDates)
-        val localLines = StringBuilder()
-        localLines.append("로컬 파일 수정\n")
-        var anyLocal = false
-        FirebaseSyncManager.localFileStamps(this).forEach { stamp ->
-            val whenText = if (stamp.modifiedAt <= 0L) "아직 없음" else DateFormatters.dateTime(stamp.modifiedAt)
-            localLines.append("· ${stamp.name}  $whenText\n")
-            if (stamp.modifiedAt > 0L) anyLocal = true
-        }
-        val latestLocal = FirebaseSyncManager.latestLocalFileMillis(this)
-        if (anyLocal) {
-            localLines.append("로컬 가장 최근: ${DateFormatters.dateTime(latestLocal)}\n")
-        }
-        localLines.append("\nFirebase 백업\n")
-        if (!FirebaseSyncManager.isSignedIn()) {
-            localLines.append("· 로그인하면 클라우드 수정 날짜를 볼 수 있어요")
-            tv.text = localLines.toString().trim()
-            return
-        }
-        val cachedCloud = AppPrefs.getCloudSyncTimestamp(this)
-        if (cachedCloud > 0L) {
-            localLines.append("· 마지막 확인: ${DateFormatters.dateTime(cachedCloud)}\n")
-        }
-        localLines.append("· 최신값 불러오는 중…")
-        tv.text = localLines.toString()
-        FirebaseSyncManager.fetchCloudUpdatedAt { cloudTime, error ->
-            runOnUiThread {
-                val cloudLine = when {
-                    error != null -> "· 조회 실패: $error"
-                    cloudTime == null -> "· 조회 실패"
-                    cloudTime == 0L -> "· 아직 클라우드 백업이 없어요"
-                    else -> {
-                        AppPrefs.setCloudSyncTimestamp(this, cloudTime)
-                        "· backup 수정: ${DateFormatters.dateTime(cloudTime)}"
-                    }
-                }
-                val rebuilt = localLines.toString().replace("· 최신값 불러오는 중…", cloudLine)
-                tv.text = rebuilt.trim()
-            }
-        }
-    }
-
     private fun refreshAccountUi() {
         val user = FirebaseSyncManager.currentUser
         val tv = findViewById<TextView>(R.id.tvAccountStatus)
         val btnLogin = findViewById<Button>(R.id.btnGoogleLogin)
         val btnLogout = findViewById<Button>(R.id.btnGoogleLogout)
-        val btnSync = findViewById<Button>(R.id.btnCloudSync)
         val btnPush = findViewById<Button>(R.id.btnContentPush)
         val btnPull = findViewById<Button>(R.id.btnContentPull)
         if (user == null) {
             tv.text = "로그인되어 있지 않아요"
             btnLogin.visibility = View.VISIBLE
             btnLogout.visibility = View.GONE
-            btnSync.visibility = View.GONE
             btnPush.visibility = View.GONE
             btnPull.visibility = View.GONE
         } else {
@@ -305,7 +262,6 @@ class SettingsActivity : BaseActivity() {
             tv.text = "로그인됨 · $name"
             btnLogin.visibility = View.GONE
             btnLogout.visibility = View.VISIBLE
-            btnSync.visibility = View.VISIBLE
             btnPush.visibility = View.VISIBLE
             btnPull.visibility = View.VISIBLE
         }
@@ -315,7 +271,6 @@ class SettingsActivity : BaseActivity() {
         findViewById<ProgressBar>(R.id.progressAccount).visibility = if (busy) View.VISIBLE else View.GONE
         findViewById<Button>(R.id.btnGoogleLogin).isEnabled = !busy
         findViewById<Button>(R.id.btnGoogleLogout).isEnabled = !busy
-        findViewById<Button>(R.id.btnCloudSync).isEnabled = !busy
         findViewById<Button>(R.id.btnContentPush).isEnabled = !busy
         findViewById<Button>(R.id.btnContentPull).isEnabled = !busy
     }
@@ -329,7 +284,7 @@ class SettingsActivity : BaseActivity() {
                 onSuccess = { email ->
                     refreshAccountUi()
                     Toast.makeText(this@SettingsActivity, "$email 으로 로그인했어요", Toast.LENGTH_SHORT).show()
-                    runCloudSync()
+                    mergeProgressAfterLogin()
                 },
                 onFailure = { e ->
                     if (e is GetCredentialCancellationException) return@fold
@@ -349,28 +304,22 @@ class SettingsActivity : BaseActivity() {
             GoogleAuthHelper.signOut(this@SettingsActivity)
             setAccountBusy(false)
             refreshAccountUi()
-            refreshSyncDates()
             Toast.makeText(this@SettingsActivity, "로그아웃했어요", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun runCloudSync() {
-        if (!FirebaseSyncManager.isSignedIn()) {
-            Toast.makeText(this, "먼저 Google로 로그인해주세요", Toast.LENGTH_SHORT).show()
-            return
-        }
-        setAccountBusy(true)
-        FirebaseSyncManager.smartSync(this) { ok, message ->
+    private fun mergeProgressAfterLogin() {
+        if (!FirebaseSyncManager.isSignedIn()) return
+        FirebaseSyncManager.syncProgressNow(this) { ok, message ->
             runOnUiThread {
-                setAccountBusy(false)
                 refreshAccountUi()
-                refreshSyncDates()
-                val text = when {
-                    ok && message.isNullOrBlank() -> "동기화했어요"
-                    ok -> message
-                    else -> "동기화 실패: ${message ?: "알 수 없는 오류"}"
+                if (!ok) {
+                    Toast.makeText(
+                        this,
+                        "진도 합치기 실패: ${message ?: "알 수 없는 오류"}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
-                Toast.makeText(this, text, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -388,7 +337,6 @@ class SettingsActivity : BaseActivity() {
             FirebaseSyncManager.pushContent(this) { ok, message ->
                 runOnUiThread {
                     setAccountBusy(false)
-                    refreshSyncDates()
                     Toast.makeText(
                         this,
                         if (ok) message ?: "올렸어요" else "올리기 실패: ${message ?: ""}",
@@ -421,7 +369,7 @@ class SettingsActivity : BaseActivity() {
                     if (i == 0) "가장 최근  ·  $whenText" else "이전 ${i}  ·  $whenText"
                 }.toTypedArray()
                 AlertDialog.Builder(this)
-                    .setTitle("받을 본문 시점")
+                    .setTitle("받을 본문 시점 (최대 5개)")
                     .setItems(labels) { _, which ->
                         val picked = list[which]
                         confirmChoice(
@@ -432,7 +380,6 @@ class SettingsActivity : BaseActivity() {
                             FirebaseSyncManager.pullContent(this, picked.id) { ok, message ->
                                 runOnUiThread {
                                     setAccountBusy(false)
-                                    refreshSyncDates()
                                     Toast.makeText(
                                         this,
                                         if (ok) message ?: "받았어요" else "받기 실패: ${message ?: ""}",

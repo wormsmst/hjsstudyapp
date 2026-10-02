@@ -84,6 +84,7 @@ object StudyProgressStore {
     private fun write(context: Context, log: StudyLog) {
         file(context).writeText(gson.toJson(log), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+        FirebaseSyncManager.notifyProgressChanged(context)
     }
 
     private fun rolled(context: Context): StudyLog {

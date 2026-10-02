@@ -92,7 +92,7 @@ class ExamSessionActivity : BaseActivity() {
         val notice = built.second
 
         if (items.isEmpty()) {
-            Toast.makeText(this, "출제할 문제가 없어요. 먼저 학습내용관리에서 주제를 추가해주세요.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "출제할 문제가 없어요. 설정에서 본문·사례를 추가해주세요.", Toast.LENGTH_LONG).show()
             finish()
             return
         }

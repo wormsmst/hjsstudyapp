@@ -17,6 +17,7 @@ object AppPrefs {
     private const val KEY_EXAM_TITLE = "exam_date_title"
     private const val KEY_EXAM1_DATE = "exam1_date_millis"
     private const val KEY_EXAM2_DATE = "exam2_date_millis"
+    private const val KEY_HOME_TAB = "home_tab"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -202,5 +203,23 @@ object AppPrefs {
     fun showQuizTile(context: Context): Boolean {
         if (prefs(context).getBoolean("quiz_opened", false)) return true
         return !DailyQuestStore.everRecallDone(context)
+    }
+
+    fun getHomeTab(context: Context): String {
+        val v = prefs(context).getString(KEY_HOME_TAB, "today") ?: "today"
+        return when (v) {
+            "review" -> "review"
+            "tools" -> "tools"
+            else -> "today"
+        }
+    }
+
+    fun setHomeTab(context: Context, tab: String) {
+        val v = when (tab) {
+            "review" -> "review"
+            "tools" -> "tools"
+            else -> "today"
+        }
+        prefs(context).edit().putString(KEY_HOME_TAB, v).apply()
     }
 }

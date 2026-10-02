@@ -42,9 +42,24 @@ object TodayTtsStore {
     }
 
     fun setTodayFromIds(context: Context, ids: List<String>, reason: String) {
+        setIdsForDate(context, todayKey(), ids, reason)
+    }
+
+    /** 저녁 인출에서 막힌 주제를 다음 날 출근길 TTS로 미리 넣는다. */
+    fun setNextMorningFromIds(context: Context, ids: List<String>, reason: String) {
+        setIdsForDate(context, nextKey(), ids, reason)
+    }
+
+    private fun nextKey(): String {
+        val c = Calendar.getInstance()
+        c.add(Calendar.DAY_OF_YEAR, 1)
+        return keyOf(c)
+    }
+
+    private fun setIdsForDate(context: Context, date: String, ids: List<String>, reason: String) {
         val n = AppPrefs.getTodayTtsCount(context).coerceAtLeast(1)
         val filled = fillToCount(context, ids.filter { it.isNotBlank() }.distinct(), n)
-        saveDay(context, TodayTtsPick(todayKey(), filled, reason))
+        saveDay(context, TodayTtsPick(date, filled, reason))
     }
 
     fun current(context: Context, forceNew: Boolean = false): TodayTtsPick {
@@ -153,6 +168,7 @@ object TodayTtsStore {
         val pruned = prune(archive)
         file(context).writeText(gson.toJson(pruned), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+        FirebaseSyncManager.notifyProgressChanged(context)
     }
 
     private fun prune(archive: TodayTtsArchive): TodayTtsArchive {

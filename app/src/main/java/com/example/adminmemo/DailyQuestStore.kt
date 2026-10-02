@@ -65,8 +65,11 @@ object DailyQuestStore {
         book.quests = book.quests ?: mutableListOf()
         book.days = book.days ?: mutableMapOf()
         book.backlog = book.backlog ?: mutableListOf()
+        book.quests.removeAll { it.type == TYPE_LISTEN }
+        book.backlog.removeAll { it.type == TYPE_LISTEN }
         book.days.values.forEach { snap ->
             snap.quests = snap.quests ?: mutableListOf()
+            snap.quests.removeAll { it.type == TYPE_LISTEN }
         }
     }
 
@@ -74,7 +77,7 @@ object DailyQuestStore {
         val today = TodayTtsStore.todayKey()
         snapshot(book)
         if (book.date == today) return book
-        val undone = book.quests.filter { !it.done }
+        val undone = book.quests.filter { !it.done && it.type != TYPE_LISTEN }
         val backlog = (undone + book.backlog).distinctBy { it.type + "|" + it.cardId }.take(BACKLOG_CAP)
         return QuestBook(
             date = today,
@@ -103,6 +106,7 @@ object DailyQuestStore {
         snapshot(book)
         file(context).writeText(gson.toJson(book), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+        FirebaseSyncManager.notifyProgressChanged(context)
     }
 
     fun recallDoneToday(context: Context): Boolean = read(context).recallDone
@@ -333,10 +337,10 @@ object DailyQuestStore {
         addDueCurveQuests(context)
         val listenCards = (miss + half).distinctBy { it.id }.take(listenCap())
         if (listenCards.isNotEmpty()) {
-            TodayTtsStore.setTodayFromIds(
+            TodayTtsStore.setNextMorningFromIds(
                 context,
                 listenCards.map { it.id },
-                "오늘 인출에서 막힌 주제를 사연으로 묶어 두었어요"
+                "인출에서 막힌 주제를 다음 출근길에 듣도록 묶어 두었어요"
             )
         }
     }

@@ -234,6 +234,7 @@ object CardStore {
     private fun writeWrongIds(context: Context, ids: Set<String>) {
         wrongIdsFile(context).writeText(gson.toJson(ids), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+        FirebaseSyncManager.notifyProgressChanged(context)
     }
 
     fun getWrongIds(context: Context): Set<String> = WrongNoteStore.cardIds(context)
@@ -262,6 +263,7 @@ object CardStore {
     private fun writeMemos(context: Context, map: Map<String, String>) {
         memosFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+        FirebaseSyncManager.notifyProgressChanged(context)
     }
 
     fun getMemo(context: Context, cardId: String): String {
@@ -365,6 +367,7 @@ object CardStore {
     private fun writeMemoryLevels(context: Context, map: Map<String, Int>) {
         memoryFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+        FirebaseSyncManager.notifyProgressChanged(context)
     }
 
     /** 1(거의 모름) ~ 5(완벽히 암기) 사이 값. 아직 설정 안 했으면 1. */
