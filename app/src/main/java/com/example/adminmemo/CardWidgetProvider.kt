@@ -86,20 +86,6 @@ class CardWidgetProvider : AppWidgetProvider() {
                 )
             )
 
-            val cycleIntent = Intent(context, CardWidgetProvider::class.java).apply {
-                action = ACTION_CYCLE_MEMORY
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-            }
-            views.setOnClickPendingIntent(
-                R.id.widgetMemory,
-                PendingIntent.getBroadcast(
-                    context,
-                    widgetId + 200000,
-                    cycleIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-            )
-
             manager.updateAppWidget(widgetId, views)
             manager.notifyAppWidgetViewDataChanged(widgetId, R.id.widgetListView)
         }
@@ -135,14 +121,7 @@ class CardWidgetProvider : AppWidgetProvider() {
                 updateWidget(context, manager, widgetId)
             }
             ACTION_CYCLE_MEMORY -> {
-                val cards = CardStore.getAllCards(context)
-                val p = prefs(context)
-                val idx = p.getInt(cardIndexKey(widgetId), -1)
-                if (idx in cards.indices) {
-                    val card = cards[idx]
-                    CardStore.cycleMemoryLevel(context, card.subject, card.topicTitle)
-                    updateWidget(context, manager, widgetId)
-                }
+                updateWidget(context, manager, widgetId)
             }
         }
     }

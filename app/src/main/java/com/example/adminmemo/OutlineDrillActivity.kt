@@ -10,6 +10,8 @@ import androidx.recyclerview.widget.RecyclerView
 /** 한 주제의 목차를 같은 화면에서 아코디언으로 펼친다. */
 class OutlineDrillActivity : BaseActivity() {
 
+    override val showScratchPad = true
+
     companion object {
         const val EXTRA_CARD_ID = "extra_card_id"
     }

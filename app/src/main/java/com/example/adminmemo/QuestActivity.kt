@@ -1,6 +1,7 @@
 package com.example.adminmemo
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
@@ -11,6 +12,7 @@ import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.google.android.material.button.MaterialButton
 import java.util.Calendar
 
 class QuestActivity : BaseActivity() {
@@ -52,6 +54,13 @@ class QuestActivity : BaseActivity() {
                     .putExtra(EXTRA_RECALL_UNSEEN, true)
             )
         }
+        findViewById<View>(R.id.btnQuestRetrain).setOnClickListener { startRetrain() }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        bindLandscapeSplit(R.id.layoutQuestSplit)
+        findViewById<View>(R.id.layoutQuestRight).post { bindCalendar() }
     }
 
     override fun onStart() {
@@ -64,7 +73,7 @@ class QuestActivity : BaseActivity() {
         bindToday()
         bindBacklog()
         bindUnseen()
-        bindCalendar()
+        findViewById<View>(R.id.layoutQuestRight).post { bindCalendar() }
     }
 
     private fun bindToday() {
@@ -75,15 +84,36 @@ class QuestActivity : BaseActivity() {
         if (!DailyQuestStore.recallDoneToday(this) && quests.isEmpty()) {
             empty.visibility = View.VISIBLE
             list.visibility = View.GONE
+            bindRetrainButton()
             return
         }
         empty.visibility = View.GONE
         list.visibility = View.VISIBLE
         if (quests.isEmpty()) {
             addHint(list, "오늘은 막힌 장이 없어 퀘스트가 없어요.")
+            bindRetrainButton()
             return
         }
         quests.forEach { addQuestRow(list, it, editable = true) }
+        bindRetrainButton()
+    }
+
+    private fun bindRetrainButton() {
+        val btn = findViewById<View>(R.id.btnQuestRetrain)
+        val ids = DailyQuestStore.retrainIds(this)
+        val openWrite = DailyQuestStore.openQuests(this)
+            .any { it.type == DailyQuestStore.TYPE_WRITE || it.type == DailyQuestStore.TYPE_BODY }
+        btn.visibility = if (ids.isNotEmpty() && !openWrite) View.VISIBLE else View.GONE
+    }
+
+    private fun startRetrain() {
+        val ids = DailyQuestStore.retrainIds(this)
+        if (ids.isEmpty()) return
+        startActivity(
+            Intent(this, RecallActivity::class.java)
+                .putStringArrayListExtra(EXTRA_RECALL_CARD_IDS, ArrayList(ids))
+                .putExtra(EXTRA_RECALL_RETRAIN, true)
+        )
     }
 
     private fun bindBacklog() {
@@ -116,7 +146,7 @@ class QuestActivity : BaseActivity() {
         val firstDow = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7
         val days = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
         val today = TodayTtsStore.todayKey()
-        val cell = (resources.displayMetrics.widthPixels - dp(48)) / 7
+        val cell = calendarCellSize()
         repeat(firstDow) { grid.addView(dayCell("", Color.TRANSPARENT, cell, null)) }
         for (d in 1..days) {
             val key = "$year-$month1-$d"
@@ -171,6 +201,7 @@ class QuestActivity : BaseActivity() {
         val cb = CheckBox(this)
         val kind = "${DailyQuestStore.kindLabel(q)} ${q.progress}/${q.target}"
         val hint = if (q.hint.isBlank()) "" else " · ${q.hint}"
+        cb.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         cb.text = "${q.title}  ($kind)$hint"
         cb.isChecked = q.done
         cb.isEnabled = editable
@@ -178,13 +209,36 @@ class QuestActivity : BaseActivity() {
         if (editable) {
             cb.setOnCheckedChangeListener { _, on ->
                 DailyQuestStore.setDone(this, q.id, on)
+                bindRetrainButton()
             }
         }
         row.addView(cb)
+        if (q.type == DailyQuestStore.TYPE_WRITE || q.type == DailyQuestStore.TYPE_BODY) {
+            val btn = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
+            btn.text = "본문"
+            btn.textSize = 12f
+            btn.minimumWidth = 0
+            btn.minWidth = 0
+            btn.insetTop = 0
+            btn.insetBottom = 0
+            val btnLp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            btn.layoutParams = btnLp
+            btn.setOnClickListener { openBody(q) }
+            row.addView(btn)
+        }
         parent.addView(row)
         if (editable) {
             row.setOnClickListener { openQuest(q) }
         }
+    }
+
+    private fun openBody(q: DailyQuest) {
+        if (q.cardId.isBlank()) return
+        val card = CardStore.getAllCards(this).firstOrNull { it.id == q.cardId } ?: return
+        launchConceptDetail(this, card, q.id)
     }
 
     private fun openQuest(q: DailyQuest) {
@@ -229,6 +283,16 @@ class QuestActivity : BaseActivity() {
         tv.layoutParams = lp
         if (click != null) tv.setOnClickListener { click() }
         return tv
+    }
+
+    private fun calendarCellSize(): Int {
+        val pane = findViewById<View>(R.id.layoutQuestRight)
+        val w = when {
+            pane.width > 0 -> pane.width
+            isLandscape() -> resources.displayMetrics.widthPixels / 2
+            else -> resources.displayMetrics.widthPixels
+        }
+        return ((w - dp(24)) / 7).coerceAtLeast(dp(32))
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()

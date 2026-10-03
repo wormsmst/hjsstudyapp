@@ -45,30 +45,18 @@ object DdayCalculator {
     )
 
     fun homeDisplay(context: Context): HomeDday {
-        val d1 = AppPrefs.getExam1DateMillis(context)
         val d2 = AppPrefs.getExam2DateMillis(context)
-        val u1 = isUpcoming(d1)
-        val u2 = isUpcoming(d2)
-        return when {
-            u1 && u2 -> HomeDday(
-                main = "1차 시험일까지  ${ddayToken(d1)}",
-                second = "2차 시험일까지  ${ddayToken(d2)}",
-                sub = "1차 ${DateFormatters.dateOnly(d1)}  ·  2차 ${DateFormatters.dateOnly(d2)}"
-            )
-            u1 -> HomeDday(
-                main = "1차 시험일까지  ${ddayToken(d1)}",
-                second = null,
-                sub = DateFormatters.dateOnly(d1)
-            )
-            u2 -> HomeDday(
+        return if (isUpcoming(d2)) {
+            HomeDday(
                 main = "2차 시험일까지  ${ddayToken(d2)}",
                 second = null,
                 sub = DateFormatters.dateOnly(d2)
             )
-            else -> HomeDday(
-                main = "시험일을 설정해주세요",
+        } else {
+            HomeDday(
+                main = "2차 시험일을 설정해주세요",
                 second = null,
-                sub = "탭해서 1차·2차 시험일을 정할 수 있어요"
+                sub = "탭해서 2차 시험일을 정할 수 있어요"
             )
         }
     }

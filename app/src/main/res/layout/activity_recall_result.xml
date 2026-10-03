@@ -14,7 +14,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="오늘 인출 끝"
+            android:text="인출 끝. 맞춘 것보다 막힌 장을 채우는 게 오늘 본체입니다."
             android:textColor="@color/text_main"
             android:textSize="22sp"
             android:textStyle="bold"/>
@@ -59,7 +59,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="못 한 장 다시 인출"/>
+            android:text="부족한 부분 채우기"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRecallOpenTts"
@@ -75,7 +75,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="퀘스트 보기"/>
+            android:text="채운 장 다시 인출"/>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRecallHome"

@@ -11,8 +11,10 @@ object GeminiClient {
 
     /** 설명 질문용으로 빠른 lite만 쓴다. 큰 Flash는 생각(thinking) 때문에 오래 걸린다. */
     private val MODELS = listOf(
-        "gemini-3.1-flash-lite",
-        "gemini-flash-lite-latest"
+        "gemini-2.5-flash-lite",
+        "gemini-flash-lite-latest",
+        "gemini-2.0-flash-lite",
+        "gemini-3.1-flash-lite"
     )
 
     @Volatile
@@ -49,8 +51,12 @@ object GeminiClient {
                 }
                 callback(
                     null,
-                    if (sawBusy) "Gemini 서버가 잠시 혼잡해요. 몇 초 뒤에 다시 질문해주세요."
-                    else lastError ?: "사용 가능한 Gemini 모델을 찾지 못했어요"
+                    when {
+                        sawBusy -> "Gemini 서버가 잠시 혼잡해요. 몇 초 뒤에 다시 질문해주세요."
+                        lastError?.contains("코드 403") == true ->
+                            "Gemini가 이 키·모델 조합을 막았어요. 설정에서 Google AI Studio의 Gemini API 키를 다시 넣어 보세요.\n${lastError.orEmpty()}"
+                        else -> lastError ?: "사용 가능한 Gemini 모델을 찾지 못했어요"
+                    }
                 )
             } catch (e: Exception) {
                 callback(null, "네트워크 오류: ${e.message}")
@@ -67,7 +73,7 @@ object GeminiClient {
 
     private fun requestOnce(apiKey: String, model: String, prompt: String): Attempt {
         var result = post(apiKey, model, prompt, withThinkingHint = true)
-        if (result.error?.contains("코드 400") == true) {
+        if (result.error?.contains("코드 400") == true || result.error?.contains("코드 403") == true) {
             result = post(apiKey, model, prompt, withThinkingHint = false)
         }
         return result
@@ -80,6 +86,7 @@ object GeminiClient {
         try {
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("x-goog-api-key", apiKey)
             conn.doOutput = true
             conn.connectTimeout = 8000
             conn.readTimeout = 20000
@@ -117,7 +124,8 @@ object GeminiClient {
                 val missing = code == 404 ||
                     msg.contains("no longer available", ignoreCase = true) ||
                     msg.contains("not found", ignoreCase = true)
-                return Attempt(null, "요청 실패 (코드 $code, $model)\n$msg", busy || missing, busy)
+                val modelBlocked = code == 403
+                return Attempt(null, "요청 실패 (코드 $code, $model)\n$msg", busy || missing || modelBlocked, busy)
             }
 
             val text = extractAnswer(responseText)

@@ -28,6 +28,8 @@ import java.util.Locale
  */
 class ExamSessionActivity : BaseActivity() {
 
+    override val showScratchPad = true
+
     companion object {
         const val QUESTION_COUNT = 4
         const val TOTAL_MINUTES = 50

@@ -16,6 +16,7 @@
         android:textStyle="bold"/>
 
     <TextView
+        android:id="@+id/tvSubjectHint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingHorizontal="16dp"

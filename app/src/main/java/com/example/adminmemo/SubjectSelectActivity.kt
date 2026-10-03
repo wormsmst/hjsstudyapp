@@ -34,9 +34,15 @@ class SubjectSelectActivity : BaseActivity() {
         }
         override fun onBindViewHolder(holder: VH, position: Int) {
             val subject = items[position]
-            holder.tvTitle.text = if (subject == ALL_SUBJECTS_KEY) "🌐 전체 과목\n(4과목 랜덤)" else subject
+            holder.tvTitle.text = when (subject) {
+                ALL_SUBJECTS_KEY -> "🌐 전체 과목\n(4과목 랜덤)"
+                WEAK_STUDY_KEY -> "약점학습\n최근 인출에서 막힌 장"
+                else -> subject
+            }
+            val colorRes = if (subject == WEAK_STUDY_KEY) R.color.tile_wrong
+            else tileColors[position % tileColors.size]
             holder.card.setCardBackgroundColor(
-                ContextCompat.getColor(holder.itemView.context, tileColors[position % tileColors.size])
+                ContextCompat.getColor(holder.itemView.context, colorRes)
             )
             holder.itemView.setOnClickListener { onClick(subject) }
         }
@@ -58,6 +64,10 @@ class SubjectSelectActivity : BaseActivity() {
             PURPOSE_RECALL -> "✍️ 인출학습 — 과목 선택"
             else -> "📖 본문학습 — 과목 선택"
         }
+        findViewById<TextView>(R.id.tvSubjectHint).text = when (purpose) {
+            PURPOSE_STUDY -> "일하는 동안엔 약점학습으로, 최근 인출에서 막힌 장만 이어서 읽어요. 과목은 섞입니다."
+            else -> "과목은 새 PDF를 추가하면 계속 늘어나요"
+        }
 
         val subjects = if (purpose == PURPOSE_MANAGE_CASE) {
             orderedSubjects(
@@ -69,13 +79,31 @@ class SubjectSelectActivity : BaseActivity() {
             CardStore.getSubjects(this)
         }
         val rv = findViewById<RecyclerView>(R.id.rvSubjects)
-        rv.layoutManager = GridLayoutManager(this, 2)
+        val grid = GridLayoutManager(this, 2)
+        val items = if (purpose == PURPOSE_STUDY) listOf(WEAK_STUDY_KEY) + subjects else subjects
+        grid.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int =
+                if (items.getOrNull(position) == WEAK_STUDY_KEY) 2 else 1
+        }
+        rv.layoutManager = grid
 
         if (subjects.isEmpty()) {
             Toast.makeText(this, "등록된 과목이 없어요", Toast.LENGTH_SHORT).show()
         }
 
-        rv.adapter = SubjectAdapter(subjects) { subject ->
+        rv.adapter = SubjectAdapter(items) { subject ->
+            if (subject == WEAK_STUDY_KEY) {
+                val n = RecallStore.weakStudyCards(this).size
+                if (n == 0) {
+                    Toast.makeText(this, "아직 인출에서 막힌 장이 없어요. 저녁 인출을 하면 여기 쌓입니다.", Toast.LENGTH_LONG).show()
+                    return@SubjectAdapter
+                }
+                startActivity(
+                    Intent(this, ContentStudyListActivity::class.java)
+                        .putExtra(ContentStudyListActivity.EXTRA_WEAK_STUDY, true)
+                )
+                return@SubjectAdapter
+            }
             if (purpose == PURPOSE_EXAM) {
                 val intent = Intent(this, ExamSessionActivity::class.java)
                 intent.putExtra(EXTRA_SUBJECT, subject)

@@ -66,7 +66,7 @@ class CardLargeWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widgetGrade, "[${card.topicTitle}] · ${card.grade.ifBlank { "기본" }}")
 
             val level = CardStore.getMemoryLevel(context, card.subject, card.topicTitle)
-            views.setTextViewText(R.id.widgetMemory, "★".repeat(level) + "☆".repeat(5 - level) + "  (탭해서 변경)")
+            views.setTextViewText(R.id.widgetMemory, "★".repeat(level) + "☆".repeat(5 - level))
 
             val adapterIntent = Intent(context, StudyWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
@@ -130,15 +130,7 @@ class CardLargeWidgetProvider : AppWidgetProvider() {
                 }
             }
             ACTION_CYCLE_MEMORY -> {
-                val cards = CardStore.getAllCards(context)
-                for (widgetId in widgetIds) {
-                    val idx = p.getInt(cardIndexKey(widgetId), -1)
-                    if (idx in cards.indices) {
-                        val card = cards[idx]
-                        CardStore.cycleMemoryLevel(context, card.subject, card.topicTitle)
-                        updateWidget(context, manager, widgetId)
-                    }
-                }
+                for (widgetId in widgetIds) updateWidget(context, manager, widgetId)
             }
         }
     }

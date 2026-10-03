@@ -14,6 +14,8 @@ import androidx.core.content.ContextCompat
 
 class HonestyQuizActivity : BaseActivity() {
 
+    override val showScratchPad = true
+
     companion object {
         const val EXTRA_SUBJECT = "extra_subject"
     }

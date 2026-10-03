@@ -11,6 +11,9 @@ data class RecallItem(
     var intervalDays: Int = 0,
     var reps: Int = 0,
     var lapses: Int = 0,
+    var recallCount: Int = 0,
+    var goodStreak: Int = 0,
+    var lastFailKind: Int = 0,
     var lastGradeAt: Long = 0L,
     var lastWeakAt: Long = 0L
 )
@@ -24,6 +27,9 @@ object RecallStore {
     const val GRADE_MISS = 0
     const val GRADE_HALF = 1
     const val GRADE_GOOD = 2
+    const val FAIL_NONE = 0
+    const val FAIL_STRUCTURE = 1
+    const val FAIL_TIP = 2
     const val WEEKDAY_SESSION = 12
     const val WEEKEND_SESSION = 20
 
@@ -64,6 +70,72 @@ object RecallStore {
 
     fun lapses(context: Context, cardId: String): Int =
         read(context).items[cardId]?.lapses ?: 0
+
+    fun recallCount(context: Context, cardId: String): Int {
+        val item = read(context).items[cardId] ?: return 0
+        return if (item.recallCount > 0) item.recallCount else item.reps + item.lapses
+    }
+
+    fun allRecallCounts(context: Context): Map<String, Int> {
+        return read(context).items.mapValues { (_, item) ->
+            if (item.recallCount > 0) item.recallCount else item.reps + item.lapses
+        }
+    }
+
+    fun lastFailKind(context: Context, cardId: String): Int =
+        read(context).items[cardId]?.lastFailKind ?: FAIL_NONE
+
+    fun warmupCards(context: Context, limit: Int = 3): List<Card> {
+        val now = System.currentTimeMillis()
+        val window = TimeUnit.DAYS.toMillis(14)
+        val book = read(context)
+        val byId = CardStore.getAllCards(context)
+            .filter { it.type == "concept" && it.topicTitle.isNotBlank() }
+            .associateBy { it.id }
+        val weak = book.items.values
+            .filter { it.lastWeakAt in (now - window)..now }
+            .sortedByDescending { it.lastWeakAt }
+            .mapNotNull { byId[it.cardId] }
+            .distinctBy { it.id }
+        if (weak.size >= limit) return weak.take(limit)
+        val taken = weak.map { it.id }.toSet()
+        val extra = byId.values
+            .filter { it.id !in taken }
+            .filter { CardStore.getMemoryLevel(context, it.subject, it.topicTitle) <= 2 }
+            .filter { recallCount(context, it.id) > 0 }
+            .sortedBy { CardStore.getMemoryLevel(context, it.subject, it.topicTitle) }
+        return (weak + extra).distinctBy { it.id }.take(limit)
+    }
+
+    fun weakStudyCards(context: Context, limit: Int = 40): List<Card> {
+        val now = System.currentTimeMillis()
+        val window = TimeUnit.DAYS.toMillis(14)
+        val book = read(context)
+        val byId = CardStore.getAllCards(context)
+            .filter { it.type == "concept" && it.topicTitle.isNotBlank() && it.back.isNotBlank() }
+            .associateBy { it.id }
+        val seen = linkedSetOf<String>()
+        fun add(id: String) {
+            if (id.isNotBlank() && id in byId) seen.add(id)
+        }
+        DailyQuestStore.retrainIds(context).forEach(::add)
+        DailyQuestStore.writeCardIds(context).forEach(::add)
+        DailyQuestStore.todayQuests(context).forEach { add(it.cardId) }
+        book.items.values
+            .filter { it.lastWeakAt in (now - window)..now }
+            .sortedWith(
+                compareByDescending<RecallItem> { it.lastFailKind == FAIL_STRUCTURE }
+                    .thenByDescending { it.lastWeakAt }
+            )
+            .forEach { add(it.cardId) }
+        byId.values
+            .filter { CardStore.getMemoryLevel(context, it.subject, it.topicTitle) <= 2 }
+            .filter { recallCount(context, it.id) > 0 }
+            .sortedBy { CardStore.getMemoryLevel(context, it.subject, it.topicTitle) }
+            .forEach { add(it.id) }
+        val ordered = seen.mapNotNull { byId[it] }
+        return interleave(ordered, limit)
+    }
 
     fun dueCardIds(context: Context): List<String> {
         val now = System.currentTimeMillis()
@@ -186,18 +258,22 @@ object RecallStore {
         return out
     }
 
-    fun record(context: Context, card: Card, grade: Int) {
+    fun record(context: Context, card: Card, grade: Int, failKind: Int = FAIL_NONE) {
         val book = read(context)
         val item = book.items[card.id] ?: RecallItem(cardId = card.id)
         val now = System.currentTimeMillis()
         val day = TimeUnit.DAYS.toMillis(1)
+        if (item.recallCount <= 0) item.recallCount = item.reps + item.lapses
         item.lastGradeAt = now
+        item.recallCount++
         when (grade) {
             GRADE_MISS -> {
                 item.lapses++
                 item.intervalDays = 1
                 item.dueAt = now + TimeUnit.HOURS.toMillis(4)
                 item.lastWeakAt = now
+                item.goodStreak = 0
+                item.lastFailKind = if (failKind == FAIL_NONE) FAIL_STRUCTURE else failKind
                 CardStore.addWrong(context, card.id)
             }
             GRADE_HALF -> {
@@ -205,6 +281,8 @@ object RecallStore {
                 item.intervalDays = 3
                 item.dueAt = now + 3 * day
                 item.lastWeakAt = now
+                item.goodStreak = 0
+                item.lastFailKind = if (failKind == FAIL_NONE) FAIL_TIP else failKind
             }
             else -> {
                 item.reps++
@@ -216,10 +294,15 @@ object RecallStore {
                 }
                 item.dueAt = now + item.intervalDays * day
                 item.lastWeakAt = 0L
+                item.goodStreak++
+                item.lastFailKind = FAIL_NONE
                 CardStore.removeWrong(context, card.id)
-                val mem = CardStore.getMemoryLevel(context, card.subject, card.topicTitle)
-                if (mem < 5) CardStore.setMemoryLevel(context, card.subject, card.topicTitle, mem + 1)
             }
+        }
+        val beforeMem = CardStore.getMemoryLevel(context, card.subject, card.topicTitle)
+        CardStore.applyRecallMemory(context, card, grade, item.goodStreak)
+        if (CardStore.getMemoryLevel(context, card.subject, card.topicTitle) > beforeMem) {
+            item.goodStreak = 0
         }
         book.items[card.id] = item
         write(context, book)
@@ -243,6 +326,9 @@ object RecallStore {
                     intervalDays = minOf(la.intervalDays, lb.intervalDays),
                     reps = maxOf(la.reps, lb.reps),
                     lapses = maxOf(la.lapses, lb.lapses),
+                    recallCount = maxOf(countOf(la), countOf(lb)),
+                    goodStreak = if (la.lastGradeAt >= lb.lastGradeAt) la.goodStreak else lb.goodStreak,
+                    lastFailKind = if (la.lastGradeAt >= lb.lastGradeAt) la.lastFailKind else lb.lastFailKind,
                     lastGradeAt = maxOf(la.lastGradeAt, lb.lastGradeAt),
                     lastWeakAt = maxOf(la.lastWeakAt, lb.lastWeakAt)
                 )
@@ -251,6 +337,9 @@ object RecallStore {
         out.oneSubjectCursor = maxOf(a.oneSubjectCursor, b.oneSubjectCursor)
         return gson.toJson(out)
     }
+
+    private fun countOf(item: RecallItem): Int =
+        if (item.recallCount > 0) item.recallCount else item.reps + item.lapses
 
     fun bumpDueNow(context: Context, cardId: String) {
         val book = read(context)

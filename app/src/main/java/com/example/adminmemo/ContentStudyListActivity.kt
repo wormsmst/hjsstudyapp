@@ -12,12 +12,14 @@ class ContentStudyListActivity : BaseActivity() {
 
     companion object {
         const val EXTRA_OUTLINE_MODE = "extra_outline_mode"
+        const val EXTRA_WEAK_STUDY = "extra_weak_study"
     }
 
     private lateinit var adapter: ContentAdapter
     private var allConcepts: List<Card> = emptyList()
     private lateinit var subject: String
     private var outlineMode = false
+    private var weakStudy = false
     private var currentQuery: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,19 +28,31 @@ class ContentStudyListActivity : BaseActivity() {
 
         subject = intent.getStringExtra(EXTRA_SUBJECT) ?: ""
         outlineMode = intent.getBooleanExtra(EXTRA_OUTLINE_MODE, false)
-        findViewById<android.widget.TextView>(R.id.tvStudyListHeader)?.text =
-            if (outlineMode) "🗺️ 목차학습" else "📖 본문학습"
+        weakStudy = intent.getBooleanExtra(EXTRA_WEAK_STUDY, false)
+        findViewById<android.widget.TextView>(R.id.tvStudyListHeader)?.text = when {
+            outlineMode -> "🗺️ 목차학습"
+            weakStudy -> "약점학습"
+            else -> "📖 본문학습"
+        }
 
         val rv = findViewById<RecyclerView>(R.id.rvContentList)
         rv.layoutManager = LinearLayoutManager(this)
         adapter = ContentAdapter(
             titleFn = { it.topicTitle },
             subtitleFn = {
-                if (outlineMode) ""
-                else if (it.mnemonic.isNotBlank()) "두문자: ${it.mnemonic}"
-                else ""
+                when {
+                    outlineMode -> ""
+                    weakStudy -> {
+                        val stars = CardStore.memoryStarsLabel(
+                            CardStore.getMemoryLevel(this, it.subject, it.topicTitle)
+                        )
+                        "${canonicalizeSubject(it.subject)}  $stars"
+                    }
+                    it.mnemonic.isNotBlank() -> "두문자: ${it.mnemonic}"
+                    else -> ""
+                }
             },
-            memoryFn = if (outlineMode) null else { card ->
+            memoryFn = if (outlineMode || weakStudy) null else { card ->
                 CardStore.memoryStarsLabel(CardStore.getMemoryLevel(this, card.subject, card.topicTitle))
             },
             onClick = { card -> openCard(card.id) }
@@ -63,11 +77,15 @@ class ContentStudyListActivity : BaseActivity() {
     }
 
     private fun loadConcepts() {
-        allConcepts = sortConceptCards(
-            this,
-            CardStore.getAllCards(this).filter { it.type == "concept" && it.subject == subject },
-            subject
-        )
+        allConcepts = if (weakStudy) {
+            RecallStore.weakStudyCards(this)
+        } else {
+            sortConceptCards(
+                this,
+                CardStore.getAllCards(this).filter { it.type == "concept" && it.subject == subject },
+                subject
+            )
+        }
     }
 
     private fun applyFilter(query: String) {

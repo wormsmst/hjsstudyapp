@@ -197,14 +197,10 @@ class SettingsActivity : BaseActivity() {
         findViewById<Button>(R.id.btnGoogleLogout).setOnClickListener { startGoogleLogout() }
         findViewById<Button>(R.id.btnContentPush).setOnClickListener { confirmContentPush() }
         findViewById<Button>(R.id.btnContentPull).setOnClickListener { confirmContentPull() }
-        findViewById<Button>(R.id.btnContentManage).setOnClickListener {
-            startActivity(Intent(this, ContentManageHubActivity::class.java))
-        }
     }
 
     private fun setupDdaySection() {
         refreshExamDateLabel()
-        findViewById<Button>(R.id.btnPickExamDate1).setOnClickListener { showExamDatePicker(1) }
         findViewById<Button>(R.id.btnPickExamDate2).setOnClickListener { showExamDatePicker(2) }
     }
 

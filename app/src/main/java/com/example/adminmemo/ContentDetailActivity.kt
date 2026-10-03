@@ -21,6 +21,9 @@ import androidx.core.content.ContextCompat
 
 class ContentDetailActivity : BaseActivity() {
 
+    override val showScratchPad = true
+    override val scratchPadInToolbar = true
+
     companion object {
         const val EXTRA_IDS = "extra_ids"
         const val EXTRA_INDEX = "extra_index"
@@ -41,6 +44,7 @@ class ContentDetailActivity : BaseActivity() {
     private lateinit var etMemo: EditText
     private lateinit var memoryStars: List<TextView>
     private lateinit var btnSpeak: ImageButton
+    private var showOutlineTree = false
 
     private val ttsListener: (StudyTtsState) -> Unit = { st ->
         if (st.ids.isNotEmpty() && st.ids == ids && st.index in ids.indices && st.index != index) {
@@ -79,32 +83,21 @@ class ContentDetailActivity : BaseActivity() {
             findViewById(R.id.star1), findViewById(R.id.star2), findViewById(R.id.star3),
             findViewById(R.id.star4), findViewById(R.id.star5)
         )
-        memoryStars.forEachIndexed { i, star ->
-            star.setOnClickListener {
-                val card = currentCard() ?: return@setOnClickListener
-                CardStore.setMemoryLevel(this, card.subject, card.topicTitle, i + 1)
-                renderMemoryStars(i + 1)
-            }
+        memoryStars.forEach { star ->
+            star.isClickable = false
+            star.isFocusable = false
         }
 
         btnSpeak.setOnClickListener { onSpeakClicked() }
-        btnSpeak.setOnLongClickListener {
-            TtsVoiceUi.open(this) {
-                val st = StudyTtsHub.state
-                if (st.playing && st.ids == ids) StudyTtsService.play(this, ids, index)
-            }
-            true
-        }
-        findViewById<ImageButton>(R.id.btnTtsVoice).setOnClickListener {
-            TtsVoiceUi.open(this) {
-                val st = StudyTtsHub.state
-                if (st.playing && st.ids == ids) StudyTtsService.play(this, ids, index)
-            }
-        }
+        findViewById<TextView>(R.id.btnScratchPad).setOnClickListener { toggleScratchPad() }
 
         findViewById<ImageButton>(R.id.btnEditDetail).setOnClickListener {
             StudyTtsService.stop(this)
             showEditDialog()
+        }
+        findViewById<ImageButton>(R.id.btnOutlineTree).setOnClickListener {
+            showOutlineTree = !showOutlineTree
+            render()
         }
 
         findViewById<Button>(R.id.btnPrevDetail).setOnClickListener {
@@ -231,7 +224,7 @@ class ContentDetailActivity : BaseActivity() {
         val tools = findViewById<LinearLayout>(R.id.layoutDetailTools) ?: return
         val rightScroll = findViewById<View>(R.id.scrollDetailRight) ?: return
         val gutter = findViewById<View>(R.id.viewDetailGutter)
-        val land = isLandscape()
+        val land = isLandscape() && !showOutlineTree
         split.orientation = if (land) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
         (tools.parent as? ViewGroup)?.removeView(tools)
         val leftScroll = split.getChildAt(0)
@@ -280,26 +273,49 @@ class ContentDetailActivity : BaseActivity() {
             cardMnemonicBox.visibility = View.GONE
         }
 
-        val formatted = formatStudyOutlineText(
-            displayStudyBody(
-                card.back.ifBlank { "본문 내용이 없어요" },
-                keepTypedBreaks = CardStore.isLocallyEdited(this, card.id)
+        val treeBtn = findViewById<ImageButton>(R.id.btnOutlineTree)
+        val treeScroll = findViewById<View>(R.id.scrollOutlineTree)
+        val treeView = findViewById<OutlineTreeView>(R.id.viewOutlineTree)
+        if (showOutlineTree) {
+            val roots = try {
+                parseOutline(card.back).filter { it.level >= 0 }
+            } catch (_: Exception) {
+                emptyList()
+            }
+            treeView.setOutline(card.topicTitle, roots, isLandscape())
+            treeScroll.visibility = View.VISIBLE
+            tvBody.visibility = View.GONE
+            tvBodyRight.visibility = View.GONE
+            treeBtn.setImageResource(R.drawable.ic_outline_body)
+            treeBtn.contentDescription = "본문 보기"
+            bindBookLayout()
+        } else {
+            treeScroll.visibility = View.GONE
+            tvBody.visibility = View.VISIBLE
+            treeBtn.setImageResource(R.drawable.ic_outline_tree)
+            treeBtn.contentDescription = "목차 트리"
+            bindBookLayout()
+            val formatted = formatStudyOutlineText(
+                displayStudyBody(
+                    card.back.ifBlank { "본문 내용이 없어요" },
+                    keepTypedBreaks = CardStore.isLocallyEdited(this, card.id)
+                )
             )
-        )
-        if (isLandscape()) {
-            val pages = splitStudySpread(formatted)
-            tvBody.text = buildStyledStudyBody(this, pages.first)
-            if (pages.second.isBlank()) {
+            if (isLandscape()) {
+                val pages = splitStudySpread(formatted)
+                tvBody.text = buildStyledStudyBody(this, pages.first)
+                if (pages.second.isBlank()) {
+                    tvBodyRight.visibility = View.GONE
+                    tvBodyRight.text = ""
+                } else {
+                    tvBodyRight.visibility = View.VISIBLE
+                    tvBodyRight.text = buildStyledStudyBody(this, pages.second)
+                }
+            } else {
+                tvBody.text = buildStyledStudyBody(this, formatted)
                 tvBodyRight.visibility = View.GONE
                 tvBodyRight.text = ""
-            } else {
-                tvBodyRight.visibility = View.VISIBLE
-                tvBodyRight.text = buildStyledStudyBody(this, pages.second)
             }
-        } else {
-            tvBody.text = buildStyledStudyBody(this, formatted)
-            tvBodyRight.visibility = View.GONE
-            tvBodyRight.text = ""
         }
         etMemo.setText(CardStore.getMemo(this, card.id))
         renderMemoryStars(CardStore.getMemoryLevel(this, card.subject, card.topicTitle))

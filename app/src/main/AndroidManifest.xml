@@ -112,6 +112,7 @@
         <activity
             android:name=".QuestActivity"
             android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:label="퀘스트" />
 
         <service

@@ -44,102 +44,21 @@ private fun outlineLevelOf(line: String): Int? = when {
 }
 
 /**
- * PDF에서 추출한 본문은 화면 폭 기준으로 강제 줄바꿈되어 있어 문장이 어색하게
- * 끊겨 보인다. **빈 줄(Enter 두 번)** 은 항상 문단 경계로 두고, 문단 안에서는
- * 목차 줄만 나누고 나머지는 이어 붙인다.
+ * 본문은 저장된 줄바꿈을 그대로 쓴다.
+ * (예전 PDF 폭 기준 줄붙임·목차 자동 분리는 자주 틀려서 쓰지 않는다.)
  */
 fun normalizeNewlines(text: String): String =
     text.replace("\r\n", "\n").replace("\r", "\n")
 
-fun reflowBody(text: String): String {
-    val normalized = normalizeNewlines(text)
-    return normalized.split(Regex("\n{2,}"))
-        .joinToString("\n\n") { reflowParagraph(it) }
-}
+fun reflowBody(text: String): String = normalizeNewlines(text)
 
-/** 직접 고친 본문은 입력한 줄바꿈을 그대로 보여 준다. */
+/** 직접 고친 본문과 추출 본문 모두 입력한 줄바꿈을 그대로 보여 준다. */
 fun displayStudyBody(raw: String, keepTypedBreaks: Boolean): String {
     val text = raw.ifBlank { "본문 내용이 없어요" }
-    return if (keepTypedBreaks) normalizeNewlines(text) else unfoldOutlineText(text)
+    return normalizeNewlines(text)
 }
 
-/**
- * 사례·추출 본문처럼 목차 마커와 설명이 한 줄에 붙어 있는 글을
- * 목차 줄 / 설명 줄로 나눠 읽기 쉽게 만든다.
- */
-fun unfoldOutlineText(text: String): String {
-    var s = normalizeNewlines(text)
-    s = s.replace(Regex("(?<=제\\d{1,4})\\n+(조)"), "조")
-    s = s.replace(Regex("(\\d{4}다\\d+)\\n+(\\d+)"), "$1$2")
-    s = s.replace(Regex("(?<=[가-힣.])(?=\\d+\\.\\s[가-힣])"), "\n")
-    s = s.replace(Regex("(?<=[가-힣.])(?=\\d+\\)\\s)"), "\n")
-    s = s.replace(Regex("(?<=[가-힣.])(?=\\(\\d+\\)\\s)"), "\n")
-    s = s.replace(Regex("(?<=[가-힣.])(?=[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])"), "\n")
-    return reflowBody(s)
-        .lineSequence()
-        .flatMap { splitJammedHeadingLine(it.trim()) }
-        .filter { it.isNotBlank() }
-        .joinToString("\n")
-}
-
-private val HEADING_TAIL = listOf(
-    "논점의 제기", "사안의 검토", "존재할 것", "있을 것", "없을 것", "발생할 것",
-    "할 것", "불성립", "이행거절", "요건", "효과", "의의", "성립", "소멸", "검토", "제기"
-).sortedByDescending { it.length }
-
-private fun splitJammedHeadingLine(line: String): List<String> {
-    if (line.isBlank() || outlineLevelOf(line) == null) return listOf(line)
-    val rest = outlineHeadingContent(line) ?: return listOf(line)
-    val marker = outlineMarkerOf(line)
-    for (tail in HEADING_TAIL) {
-        val i = rest.indexOf(tail)
-        if (i < 0) continue
-        val after = i + tail.length
-        if (after < rest.length && rest[after] in '가'..'힣') {
-            val title = rest.substring(0, after).trim()
-            val body = rest.substring(after).trim()
-            return listOf("$marker $title", body)
-        }
-    }
-    val glued = Regex("^(.{2,28}?)([가-힣]{2,}(?:이란|라고|이다|이다\\.|은 |는 |을 |를 ))").find(rest)
-    if (glued != null && !rest.take(glued.groupValues[1].length).contains(' ')) {
-        val title = glued.groupValues[1].trim()
-        val body = rest.substring(title.length).trim()
-        if (title.length in 2..20 && body.length >= 6) {
-            return listOf("$marker $title", body)
-        }
-    }
-    return listOf(line)
-}
-
-private fun reflowParagraph(para: String): String {
-    val out = mutableListOf<String>()
-    var buf = StringBuilder()
-    fun flush() {
-        if (buf.isNotEmpty()) {
-            out.add(buf.toString())
-            buf = StringBuilder()
-        }
-    }
-
-    for (raw in para.split("\n")) {
-        val line = raw.trim()
-        if (line.isEmpty()) continue
-        val content = outlineHeadingContent(line)
-        if (content != null) {
-            flush()
-            out.add(line)
-            continue
-        }
-        if (buf.isEmpty()) {
-            buf.append(line)
-        } else {
-            buf.append(" ").append(line)
-        }
-    }
-    flush()
-    return out.joinToString("\n")
-}
+fun unfoldOutlineText(text: String): String = normalizeNewlines(text)
 
 /** 문장→목차 퀴즈에서 쓰는 문제 하나: 어떤 문장이 어느 목차(형제들 중 하나)에 속하는지 */
 data class SentenceQuizItem(
@@ -230,7 +149,7 @@ fun buildOutlineGroups(cards: List<Card>): List<OutlineGroup> {
     return groups
 }
 fun parseOutline(text: String): List<OutlineNode> {
-    val reflowed = unfoldOutlineText(text)
+    val reflowed = normalizeNewlines(text)
     val roots = mutableListOf<OutlineNode>()
     val stack = mutableListOf<OutlineNode>() // stack[i] = 현재 레벨 i의 열려있는 노드
 

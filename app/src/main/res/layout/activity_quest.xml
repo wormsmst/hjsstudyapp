@@ -1,187 +1,207 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_screen"
-    android:fillViewport="true">
+    android:orientation="vertical"
+    android:padding="16dp">
 
     <LinearLayout
+        android:id="@+id/layoutQuestSplit"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
 
-        <TextView
+        <ScrollView
+            android:id="@+id/layoutQuestLeft"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="퀘스트"
-            android:textColor="@color/text_main"
-            android:textSize="22sp"
-            android:textStyle="bold"/>
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="인출에서 막힌 장을 책상에서 다시 쓰는 오늘 할 일이에요. 듣기는 출근길 TTS로 빼 두었어요."
-            android:textColor="@color/text_sub"
-            android:textSize="13sp"/>
-
-        <include
-            android:id="@+id/tvQuestCoach"
-            layout="@layout/view_coach_pill"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"/>
-
-        <LinearLayout
-            android:id="@+id/layoutQuestSplit"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-        <LinearLayout
-            android:id="@+id/layoutQuestEmpty"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="오늘 인출을 먼저 하면, 막힌 장을 제목만 보고 다시 펼치는 퀘스트가 생깁니다."
-                android:textColor="@color/text_main"
-                android:textSize="15sp"/>
+                android:orientation="vertical"
+                android:paddingEnd="8dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnQuestGoRecall"
-                style="@style/Widget.AdminMemo.Button"
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="퀘스트"
+                    android:textColor="@color/text_main"
+                    android:textSize="22sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="인출에서 막힌 장을 책상에서 다시 쓰는 오늘 할 일이에요. 듣기는 출근길 TTS로 빼 두었어요."
+                    android:textColor="@color/text_sub"
+                    android:textSize="13sp"/>
+
+                <include
+                    android:id="@+id/tvQuestCoach"
+                    layout="@layout/view_coach_pill"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"/>
+
+                <LinearLayout
+                    android:id="@+id/layoutQuestEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="오늘 인출을 먼저 하면, 막힌 장을 제목만 보고 다시 펼치는 퀘스트가 생깁니다."
+                        android:textColor="@color/text_main"
+                        android:textSize="15sp"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnQuestGoRecall"
+                        style="@style/Widget.AdminMemo.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="인출 시작"/>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="오늘"
+                    android:textColor="@color/text_main"
+                    android:textSize="17sp"
+                    android:textStyle="bold"/>
+
+                <LinearLayout
+                    android:id="@+id/layoutQuestToday"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="vertical"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnQuestRetrain"
+                    style="@style/Widget.AdminMemo.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="채운 장 다시 인출"
+                    android:visibility="gone"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="밀린 것"
+                    android:textColor="@color/text_main"
+                    android:textSize="17sp"
+                    android:textStyle="bold"/>
+
+                <LinearLayout
+                    android:id="@+id/layoutQuestBacklog"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="vertical"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="이번 달 미인출"
+                    android:textColor="@color/text_main"
+                    android:textSize="17sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/tvQuestUnseen"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textColor="@color/text_sub"
+                    android:textSize="14sp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnQuestUnseen"
+                    style="@style/Widget.AdminMemo.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="미인출 주제 인출하기"/>
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/layoutQuestRight"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fillViewport="true">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:text="인출 시작"/>
-        </LinearLayout>
+                android:orientation="vertical"
+                android:paddingStart="8dp">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:text="오늘"
-            android:textColor="@color/text_main"
-            android:textSize="17sp"
-            android:textStyle="bold"/>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-        <LinearLayout
-            android:id="@+id/layoutQuestToday"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="vertical"/>
+                    <TextView
+                        android:id="@+id/btnQuestPrevMonth"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="8dp"
+                        android:text="‹"
+                        android:textColor="@color/text_main"
+                        android:textSize="22sp"/>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:text="밀린 것"
-            android:textColor="@color/text_main"
-            android:textSize="17sp"
-            android:textStyle="bold"/>
+                    <TextView
+                        android:id="@+id/tvQuestMonth"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:textColor="@color/text_main"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
 
-        <LinearLayout
-            android:id="@+id/layoutQuestBacklog"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="vertical"/>
+                    <TextView
+                        android:id="@+id/btnQuestNextMonth"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="8dp"
+                        android:text="›"
+                        android:textColor="@color/text_main"
+                        android:textSize="22sp"/>
+                </LinearLayout>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:text="이번 달 미인출"
-            android:textColor="@color/text_main"
-            android:textSize="17sp"
-            android:textStyle="bold"/>
+                <GridLayout
+                    android:id="@+id/gridQuestCal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="7"/>
 
-        <TextView
-            android:id="@+id/tvQuestUnseen"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:textColor="@color/text_sub"
-            android:textSize="14sp"/>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnQuestUnseen"
-            style="@style/Widget.AdminMemo.Button.Outlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="미인출 주제 인출하기"/>
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/btnQuestPrevMonth"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:padding="8dp"
-                android:text="‹"
-                android:textColor="@color/text_main"
-                android:textSize="22sp"/>
-
-            <TextView
-                android:id="@+id/tvQuestMonth"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:textColor="@color/text_main"
-                android:textSize="16sp"
-                android:textStyle="bold"/>
-
-            <TextView
-                android:id="@+id/btnQuestNextMonth"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:padding="8dp"
-                android:text="›"
-                android:textColor="@color/text_main"
-                android:textSize="22sp"/>
-        </LinearLayout>
-
-        <GridLayout
-            android:id="@+id/gridQuestCal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="7"/>
-
-        <LinearLayout
-            android:id="@+id/layoutQuestDay"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="vertical"/>
-        </LinearLayout>
-        </LinearLayout>
+                <LinearLayout
+                    android:id="@+id/layoutQuestDay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical"/>
+            </LinearLayout>
+        </ScrollView>
     </LinearLayout>
-</ScrollView>
+</LinearLayout>

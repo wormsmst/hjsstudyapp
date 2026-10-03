@@ -31,6 +31,8 @@ import com.google.android.material.button.MaterialButton
  */
 class QuizSessionActivity : BaseActivity() {
 
+    override val showScratchPad = true
+
     private enum class QType { CHOICE, ORDER, OX, FILLBLANK, REVERSE, MATCH, KEYWORD, OUTLINE, SENTENCE }
 
     private lateinit var subject: String

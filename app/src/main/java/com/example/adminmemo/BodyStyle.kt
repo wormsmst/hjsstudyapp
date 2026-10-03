@@ -16,24 +16,9 @@ private val SUB2_RE = Regex("^\\(\\d+\\)\\s")
 private val CIRCLE_RE = Regex("^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮]\\s?")
 private val DASH_RE = Regex("^[-·]\\s")
 private val ROMAN_RE = Regex("^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]+[\\.．]\\s*")
-private val PAGE_MARK_RE = Regex("^-\\s*\\d+\\s*-$")
 
-/** 대목차(1. / Ⅰ.) 앞에 빈 줄을 넣어 읽기 편하게 만든다. */
-fun formatStudyOutlineText(text: String): String {
-    val lines = normalizeNewlines(text).split("\n")
-    val out = mutableListOf<String>()
-    for ((i, line) in lines.withIndex()) {
-        val trimmed = line.trim()
-        if (PAGE_MARK_RE.matches(trimmed)) continue
-        val isMajor = MAJOR_RE.containsMatchIn(line.trimStart()) || ROMAN_RE.containsMatchIn(line.trimStart())
-        if (i > 0 && isMajor) {
-            val prevBlank = out.isNotEmpty() && out.last().isBlank()
-            if (!prevBlank) out.add("")
-        }
-        out.add(line)
-    }
-    return out.joinToString("\n")
-}
+/** 본문 글자는 그대로 두고, 화면에서 목차 양식만 입힌다. */
+fun formatStudyOutlineText(text: String): String = normalizeNewlines(text)
 
 /** 가로 책 펼침: 목차 줄 경계에서 절반으로 나눈다. 짧으면 오른쪽은 비운다. */
 fun splitStudySpread(text: String): Pair<String, String> {
@@ -104,7 +89,7 @@ fun buildStyledStudyBody(context: Context, text: String): SpannableStringBuilder
             else -> indent = currentIndent
         }
 
-        sb.append(line)
+        sb.append(if (trimmed.isBlank()) "" else trimmed)
         val end = sb.length
         sb.append("\n")
 

@@ -34,7 +34,8 @@ private data class QuestBook(
     var quests: MutableList<DailyQuest> = mutableListOf(),
     var recallDone: Boolean = false,
     var days: MutableMap<String, QuestDaySnap> = mutableMapOf(),
-    var backlog: MutableList<DailyQuest> = mutableListOf()
+    var backlog: MutableList<DailyQuest> = mutableListOf(),
+    var retrainIds: MutableList<String> = mutableListOf()
 )
 
 object DailyQuestStore {
@@ -65,6 +66,7 @@ object DailyQuestStore {
         book.quests = book.quests ?: mutableListOf()
         book.days = book.days ?: mutableMapOf()
         book.backlog = book.backlog ?: mutableListOf()
+        book.retrainIds = book.retrainIds ?: mutableListOf()
         book.quests.removeAll { it.type == TYPE_LISTEN }
         book.backlog.removeAll { it.type == TYPE_LISTEN }
         book.days.values.forEach { snap ->
@@ -82,7 +84,8 @@ object DailyQuestStore {
         return QuestBook(
             date = today,
             days = book.days,
-            backlog = backlog.toMutableList()
+            backlog = backlog.toMutableList(),
+            retrainIds = mutableListOf()
         )
     }
 
@@ -211,6 +214,26 @@ object DailyQuestStore {
             .filter { !it.done }
             .map { it.cardId }
 
+    fun retrainIds(context: Context): List<String> = read(context).retrainIds.filter { it.isNotBlank() }
+
+    fun writesDoneToday(context: Context): Boolean {
+        val qs = todayQuests(context).filter { it.type == TYPE_WRITE || it.type == TYPE_BODY }
+        return qs.isNotEmpty() && qs.all { it.done }
+    }
+
+    fun clearRetrain(context: Context) {
+        val book = read(context)
+        if (book.retrainIds.isEmpty()) return
+        book.retrainIds.clear()
+        write(context, book)
+    }
+
+    fun failHint(kind: Int): String = when (kind) {
+        RecallStore.FAIL_TIP -> "용어가 안 나온 장 · 키워드만 다시"
+        RecallStore.FAIL_STRUCTURE -> "뼈대가 안 나온 장 · 목차부터"
+        else -> "제목만 보고 목차"
+    }
+
     fun addDueCurveQuests(context: Context) {
         val book = read(context)
         if (!book.recallDone) return
@@ -285,7 +308,8 @@ object DailyQuestStore {
     fun rebuildFromSession(
         context: Context,
         results: List<Pair<Card, Int>>,
-        selfMissByCard: Map<String, Int> = emptyMap()
+        selfMissByCard: Map<String, Int> = emptyMap(),
+        failKindByCard: Map<String, Int> = emptyMap()
     ) {
         val book = read(context)
         book.recallDone = true
@@ -299,12 +323,15 @@ object DailyQuestStore {
             .distinctBy { it.id }
             .filter { h -> miss.none { it.id == h.id } }
             .take(halfWriteCap())
+        fun kindOf(card: Card) = failKindByCard[card.id]
+            ?: RecallStore.lastFailKind(context, card.id)
         val rankedSerious = missAll.sortedWith(
-            compareByDescending<Card> { RecallStore.lapses(context, it.id) }
+            compareByDescending<Card> { if (kindOf(it) == RecallStore.FAIL_STRUCTURE) 1 else 0 }
+                .thenByDescending { RecallStore.lapses(context, it.id) }
                 .thenByDescending { selfMissByCard[it.id] ?: 0 }
                 .thenByDescending { results.count { r -> r.first.id == it.id && r.second == RecallStore.GRADE_MISS } }
         ).filter { card ->
-            isSeriousCard(
+            kindOf(card) == RecallStore.FAIL_STRUCTURE || isSeriousCard(
                 context,
                 card,
                 missCount = results.count { it.first.id == card.id && it.second == RecallStore.GRADE_MISS },
@@ -314,15 +341,15 @@ object DailyQuestStore {
         val seriousIds = rankedSerious.map { it.id }.toSet()
         val quests = mutableListOf<DailyQuest>()
         rankedSerious.forEach { card ->
-            quests.add(bodyQuest(book.date, card))
+            quests.add(bodyQuest(book.date, card, hint = "뼈대 붕괴 · $HINT_BODY"))
         }
         miss.forEach { card ->
             if (card.id in seriousIds) return@forEach
-            quests.add(writeQuest(book.date, card, target = 1, hint = "제목만 보고 목차"))
+            quests.add(writeQuest(book.date, card, target = 1, hint = failHint(kindOf(card))))
         }
         half.forEach { card ->
             if (card.id in seriousIds) return@forEach
-            quests.add(writeQuest(book.date, card, target = 1, hint = "제목만 보고 목차"))
+            quests.add(writeQuest(book.date, card, target = 1, hint = failHint(kindOf(card))))
         }
         val keepExam = book.quests.filter { it.hint.contains("모의고사") && !it.done }
         val have = quests.map { it.cardId }.toMutableSet()
@@ -333,6 +360,7 @@ object DailyQuestStore {
             }
         }
         book.quests = quests
+        book.retrainIds = (miss + half + rankedSerious).map { it.id }.distinct().toMutableList()
         write(context, book)
         addDueCurveQuests(context)
         val listenCards = (miss + half).distinctBy { it.id }.take(listenCap())
@@ -397,7 +425,8 @@ object DailyQuestStore {
                 quests = quests.values.toMutableList(),
                 recallDone = recallDone,
                 days = days,
-                backlog = backlog.toMutableList()
+                backlog = backlog.toMutableList(),
+                retrainIds = (a.retrainIds + b.retrainIds).distinct().toMutableList()
             )
         )
     }

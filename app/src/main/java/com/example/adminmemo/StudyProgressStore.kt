@@ -21,7 +21,19 @@ data class WeakTopic(
     val subject: String,
     val topicTitle: String,
     val cardId: String,
-    val memory: Int
+    val memory: Int,
+    val recallCount: Int = 0,
+    val target: Int = 5
+)
+
+data class RecallCoverage(
+    val total: Int,
+    val done: Int,
+    val remaining: Int,
+    val weak: Int,
+    val days: Int,
+    val perDay: Int,
+    val hasDate: Boolean
 )
 
 data class ExamPace(
@@ -182,10 +194,12 @@ object StudyProgressStore {
                 var mid = 0
                 var master = 0
                 list.forEach {
-                    when (CardStore.getMemoryLevel(context, it.subject, it.topicTitle)) {
-                        1 -> unseen++
-                        2 -> weak++
-                        3 -> mid++
+                    val n = RecallStore.recallCount(context, it.id)
+                    val mem = CardStore.getMemoryLevel(context, it.subject, it.topicTitle)
+                    when {
+                        n <= 0 -> unseen++
+                        mem <= 2 -> weak++
+                        mem == 3 -> mid++
                         else -> master++
                     }
                 }
@@ -193,20 +207,46 @@ object StudyProgressStore {
             }
     }
 
+    fun recallTarget(recallCount: Int, memory: Int): Int =
+        if (recallCount > 0 && memory <= 2) 10 else 5
+
     fun weakCount(context: Context, subjects: List<String>? = null): Int {
         val want = subjects?.map { canonicalizeSubject(it) }?.toSet()
         val concepts = CardStore.getAllCards(context).filter { it.type == "concept" }
         return concepts.count { card ->
             val sub = canonicalizeSubject(card.subject)
-            (want == null || sub in want) &&
-                CardStore.getMemoryLevel(context, card.subject, card.topicTitle) <= 2
+            val n = RecallStore.recallCount(context, card.id)
+            val mem = CardStore.getMemoryLevel(context, card.subject, card.topicTitle)
+            (want == null || sub in want) && n > 0 && mem <= 2
         }
+    }
+
+    fun recallCoverage(context: Context): RecallCoverage {
+        val concepts = CardStore.getAllCards(context).filter { it.type == "concept" && it.topicTitle.isNotBlank() }
+        var remaining = 0
+        var done = 0
+        var weak = 0
+        concepts.forEach { card ->
+            val n = RecallStore.recallCount(context, card.id)
+            val mem = CardStore.getMemoryLevel(context, card.subject, card.topicTitle)
+            val target = recallTarget(n, mem)
+            if (target == 10) weak++
+            val rem = (target - n).coerceAtLeast(0)
+            remaining += rem
+            if (rem == 0) done++
+        }
+        val millis = AppPrefs.getExam2DateMillis(context)
+        val upcoming = DdayCalculator.isUpcoming(millis)
+        val days = if (upcoming) DdayCalculator.daysUntil(millis).coerceAtLeast(1) else 0
+        val perDay = if (upcoming && remaining > 0) {
+            ceil(remaining.toDouble() / days).toInt().coerceIn(1, 80)
+        } else 0
+        return RecallCoverage(concepts.size, done, remaining, weak, days, perDay, upcoming)
     }
 
     fun examPaces(context: Context): List<ExamPace> {
         return listOf(
-            paceFor(context, "1차", EXAM1_SUBJECTS, AppPrefs.getExam1DateMillis(context)),
-            paceFor(context, "2차", EXAM2_SUBJECTS, AppPrefs.getExam2DateMillis(context))
+            paceFor(context, "2차", EXAM1_SUBJECTS + EXAM2_SUBJECTS, AppPrefs.getExam2DateMillis(context))
         )
     }
 
@@ -267,28 +307,34 @@ object StudyProgressStore {
         return CardStore.getAllCards(context)
             .filter { it.type == "concept" && it.topicTitle.isNotBlank() }
             .map {
+                val n = RecallStore.recallCount(context, it.id)
+                val mem = CardStore.getMemoryLevel(context, it.subject, it.topicTitle)
                 WeakTopic(
                     subject = canonicalizeSubject(it.subject),
                     topicTitle = it.topicTitle,
                     cardId = it.id,
-                    memory = CardStore.getMemoryLevel(context, it.subject, it.topicTitle)
+                    memory = mem,
+                    recallCount = n,
+                    target = recallTarget(n, mem)
                 )
             }
-            .filter { it.memory <= 2 }
-            .sortedWith(compareBy({ it.memory }, { it.subject }, { naturalSortKey(it.topicTitle) }))
+            .filter { it.recallCount > 0 && it.memory <= 2 }
+            .sortedWith(compareBy({ it.memory }, { it.recallCount }, { it.subject }, { naturalSortKey(it.topicTitle) }))
             .distinctBy { "${it.subject}|${it.topicTitle}" }
             .take(limit)
     }
 
     fun paceLine(context: Context): String {
-        val lines = examPaces(context).map { p ->
-            if (!p.hasDate) {
-                "${p.label} 시험일을 정하면 약점 ${p.weak}개를 나눠 드려요"
-            } else {
-                "${p.label} 약점 ${p.weak}개 · ${p.days}일 · 하루 약 ${p.perDay}개"
-            }
+        val cov = recallCoverage(context)
+        val cover = "전 주제 인출 ${cov.done}/${cov.total}  ·  남은 횟수 ${cov.remaining}회" +
+            if (cov.weak > 0) "  ·  약점(목표 10회) ${cov.weak}개" else ""
+        val dateLine = if (!cov.hasDate) {
+            "2차 시험일을 정하면 남은 횟수를 날짜에 나눠 드려요"
+        } else {
+            "2차까지 ${cov.days}일  ·  하루 권장 약 ${cov.perDay}회"
         }
-        return "하루 인출은 평일 ${RecallStore.WEEKDAY_SESSION}장, 주말 ${RecallStore.WEEKEND_SESSION}장입니다.\n" + lines.joinToString("\n")
+        return "하루 인출은 평일 ${RecallStore.WEEKDAY_SESSION}장, 주말 ${RecallStore.WEEKEND_SESSION}장입니다.\n" +
+            "기본 목표 5회, 인출에서 막히면 그 주제는 10회입니다.\n$cover\n$dateLine"
     }
 
     fun mergeCloudJson(localJson: String, cloudJson: String): String {

@@ -370,6 +370,24 @@ object CardStore {
         FirebaseSyncManager.notifyProgressChanged(context)
     }
 
+    /**
+     * 인출 채점으로 암기정도를 자동 갱신.
+     * 깎을 때는 과감하게, 올릴 때는 연속 성공이 모여야 +1.
+     */
+    fun applyRecallMemory(context: Context, card: Card, grade: Int, goodStreak: Int = 0) {
+        val cur = getMemoryLevel(context, card.subject, card.topicTitle)
+        val next = when (grade) {
+            RecallStore.GRADE_MISS -> 1
+            RecallStore.GRADE_HALF -> if (cur <= 2) 1 else 2
+            RecallStore.GRADE_GOOD -> {
+                val need = if (cur >= 3) 3 else 2
+                if (goodStreak >= need) (cur + 1).coerceAtMost(5) else cur
+            }
+            else -> cur
+        }
+        if (next != cur) setMemoryLevel(context, card.subject, card.topicTitle, next)
+    }
+
     /** 1(거의 모름) ~ 5(완벽히 암기) 사이 값. 아직 설정 안 했으면 1. */
     fun getMemoryLevel(context: Context, subject: String, topicTitle: String): Int {
         val map = readMemoryLevels(context)

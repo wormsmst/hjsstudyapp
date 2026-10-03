@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_screen"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="풀기 전에 약점 3개"
+            android:textColor="@color/text_main"
+            android:textSize="22sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:lineSpacingExtra="4dp"
+            android:text="제목만 보고 뼈대를 말해 보세요. 힌트는 없습니다. 막혔던 자리를 먼저 두드리면 오늘 인출이 정확해집니다."
+            android:textColor="@color/text_sub"
+            android:textSize="14sp"/>
+
+        <LinearLayout
+            android:id="@+id/layoutWarmupCards"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="vertical"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnWarmupStart"
+            style="@style/Widget.AdminMemo.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="말 끝났으면 인출 시작"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnWarmupSkip"
+            style="@style/Widget.AdminMemo.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="건너뛰고 인출"/>
+    </LinearLayout>
+</ScrollView>

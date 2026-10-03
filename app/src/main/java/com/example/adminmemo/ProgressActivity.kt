@@ -59,7 +59,7 @@ class ProgressActivity : BaseActivity() {
         val empty = findViewById<TextView>(R.id.tvWeakEmpty)
         if (weak.isEmpty()) {
             empty.visibility = View.VISIBLE
-            empty.text = "별 1~2인 약점 주제가 없어요"
+            empty.text = "인출에서 막힌 약점 주제가 없어요"
         } else {
             empty.visibility = View.GONE
             weak.forEach { topic ->
@@ -232,7 +232,7 @@ class ProgressActivity : BaseActivity() {
         title.textSize = 15f
 
         val meta = TextView(this)
-        meta.text = "${topic.subject}  ${CardStore.memoryStarsLabel(topic.memory)}"
+        meta.text = "${topic.subject}  ${CardStore.memoryStarsLabel(topic.memory)}  ${topic.recallCount}/${topic.target}"
         meta.setTextColor(ContextCompat.getColor(this, R.color.accent))
         meta.textSize = 13f
         row.addView(title)

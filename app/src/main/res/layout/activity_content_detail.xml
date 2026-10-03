@@ -33,14 +33,27 @@
             android:src="@android:drawable/ic_lock_silent_mode_off"
             app:tint="@color/primary"/>
 
+        <TextView
+            android:id="@+id/btnScratchPad"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_icon"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:text="연습장"
+            android:textColor="@color/primary"
+            android:textSize="14sp"
+            android:textStyle="bold"/>
+
         <ImageButton
-            android:id="@+id/btnTtsVoice"
+            android:id="@+id/btnOutlineTree"
             android:layout_width="@dimen/touch_icon"
             android:layout_height="@dimen/touch_icon"
             android:layout_marginEnd="4dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="목소리 선택"
-            android:src="@android:drawable/ic_menu_manage"
+            android:contentDescription="목차 트리"
+            android:src="@drawable/ic_outline_tree"
             app:tint="@color/primary"/>
 
         <ImageButton
@@ -48,6 +61,7 @@
             android:layout_width="@dimen/touch_icon"
             android:layout_height="@dimen/touch_icon"
             android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="본문 수정"
             android:src="@android:drawable/ic_menu_edit"
             app:tint="@color/primary"/>
     </LinearLayout>
@@ -111,6 +125,14 @@
                     <TextView android:id="@+id/star4" style="@style/MemoryStar"/>
                     <TextView android:id="@+id/star5" style="@style/MemoryStar"/>
                 </LinearLayout>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-10dp"
+                    android:layout_marginBottom="16dp"
+                    android:text="인출 채점으로 자동 반영돼요"
+                    android:textColor="@color/text_sub"
+                    android:textSize="11sp"/>
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/cardMnemonicBox"
@@ -142,6 +164,20 @@
                     android:lineSpacingExtra="7dp"
                     android:letterSpacing="0.01"
                     android:textIsSelectable="true"/>
+
+                <HorizontalScrollView
+                    android:id="@+id/scrollOutlineTree"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:scrollbars="horizontal"
+                    android:visibility="gone">
+
+                    <com.example.adminmemo.OutlineTreeView
+                        android:id="@+id/viewOutlineTree"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+                </HorizontalScrollView>
             </LinearLayout>
         </ScrollView>
 

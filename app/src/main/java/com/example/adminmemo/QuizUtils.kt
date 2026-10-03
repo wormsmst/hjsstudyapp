@@ -190,8 +190,10 @@ const val EXTRA_RECALL_CASE = "extra_recall_case"
 const val EXTRA_RECALL_UNSEEN = "extra_recall_unseen"
 const val EXTRA_RECALL_CARD_IDS = "extra_recall_card_ids"
 const val EXTRA_RECALL_BODY = "extra_recall_body"
+const val EXTRA_RECALL_RETRAIN = "extra_recall_retrain"
 const val EXTRA_EXAM_PERIOD = "extra_exam_period"
 const val ALL_SUBJECTS_KEY = "__ALL__"
+const val WEAK_STUDY_KEY = "__WEAK_STUDY__"
 
 /**
  * 퀴즈 풀(pool)에 등급 필터 + 오답 복습 필터를 적용한다.

@@ -90,6 +90,16 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"/>
+
+                <TextView
+                    android:id="@+id/tvRecallBodyLeft"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/text_main"
+                    android:textSize="14sp"
+                    android:visibility="gone"/>
             </LinearLayout>
         </ScrollView>
 
@@ -187,6 +197,38 @@
                     android:enabled="false"
                     android:text="항목을 모두 고르세요"
                     android:visibility="gone"/>
+
+                <LinearLayout
+                    android:id="@+id/layoutRecallFailKind"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="6dp"
+                        android:text="어디가 막혔나요? 뼈대면 본문으로, 단어면 반복으로 갑니다."
+                        android:textColor="@color/text_sub"
+                        android:textSize="13sp"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFailStructure"
+                        style="@style/Widget.AdminMemo.Button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="뼈대가 안 나옴"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFailTip"
+                        style="@style/Widget.AdminMemo.Button.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="단어만 안 떠오름"/>
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
