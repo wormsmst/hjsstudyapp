@@ -89,7 +89,7 @@ class ContentDetailActivity : BaseActivity() {
         }
 
         btnSpeak.setOnClickListener { onSpeakClicked() }
-        findViewById<TextView>(R.id.btnScratchPad).setOnClickListener { toggleScratchPad() }
+        findViewById<ImageButton>(R.id.btnScratchPad).setOnClickListener { toggleScratchPad() }
 
         findViewById<ImageButton>(R.id.btnEditDetail).setOnClickListener {
             StudyTtsService.stop(this)

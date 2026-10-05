@@ -42,6 +42,9 @@ class HomeActivity : BaseActivity() {
         findViewById<CardView>(R.id.tileQuests).setOnClickListener {
             startActivity(Intent(this, QuestActivity::class.java))
         }
+        findViewById<CardView>(R.id.tileOutlineFade).setOnClickListener {
+            startActivity(Intent(this, OutlineFadeActivity::class.java))
+        }
         findViewById<CardView>(R.id.tileStudy).setOnClickListener {
             goToSubjectSelect(PURPOSE_STUDY)
         }

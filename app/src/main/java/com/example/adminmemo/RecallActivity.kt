@@ -1,5 +1,6 @@
 package com.example.adminmemo
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
@@ -17,8 +18,6 @@ import com.google.android.material.button.MaterialButton
 
 class RecallActivity : BaseActivity() {
 
-    override val showScratchPad = true
-
     private var queue: List<Card> = emptyList()
     private var index = 0
     private var revealed = false
@@ -35,6 +34,7 @@ class RecallActivity : BaseActivity() {
     private var sessionPeriod = 0
     private var resumedSession = false
     private var originalForcedIds: List<String> = emptyList()
+    private var baseCount = 0
     private var caseStage = 0
     private var pendingGrade: Int? = null
     private val results = mutableListOf<Pair<Card, Int>>()
@@ -73,47 +73,79 @@ class RecallActivity : BaseActivity() {
         sessionPeriod = period
         originalForcedIds = forcedIds
         val snap = RecallSessionStore.load(this)
-        val canResume = snap != null &&
-            RecallSessionStore.matches(
-                snap,
-                subject,
-                period,
-                caseMode,
-                unseen,
-                bodyWriteForced,
-                retrainMode,
-                originalForcedIds
-            ) &&
-            snap.queueIds.isNotEmpty() &&
-            snap.index > 0
-        resumedSession = canResume
-        queue = if (canResume && snap != null) restoreSession(snap) else emptyList()
-        if (queue.isEmpty()) {
-            resumedSession = false
-            queue = when {
-                forcedIds.isNotEmpty() -> {
-                    val byId = CardStore.getAllCards(this).associateBy { it.id }
-                    forcedIds.mapNotNull { byId[it] }
-                        .ifEmpty { RecallStore.pickQueue(this, subject, period) }
-                }
-                caseMode -> MockExamRepository.pickCaseQueue(
-                    this,
-                    subject,
-                    period,
-                    if (RecallStore.isWeekend()) 6 else 4
-                )
-                else -> RecallStore.pickQueue(this, subject, period, unseenOnly = unseen)
+        when {
+            RecallSessionStore.unfinished(snap) && snap != null && !RecallSessionStore.isToday(snap) -> {
+                askResumeOrFresh(snap)
+                return
             }
+            RecallSessionStore.unfinished(snap) && snap != null &&
+                RecallSessionStore.matches(
+                    snap, subject, period, caseMode, unseen, bodyWriteForced, retrainMode, originalForcedIds
+                ) -> startResumed(snap)
+            else -> startFresh(clearSnap = false)
         }
+    }
+
+    private fun askResumeOrFresh(snap: RecallSessionSnap) {
+        AlertDialog.Builder(this)
+            .setTitle("남은 인출이 있어요")
+            .setMessage(
+                "${RecallSessionStore.scopeLabel(snap)}\n\n" +
+                    "이어서 풀면 남은 큐를 계속 풉니다. 오늘 새로 시작하면 남은 큐만 버리고, 이미 채점한 장은 그대로 둡니다."
+            )
+            .setPositiveButton("이어서 풀기") { _, _ -> startResumed(snap) }
+            .setNegativeButton("오늘 새로 시작") { _, _ -> startFresh(clearSnap = true) }
+            .setNeutralButton("돌아가기") { _, _ -> finish() }
+            .setOnCancelListener { finish() }
+            .show()
+    }
+
+    private fun startResumed(snap: RecallSessionSnap) {
+        sessionSubject = snap.subject
+        sessionPeriod = snap.period
+        caseMode = snap.caseMode
+        unseenMode = snap.unseen
+        bodyWriteForced = snap.bodyWrite
+        retrainMode = snap.retrain
+        originalForcedIds = snap.forcedIds
+        fromCards = snap.forcedIds.isNotEmpty()
+        queue = restoreSession(snap)
+        resumedSession = queue.isNotEmpty()
+        if (queue.isEmpty()) startFresh(clearSnap = true) else afterQueueReady()
+    }
+
+    private fun startFresh(clearSnap: Boolean) {
+        if (clearSnap) RecallSessionStore.clear(this)
+        resumedSession = false
+        val forcedIds = originalForcedIds
+        queue = when {
+            forcedIds.isNotEmpty() -> {
+                val byId = CardStore.getAllCards(this).associateBy { it.id }
+                forcedIds.mapNotNull { byId[it] }
+                    .ifEmpty { RecallStore.pickQueue(this, sessionSubject, sessionPeriod) }
+            }
+            caseMode -> MockExamRepository.pickCaseQueue(
+                this,
+                sessionSubject,
+                sessionPeriod,
+                if (RecallStore.isWeekend()) 6 else 4
+            )
+            else -> RecallStore.pickQueue(this, sessionSubject, sessionPeriod, unseenOnly = unseenMode)
+        }
+        afterQueueReady()
+    }
+
+    private fun afterQueueReady() {
         if (queue.isEmpty()) {
             Toast.makeText(
                 this,
-                if (unseen) "이번 달에 아직 인출하지 않은 주제가 없어요" else "인출할 주제가 없어요",
+                if (unseenMode) "이번 달에 아직 인출하지 않은 주제가 없어요" else "인출할 주제가 없어요",
                 Toast.LENGTH_SHORT
             ).show()
             finish()
             return
         }
+        if (baseCount <= 0) baseCount = queue.size
         if (shouldWarmup()) {
             showWarmup()
             return
@@ -150,7 +182,7 @@ class RecallActivity : BaseActivity() {
     private fun bindSessionUi() {
         setContentView(R.layout.activity_recall)
         bindRecallSplit()
-        confirmLeaveOnBack("인출을 그만둘까요? 3문제마다 저장되며, 마지막 저장 이후는 다시 풉니다.") {
+        confirmLeaveOnBack("인출을 그만둘까요? 푼 장은 저장되어 다음에 이어서 풀 수 있어요.") {
             index < queue.size && results.size < queue.size
         }
         findViewById<View>(R.id.btnRecallReveal).setOnClickListener { reveal() }
@@ -214,9 +246,10 @@ class RecallActivity : BaseActivity() {
             fromCards -> "퀘스트 인출"
             else -> "인출"
         }
+        val progress = recallProgressLabel()
         findViewById<TextView>(R.id.tvRecallProgress).text =
-            if (bodyWrite) "$modeLabel  ${index + 1} / ${queue.size}  ·  제목만 보고 본문까지 쓰세요"
-            else "$modeLabel  ${index + 1} / ${queue.size}  ·  제목만 보고 쓰세요"
+            if (bodyWrite) "$modeLabel  $progress  ·  제목만 보고 본문까지 쓰세요"
+            else "$modeLabel  $progress  ·  제목만 보고 쓰세요"
         findViewById<TextView>(R.id.tvRecallSubject).text = canonicalizeSubject(card.subject)
         findViewById<TextView>(R.id.tvRecallTitle).text = if (caseMode) {
             card.front.ifBlank { "「${card.topicTitle}」 사례" }
@@ -541,7 +574,9 @@ class RecallActivity : BaseActivity() {
                 retried = retried.toList(),
                 pendingRetry = pendingRetry.map { it.id },
                 selfMissByCard = selfMissByCard.toMap(),
-                failKindByCard = failKindByCard.toMap()
+                failKindByCard = failKindByCard.toMap(),
+                baseCount = baseCount,
+                date = TodayTtsStore.todayKey()
             )
         )
     }
@@ -580,7 +615,23 @@ class RecallActivity : BaseActivity() {
         failKindByCard.clear()
         failKindByCard.putAll(snap.failKindByCard)
         pendingFlush.clear()
+        baseCount = when {
+            snap.baseCount > 0 -> snap.baseCount
+            snap.retried.isNotEmpty() && snap.pendingRetry.isEmpty() &&
+                restored.size > snap.retried.size -> restored.size - snap.retried.size
+            else -> restored.size
+        }
         return restored
+    }
+
+    private fun recallProgressLabel(): String {
+        val base = if (baseCount > 0) baseCount else queue.size
+        val retryN = (queue.size - base).coerceAtLeast(0)
+        return if (index < base || retryN == 0) {
+            "${index + 1} / $base"
+        } else {
+            "${base}장  ·  재시도 ${index - base + 1} / $retryN"
+        }
     }
 
     private fun recallCardsById(): Map<String, Card> {

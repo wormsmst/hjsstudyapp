@@ -154,13 +154,13 @@ class QuestActivity : BaseActivity() {
             val bg = when {
                 snap == null -> ContextCompat.getColor(this, R.color.bg_card)
                 snap.allDone() -> Color.parseColor("#C8E6C9")
-                snap.recallDone -> Color.parseColor("#FFE0B2")
+                snap.hasRecall() -> Color.parseColor("#FFE0B2")
                 else -> ContextCompat.getColor(this, R.color.bg_card)
             }
             val mark = when {
                 snap == null -> d.toString()
                 snap.allDone() -> "$d\n완"
-                snap.recallDone -> "$d\n인"
+                snap.hasRecall() -> "$d\n인"
                 else -> d.toString()
             }
             val selected = key == today
@@ -177,12 +177,18 @@ class QuestActivity : BaseActivity() {
         box.removeAllViews()
         val label = TodayTtsStore.displayDate(key)
         addHint(box, label, bold = true)
-        if (snap == null || (!snap.recallDone && snap.quests.isEmpty())) {
+        if (snap == null || !snap.hasRecall()) {
             addHint(box, "이 날은 인출 기록이 없어요.")
             return
         }
+        val saved = snap.gradedCount()
+        if (saved > 0) addHint(box, "저장한 인출 ${saved}장")
         if (snap.quests.isEmpty()) {
-            addHint(box, "인출은 했지만 퀘스트가 없었어요.")
+            addHint(
+                box,
+                if (snap.recallDone) "인출은 했지만 퀘스트가 없었어요."
+                else "세션을 끝까지 마치기 전이라 퀘스트는 없어요."
+            )
             return
         }
         snap.quests.forEach { addQuestRow(box, it, editable = key == TodayTtsStore.todayKey()) }

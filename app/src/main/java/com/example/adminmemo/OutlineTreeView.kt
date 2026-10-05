@@ -20,10 +20,10 @@ class OutlineTreeView @JvmOverloads constructor(
     private val d = resources.displayMetrics.density
     private val gap = 10 * d
     private val stem = 28 * d
-    private val padH = 10 * d
-    private val padV = 8 * d
-    private val maxBox = 160 * d
-    private val minBox = 72 * d
+    private val padH = 12 * d
+    private val padV = 10 * d
+    private val maxBox = 260 * d
+    private val minBox = 96 * d
     private val radius = 12 * d
 
     private val boxPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -80,11 +80,16 @@ class OutlineTreeView @JvmOverloads constructor(
         canvas.drawRoundRect(rect, radius, radius, boxPaint)
         canvas.drawRoundRect(rect, radius, radius, strokePaint)
         val paint = if (node.isRoot) titlePaint else textPaint
-        var ty = node.y + padV - paint.ascent()
+        val fm = paint.fontMetrics
+        val lineH = fm.descent - fm.ascent
+        val contentH = node.lines.size * lineH * 1.12f
+        var ty = node.y + (node.boxH - contentH) / 2f - fm.ascent
+        val multi = node.lines.size > 1
         node.lines.forEach { line ->
             val tw = paint.measureText(line)
-            canvas.drawText(line, node.x + (node.boxW - tw) / 2f, ty, paint)
-            ty += paint.textSize * 1.25f
+            val tx = if (multi) node.x + padH else node.x + (node.boxW - tw) / 2f
+            canvas.drawText(line, tx, ty, paint)
+            ty += lineH * 1.12f
         }
         if (sideways) {
             val px = node.x + node.boxW
@@ -113,10 +118,13 @@ class OutlineTreeView @JvmOverloads constructor(
 
     private fun layoutNode(label: String, children: List<OutlineNode>, isRoot: Boolean): Laid {
         val paint = if (isRoot) titlePaint else textPaint
-        val lines = wrap(outlineHeadingText(label).ifBlank { label }, paint)
+        val maxW = (if (sideways) maxBox * 1.5f else maxBox) * 1.2f
+        val minW = (if (sideways) minBox * 1.5f else minBox) * 1.2f
+        val lines = wrap(outlineHeadingText(label).ifBlank { label }, paint, maxW - padH * 2)
         val textW = lines.maxOf { paint.measureText(it) }
-        val boxW = (textW + padH * 2).coerceIn(minBox, maxBox)
-        val boxH = padV * 2 + lines.size * paint.textSize * 1.25f
+        val boxW = (textW + padH * 2).coerceIn(minW, maxW)
+        val baseH = padV * 2 + lines.size * (paint.fontMetrics.descent - paint.fontMetrics.ascent) * 1.12f
+        val boxH = (if (sideways) baseH else baseH * 1.5f) * 1.2f
         val kids = children.map { layoutNode(it.label, it.children, false) }
         if (sideways) {
             val kidsH = if (kids.isEmpty()) 0f else kids.sumOf { it.subH.toDouble() }.toFloat() + gap * (kids.size - 1)
@@ -134,10 +142,9 @@ class OutlineTreeView @JvmOverloads constructor(
     private fun place(node: Laid, left: Float, top: Float) {
         if (sideways) {
             node.x = left
-            node.y = top + (node.subH - node.boxH) / 2f
+            node.y = top
             if (node.kids.isEmpty()) return
-            val kidsH = node.kids.sumOf { it.subH.toDouble() }.toFloat() + gap * (node.kids.size - 1)
-            var y = top + (node.subH - kidsH) / 2f
+            var y = top
             val x = left + node.boxW + stem
             node.kids.forEach { kid ->
                 place(kid, x, y)
@@ -157,22 +164,50 @@ class OutlineTreeView @JvmOverloads constructor(
         }
     }
 
-    private fun wrap(text: String, paint: TextPaint): List<String> {
-        val inner = maxBox - padH * 2
-        if (paint.measureText(text) <= inner) return listOf(text)
-        val out = mutableListOf<String>()
-        var rest = text
-        while (rest.isNotEmpty() && out.size < 3) {
-            var cut = rest.length
-            while (cut > 1 && paint.measureText(rest.take(cut)) > inner) cut--
-            if (out.size == 2 && rest.length > cut) {
-                out.add(rest.take((cut - 1).coerceAtLeast(1)) + "…")
-                break
-            }
-            out.add(rest.take(cut))
-            rest = rest.drop(cut).trimStart()
+    private fun wrap(text: String, paint: TextPaint, inner: Float): List<String> {
+        val t = text.trim()
+        if (t.isEmpty()) return listOf(text)
+        if (paint.measureText(t) <= inner) return listOf(t)
+        val first = cutLine(t, inner, paint)
+        val rest = t.drop(first).trimStart()
+        if (rest.isEmpty()) return listOf(t.take(first).trimEnd())
+        if (paint.measureText(rest) <= inner) {
+            return listOf(t.take(first).trimEnd(), rest)
         }
-        return out.ifEmpty { listOf(text) }
+        val second = cutLine(rest, inner, paint)
+        val tail = rest.drop(second).trimStart()
+        val a = t.take(first).trimEnd()
+        val b = rest.take(second).trimEnd()
+        if (tail.isEmpty()) return listOf(a, b)
+        return listOf(a, b, if (paint.measureText(tail) <= inner) tail else ellipsize(tail, inner, paint))
+    }
+
+    private fun cutLine(s: String, inner: Float, paint: TextPaint): Int {
+        if (paint.measureText(s) <= inner) return s.length
+        var fit = s.length
+        while (fit > 1 && paint.measureText(s.take(fit)) > inner) fit--
+        val good = (fit downTo (fit * 0.4f).toInt().coerceAtLeast(1)).firstOrNull { i ->
+            canBreak(s, i) && paint.measureText(s.take(i).trimEnd()) in 1f..inner
+        }
+        return good ?: fit.coerceAtLeast(1)
+    }
+
+    private fun canBreak(s: String, i: Int): Boolean {
+        if (i <= 0 || i >= s.length) return false
+        val prev = s[i - 1]
+        val next = s[i]
+        if (prev.isWhitespace() || prev == '·' || prev == '・' || prev == '/' || prev == ',' || prev == '.') return true
+        if (next == '(' || next == '[') return true
+        if (prev == '의' && next == '의') return false
+        if (prev in "의과와및을를은는에로") return next in '가'..'힣' || next.isWhitespace()
+        return false
+    }
+
+    private fun ellipsize(s: String, inner: Float, paint: TextPaint): String {
+        if (paint.measureText(s) <= inner) return s
+        var cut = s.length
+        while (cut > 1 && paint.measureText(s.take(cut) + "…") > inner) cut--
+        return s.take(cut.coerceAtLeast(1)) + "…"
     }
 
     private class Laid(

@@ -19,11 +19,13 @@ data class RecallSessionSnap(
     val retried: List<String> = emptyList(),
     val pendingRetry: List<String> = emptyList(),
     val selfMissByCard: Map<String, Int> = emptyMap(),
-    val failKindByCard: Map<String, Int> = emptyMap()
+    val failKindByCard: Map<String, Int> = emptyMap(),
+    val baseCount: Int = 0,
+    val date: String = ""
 )
 
 object RecallSessionStore {
-    const val CHECKPOINT = 3
+    const val CHECKPOINT = 1
     private const val FILE = "recall_session.json"
     private val gson = Gson()
 
@@ -65,4 +67,26 @@ object RecallSessionStore {
             snap.bodyWrite == bodyWrite &&
             snap.retrain == retrain &&
             snap.forcedIds == forcedIds
+
+    fun unfinished(snap: RecallSessionSnap?): Boolean =
+        snap != null && snap.queueIds.isNotEmpty() && snap.index > 0
+
+    fun isToday(snap: RecallSessionSnap): Boolean =
+        snap.date == TodayTtsStore.todayKey()
+
+    fun scopeLabel(snap: RecallSessionSnap): String {
+        val who = when {
+            snap.caseMode -> "사례"
+            snap.unseen -> "이번 달 미학습"
+            snap.retrain -> "다시 인출"
+            snap.bodyWrite -> "본문 쓰기 인출"
+            snap.forcedIds.isNotEmpty() -> "퀘스트"
+            snap.period == 1 -> "1차 과목"
+            snap.period == 2 -> "2차 과목"
+            snap.subject.isNotBlank() && snap.subject != ALL_SUBJECTS_KEY -> snap.subject
+            else -> "전체"
+        }
+        val base = if (snap.baseCount > 0) snap.baseCount else snap.queueIds.size
+        return "$who  ·  ${snap.index} / $base"
+    }
 }

@@ -137,6 +137,19 @@ object RecallStore {
         return interleave(ordered, limit)
     }
 
+    fun fadeQueue(context: Context, limit: Int = 8): List<Card> {
+        fun hasTree(card: Card) = parseOutline(card.back).any { it.level >= 0 }
+        val weak = weakStudyCards(context, 40).filter(::hasTree)
+        if (weak.size >= limit) return weak.take(limit)
+        val taken = weak.map { it.id }.toSet()
+        val extra = CardStore.getAllCards(context)
+            .filter { it.type == "concept" && it.topicTitle.isNotBlank() && it.back.isNotBlank() }
+            .filter { it.id !in taken }
+            .filter(::hasTree)
+            .sortedBy { CardStore.getMemoryLevel(context, it.subject, it.topicTitle) }
+        return (weak + extra).distinctBy { it.id }.take(limit)
+    }
+
     fun dueCardIds(context: Context): List<String> {
         val now = System.currentTimeMillis()
         return read(context).items.values.filter { it.dueAt <= now }.map { it.cardId }

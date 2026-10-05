@@ -223,6 +223,45 @@ fun extractMustKeywords(body: String, heading: String, extra: String = ""): List
     return ranked.take(4)
 }
 
+fun outlineDepth(roots: List<OutlineNode>): Int {
+    var depth = -1
+    fun walk(node: OutlineNode) {
+        if (node.level >= 0) depth = maxOf(depth, node.level)
+        node.children.forEach(::walk)
+    }
+    roots.forEach(::walk)
+    return depth
+}
+
+/** throughLevel 미만은 펼치고, 그 레벨은 제목만, 더 아래는 ···. -1이면 제목만. */
+fun maskOutline(roots: List<OutlineNode>, throughLevel: Int): List<OutlineNode> {
+    if (throughLevel < 0) return emptyList()
+    fun copy(node: OutlineNode): OutlineNode {
+        val realKids = node.children.filter { it.level >= 0 }
+        val kids = when {
+            node.level < throughLevel -> realKids.map(::copy).toMutableList()
+            realKids.isNotEmpty() -> mutableListOf(OutlineNode(level = node.level + 1, label = "···"))
+            else -> mutableListOf()
+        }
+        return OutlineNode(node.level, node.label, "", kids)
+    }
+    return roots.filter { it.level >= 0 }.map(::copy)
+}
+
+fun fadePromptBody(roots: List<OutlineNode>): String {
+    val chunks = mutableListOf<String>()
+    fun walk(node: OutlineNode) {
+        if (node.level >= 0 && node.bodyText.isNotBlank()) {
+            chunks.add("${outlineHeadingText(node.label)}\n${node.bodyText.trim()}")
+        }
+        node.children.forEach(::walk)
+    }
+    roots.forEach(::walk)
+    return chunks.joinToString("\n\n").ifBlank {
+        "이 장에는 목차 아래 문장이 거의 없어요. 열린 목차 가지와 대조하세요."
+    }
+}
+
 fun outlineRecallItems(card: Card): List<RecallCheckItem> {
     val roots = parseOutline(card.back).filter { it.level >= 0 }
     val out = mutableListOf<RecallCheckItem>()

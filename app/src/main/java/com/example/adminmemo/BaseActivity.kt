@@ -214,7 +214,7 @@ open class BaseActivity : AppCompatActivity() {
             val parent = host.parent as? View ?: return@post
             val d = resources.displayMetrics.density
             val m = 12 * d
-            host.translationX = (parent.width - scratchW - m).coerceAtLeast(0).toFloat()
+            host.translationX = (parent.width - scratchW - m).coerceAtLeast(0f)
             host.translationY = m
         }
     }

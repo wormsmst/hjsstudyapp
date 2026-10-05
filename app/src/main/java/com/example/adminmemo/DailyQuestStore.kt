@@ -22,10 +22,13 @@ data class DailyQuest(
 data class QuestDaySnap(
     var date: String = "",
     var recallDone: Boolean = false,
-    var quests: MutableList<DailyQuest> = mutableListOf()
+    var quests: MutableList<DailyQuest> = mutableListOf(),
+    var gradedIds: MutableList<String> = mutableListOf()
 ) {
     fun allDone(): Boolean = quests.isNotEmpty() && quests.all { it.done }
     fun anyDone(): Boolean = quests.any { it.done }
+    fun gradedCount(): Int = gradedIds.distinct().size
+    fun hasRecall(): Boolean = recallDone || gradedCount() > 0 || quests.isNotEmpty()
 }
 
 private data class QuestBook(
@@ -42,7 +45,7 @@ object DailyQuestStore {
     const val TYPE_WRITE = "write"
     const val TYPE_LISTEN = "listen"
     const val TYPE_BODY = "body"
-    const val HINT_BODY = "본문 전체 쓰기"
+    const val HINT_BODY = "제목만 보고 목차·문장 전부"
     private const val FILE = "recall_quests.json"
     private const val BACKLOG_CAP = 20
     private val gson = Gson()
@@ -71,6 +74,7 @@ object DailyQuestStore {
         book.backlog.removeAll { it.type == TYPE_LISTEN }
         book.days.values.forEach { snap ->
             snap.quests = snap.quests ?: mutableListOf()
+            snap.gradedIds = snap.gradedIds ?: mutableListOf()
             snap.quests.removeAll { it.type == TYPE_LISTEN }
         }
     }
@@ -94,7 +98,8 @@ object DailyQuestStore {
         book.days[book.date] = QuestDaySnap(
             date = book.date,
             recallDone = book.recallDone,
-            quests = book.quests.map { it.copy() }.toMutableList()
+            quests = book.quests.map { it.copy() }.toMutableList(),
+            gradedIds = book.gradedIds.distinct().toMutableList()
         )
         pruneDays(book)
     }
@@ -127,9 +132,7 @@ object DailyQuestStore {
 
     fun daySnap(context: Context, date: String): QuestDaySnap? {
         val book = read(context)
-        if (date == book.date) {
-            return QuestDaySnap(book.date, book.recallDone, book.quests.map { it.copy() }.toMutableList())
-        }
+        if (date == book.date) return todaySnap(book)
         return book.days[date]
     }
 
@@ -140,10 +143,17 @@ object DailyQuestStore {
         book.days.forEach { (k, v) -> if (k.startsWith(prefix) || monthKeyMatch(k, year, month1)) out.add(v) }
         if (book.date.let { monthKeyMatch(it, year, month1) }) {
             out.removeAll { it.date == book.date }
-            out.add(QuestDaySnap(book.date, book.recallDone, book.quests.map { it.copy() }.toMutableList()))
+            out.add(todaySnap(book))
         }
         return out.distinctBy { it.date }
     }
+
+    private fun todaySnap(book: QuestBook) = QuestDaySnap(
+        date = book.date,
+        recallDone = book.recallDone,
+        quests = book.quests.map { it.copy() }.toMutableList(),
+        gradedIds = book.gradedIds.distinct().toMutableList()
+    )
 
     private fun monthKeyMatch(key: String, year: Int, month1: Int): Boolean {
         val p = key.split("-")
@@ -168,9 +178,9 @@ object DailyQuestStore {
     }
 
     fun kindLabel(q: DailyQuest): String = when (q.type) {
-        TYPE_BODY -> HINT_BODY
+        TYPE_BODY -> "제목만 보고 목차·문장 전부"
         TYPE_LISTEN -> "듣기"
-        else -> "제목만 보고 목차"
+        else -> "제목만 보고 목차·문장"
     }
 
     fun bump(context: Context, questId: String, by: Int = 1): DailyQuest? {
@@ -229,9 +239,9 @@ object DailyQuestStore {
     }
 
     fun failHint(kind: Int): String = when (kind) {
-        RecallStore.FAIL_TIP -> "용어가 안 나온 장 · 키워드만 다시"
-        RecallStore.FAIL_STRUCTURE -> "뼈대가 안 나온 장 · 목차부터"
-        else -> "제목만 보고 목차"
+        RecallStore.FAIL_TIP -> "용어 · 제목만 보고 막힌 문장"
+        RecallStore.FAIL_STRUCTURE -> "뼈대 붕괴 · 제목만 보고 목차·문장 전부"
+        else -> "제목만 보고 목차·문장"
     }
 
     fun addDueCurveQuests(context: Context) {
@@ -397,12 +407,7 @@ object DailyQuestStore {
         (a.days.keys + b.days.keys).forEach { k ->
             val da = a.days[k]
             val db = b.days[k]
-            days[k] = when {
-                da == null -> db!!
-                db == null -> da
-                da.quests.size >= db.quests.size -> da
-                else -> db
-            }
+            days[k] = mergeDay(da, db)
         }
         val graded = linkedSetOf<String>()
         if (a.date == today) graded.addAll(a.gradedIds)
@@ -428,6 +433,18 @@ object DailyQuestStore {
                 backlog = backlog.toMutableList(),
                 retrainIds = (a.retrainIds + b.retrainIds).distinct().toMutableList()
             )
+        )
+    }
+
+    private fun mergeDay(da: QuestDaySnap?, db: QuestDaySnap?): QuestDaySnap {
+        if (da == null) return db!!
+        if (db == null) return da
+        val quests = if (da.quests.size >= db.quests.size) da.quests else db.quests
+        return QuestDaySnap(
+            date = da.date.ifBlank { db.date },
+            recallDone = da.recallDone || db.recallDone,
+            quests = quests.map { it.copy() }.toMutableList(),
+            gradedIds = (da.gradedIds + db.gradedIds).distinct().toMutableList()
         )
     }
 }

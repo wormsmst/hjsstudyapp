@@ -115,6 +115,12 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:label="퀘스트" />
 
+        <activity
+            android:name=".OutlineFadeActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:label="목차암기" />
+
         <service
             android:name=".StudyTtsService"
             android:exported="false"

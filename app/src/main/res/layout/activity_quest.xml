@@ -38,7 +38,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="인출에서 막힌 장을 책상에서 다시 쓰는 오늘 할 일이에요. 듣기는 출근길 TTS로 빼 두었어요."
+                    android:text="인출에서 막힌 장을 책상에서 다시 씁니다. 본문을 보면서 베끼지 말고, 제목만 보고 목차와 문장까지 쓴 뒤 대조하세요. 듣기는 출근길 TTS로 빼 두었어요."
                     android:textColor="@color/text_sub"
                     android:textSize="13sp"/>
 
@@ -60,7 +60,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="오늘 인출을 먼저 하면, 막힌 장을 제목만 보고 다시 펼치는 퀘스트가 생깁니다."
+                        android:text="오늘 인출을 먼저 하면, 막힌 장이 퀘스트로 생깁니다. 내용을 전혀 모르면 본문을 한 번 읽어 지도를 만든 뒤, 화면을 가리고 제목만 보고 목차와 문장을 쓰세요. 조금 아는 장은 읽지 말고 제목부터 시작합니다."
                         android:textColor="@color/text_main"
                         android:textSize="15sp"/>
 
