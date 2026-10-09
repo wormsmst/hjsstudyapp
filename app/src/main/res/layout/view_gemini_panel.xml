@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/geminiPanelHost"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="16dp"
+    android:clickable="true"
+    android:defaultFocusHighlightEnabled="false"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    app:cardBackgroundColor="@color/bg_card"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <View
+            android:id="@+id/tvGeminiDragHandle"
+            android:layout_width="match_parent"
+            android:layout_height="16dp"
+            android:defaultFocusHighlightEnabled="false"
+            android:focusable="false"/>
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scrollGeminiBody"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true"
+            android:overScrollMode="ifContentScrolls">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <EditText
+                    android:id="@+id/etGeminiSelected"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:background="#14808080"
+                    android:focusedByDefault="false"
+                    android:gravity="top|start"
+                    android:hint="선택한 내용"
+                    android:imeOptions="flagNoExtractUi"
+                    android:inputType="textMultiLine"
+                    android:minHeight="216dp"
+                    android:padding="12dp"
+                    android:scrollbars="vertical"
+                    android:textColor="@color/text_main"
+                    android:textColorHint="@color/text_sub"
+                    android:textSize="15sp"/>
+
+                <EditText
+                    android:id="@+id/etGeminiQuestion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:focusedByDefault="false"
+                    android:hint="궁금한 점을 입력하세요"
+                    android:imeOptions="flagNoExtractUi"
+                    android:inputType="textMultiLine"
+                    android:minLines="2"
+                    android:textColor="@color/text_main"/>
+
+                <ProgressBar
+                    android:id="@+id/progressGemini"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginVertical="8dp"
+                    android:visibility="gone"/>
+
+                <TextView
+                    android:id="@+id/tvGeminiAnswer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lineSpacingExtra="4dp"
+                    android:minHeight="280dp"
+                    android:textColor="@color/text_main"
+                    android:textSize="14sp"/>
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnGeminiClose"
+                style="@style/Widget.AdminMemo.Button.Outlined"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="36sp"
+                android:paddingTop="8sp"
+                android:paddingBottom="8sp"
+                android:text="닫기"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnGeminiAsk"
+                style="@style/Widget.AdminMemo.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:minHeight="36sp"
+                android:paddingTop="8sp"
+                android:paddingBottom="8sp"
+                android:text="질문하기"/>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

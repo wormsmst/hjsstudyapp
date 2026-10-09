@@ -40,10 +40,15 @@ object RecallStore {
         return d == java.util.Calendar.SATURDAY || d == java.util.Calendar.SUNDAY
     }
 
-    fun sessionSize(now: Long = System.currentTimeMillis()): Int =
-        if (isWeekend(now)) WEEKEND_SESSION else WEEKDAY_SESSION
+    fun sessionSize(context: Context, now: Long = System.currentTimeMillis()): Int =
+        StudyLoadStore.todayCards(context, now)
 
-    private fun newCardCap(size: Int): Int = if (size >= WEEKEND_SESSION) 6 else 3
+    private fun newCardCap(size: Int): Int = when {
+        size <= 0 -> 0
+        size >= 18 -> 6
+        size >= 12 -> 3
+        else -> 2
+    }
 
     private const val FILE = "recall.json"
     private val gson = Gson()
@@ -137,6 +142,30 @@ object RecallStore {
         return interleave(ordered, limit)
     }
 
+    fun boostQueue(context: Context, size: Int): List<Card> {
+        val want = size.coerceAtLeast(1)
+        val now = System.currentTimeMillis()
+        val soon = now + TimeUnit.HOURS.toMillis(36)
+        val today = TodayTtsStore.todayKey()
+        val book = read(context)
+        val blocked = mutableSetOf<String>()
+        blocked.addAll(DailyQuestStore.openQuestCardIds(context))
+        book.items.values.forEach { item ->
+            if (TodayTtsStore.dayKey(item.lastGradeAt) == today) blocked.add(item.cardId)
+            if (item.dueAt in 1..soon) blocked.add(item.cardId)
+        }
+        val pool = CardStore.getAllCards(context)
+            .filter { it.type == "concept" && it.topicTitle.isNotBlank() && it.back.isNotBlank() }
+            .filter { it.id !in blocked }
+            .sortedWith(
+                compareBy<Card> { recallCount(context, it.id) > 0 }
+                    .thenBy { CardStore.getMemoryLevel(context, it.subject, it.topicTitle) }
+                    .thenBy { recallCount(context, it.id) }
+                    .thenByDescending { book.items[it.id]?.lastWeakAt ?: 0L }
+            )
+        return interleave(pool, want)
+    }
+
     fun fadeQueue(context: Context, limit: Int = 8): List<Card> {
         fun hasTree(card: Card) = parseOutline(card.back).any { it.level >= 0 }
         val weak = weakStudyCards(context, 40).filter(::hasTree)
@@ -157,7 +186,7 @@ object RecallStore {
 
     fun dueCount(context: Context): Int {
         val n = dueCardIds(context).size
-        val size = sessionSize()
+        val size = sessionSize(context)
         return if (n > 0) n.coerceAtMost(size) else pickQueue(context).size
     }
 
@@ -167,7 +196,7 @@ object RecallStore {
         period: Int = 0,
         unseenOnly: Boolean = false
     ): List<Card> {
-        val size = sessionSize()
+        val size = sessionSize(context)
         if (unseenOnly) {
             return interleave(unseenThisMonth(context).filter { inScope(it, subject, period) }.take(size), size)
         }
@@ -320,7 +349,12 @@ object RecallStore {
         book.items[card.id] = item
         write(context, book)
         DailyQuestStore.noteGraded(context, card.id)
-        StudyProgressStore.markTopic(context, card.subject, card.topicTitle)
+        StudyProgressStore.markTopic(
+            context,
+            card.subject,
+            card.topicTitle,
+            StudyProgressStore.KIND_RECALL
+        )
     }
 
     fun mergeCloudJson(localJson: String, cloudJson: String): String {

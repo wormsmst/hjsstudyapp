@@ -52,7 +52,7 @@ class CardWidgetProvider : AppWidgetProvider() {
             views.setTextColor(R.id.widgetTitle, main)
             views.setTextColor(R.id.widgetGrade, if (dark) Color.parseColor("#FFB74D") else Color.parseColor("#C45A00"))
             views.setTextColor(R.id.widgetNext, accent)
-            views.setTextColor(R.id.widgetMemory, if (dark) Color.parseColor("#FFD54F") else Color.parseColor("#D4A017"))
+            views.setTextColor(R.id.widgetMemory, if (dark) Color.parseColor("#81C784") else Color.parseColor("#3D9A6E"))
 
             val fontScale = AppPrefs.getWidgetFontScale(context)
             views.setTextViewTextSize(R.id.widgetGrade, TypedValue.COMPLEX_UNIT_SP, 11f * fontScale)
@@ -61,10 +61,11 @@ class CardWidgetProvider : AppWidgetProvider() {
             views.setTextViewTextSize(R.id.widgetNext, TypedValue.COMPLEX_UNIT_SP, 12f * fontScale)
 
             val kind = if (card.type == "mnemonic") "두문자" else "개념"
-            views.setTextViewText(R.id.widgetGrade, "$kind  ·  ${card.grade.ifBlank { "기본" }}")
+            val chance = ExamChanceStore.line(card.grade)
+            views.setTextViewText(R.id.widgetGrade, if (chance.isBlank()) kind else "$kind  ·  ${card.grade}")
             views.setTextViewText(R.id.widgetTitle, card.topicTitle.ifBlank { card.title })
             val level = CardStore.getMemoryLevel(context, card.subject, card.topicTitle)
-            views.setTextViewText(R.id.widgetMemory, "★".repeat(level) + "☆".repeat(5 - level))
+            views.setTextViewText(R.id.widgetMemory, CardStore.memoryStarsLabel(level))
 
             val adapterIntent = Intent(context, StudyWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)

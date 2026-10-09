@@ -34,13 +34,24 @@
                 android:ellipsize="end"/>
 
             <TextView
+                android:id="@+id/tvRowChance"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:gravity="end"
+                android:textColor="@color/accent"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"/>
+
+            <TextView
                 android:id="@+id/tvRowMemory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
+                android:layout_marginStart="8dp"
                 android:gravity="end"
-                android:textColor="@color/accent"
-                android:textSize="15sp"
+                android:textColor="@color/mem_master"
+                android:textSize="13sp"
                 android:letterSpacing="0.04"
                 android:visibility="gone"/>
         </LinearLayout>

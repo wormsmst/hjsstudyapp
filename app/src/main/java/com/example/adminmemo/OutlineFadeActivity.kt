@@ -11,6 +11,7 @@ import com.google.android.material.button.MaterialButton
 class OutlineFadeActivity : BaseActivity() {
 
     override val showScratchPad = true
+    override val showGeminiFab = true
 
     private var queue: List<Card> = emptyList()
     private var index = 0
@@ -78,7 +79,7 @@ class OutlineFadeActivity : BaseActivity() {
         val check = findViewById<View>(R.id.btnFadeCheck)
         val write = findViewById<EditText>(R.id.etFadeSentence)
         if (writeMode) {
-            step.text = "제목만 보고 목차 아래 문장까지 쓴 뒤 대조하세요."
+            step.text = "제목만 보고 각 항목 아래 문장까지 쓴 뒤 대조하세요."
             reveal.visibility = View.GONE
             check.visibility = View.VISIBLE
             write.visibility = View.VISIBLE

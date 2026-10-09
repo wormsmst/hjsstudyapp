@@ -71,9 +71,11 @@
         android:orientation="vertical">
 
         <ScrollView
+            android:id="@+id/scrollDetailLeft"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:fillViewport="true">
 
             <LinearLayout
                 android:id="@+id/layoutDetailLeftInner"
@@ -86,6 +88,8 @@
                     android:id="@+id/tvDetailGrade"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
                     android:textColor="@color/accent"
                     android:textSize="12sp"
                     android:textStyle="bold"/>
@@ -122,14 +126,6 @@
                     <TextView android:id="@+id/star4" style="@style/MemoryStar"/>
                     <TextView android:id="@+id/star5" style="@style/MemoryStar"/>
                 </LinearLayout>
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="-10dp"
-                    android:layout_marginBottom="16dp"
-                    android:text="인출 채점으로 자동 반영돼요"
-                    android:textColor="@color/text_sub"
-                    android:textSize="11sp"/>
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/cardMnemonicBox"
@@ -162,19 +158,25 @@
                     android:letterSpacing="0.01"
                     android:textIsSelectable="true"/>
 
-                <HorizontalScrollView
+                <androidx.core.widget.NestedScrollView
                     android:id="@+id/scrollOutlineTree"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:scrollbars="horizontal"
+                    android:fillViewport="false"
                     android:visibility="gone">
 
-                    <com.example.adminmemo.OutlineTreeView
-                        android:id="@+id/viewOutlineTree"
+                    <HorizontalScrollView
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"/>
-                </HorizontalScrollView>
+                        android:layout_height="wrap_content"
+                        android:scrollbars="horizontal">
+
+                        <com.example.adminmemo.OutlineTreeView
+                            android:id="@+id/viewOutlineTree"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </HorizontalScrollView>
+                </androidx.core.widget.NestedScrollView>
             </LinearLayout>
         </ScrollView>
 
@@ -189,7 +191,8 @@
             android:id="@+id/scrollDetailRight"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:fillViewport="true">
 
             <LinearLayout
                 android:id="@+id/layoutDetailRightInner"
@@ -212,30 +215,15 @@
                 <LinearLayout
                     android:id="@+id/layoutDetailTools"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
                     android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="본문을 길게 눌러 문장을 선택한 뒤 Gemini에게 질문할 수 있어요."
-                    android:textColor="@color/text_sub"
-                    android:textSize="12sp"/>
-
-                <Button
-                    android:id="@+id/btnAskGemini"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end"
-                    android:layout_marginTop="6dp"
-                    android:text="✨ Gemini에게 질문"/>
-
                 <View
+                    android:id="@+id/viewMemoSpacer"
                     android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginVertical="20dp"
-                    android:background="#22808080"/>
+                    android:layout_height="0dp"
+                    android:layout_weight="1"/>
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -279,60 +267,51 @@
         </ScrollView>
     </LinearLayout>
 
-    <androidx.cardview.widget.CardView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="12dp"
         android:layout_marginTop="4dp"
         android:layout_marginBottom="12dp"
-        app:cardCornerRadius="22dp"
-        app:cardElevation="6dp"
-        app:cardBackgroundColor="@color/bg_card">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPrevDetail"
+            style="@style/Widget.AdminMemo.Button"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="8dp">
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:minWidth="0dp"
+            android:minHeight="48dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:text="◀ 이전"
+            android:textAllCaps="false"
+            android:textColor="@color/text_on_tile"
+            app:backgroundTint="@color/btn_prev"/>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnPrevDetail"
-                style="@style/Widget.AdminMemo.Button"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:minWidth="0dp"
-                android:minHeight="48dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:paddingStart="4dp"
-                android:paddingEnd="4dp"
-                android:maxLines="1"
-                android:ellipsize="none"
-                android:text="◀ 이전"
-                android:textAllCaps="false"
-                android:textColor="@color/text_on_tile"
-                app:backgroundTint="@color/btn_prev"/>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnNextDetail"
-                style="@style/Widget.AdminMemo.Button"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minWidth="0dp"
-                android:minHeight="48dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:paddingStart="4dp"
-                android:paddingEnd="4dp"
-                android:maxLines="1"
-                android:ellipsize="none"
-                android:text="다음 ▶"
-                android:textAllCaps="false"/>
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNextDetail"
+            style="@style/Widget.AdminMemo.Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minWidth="0dp"
+            android:minHeight="48dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:maxLines="1"
+            android:ellipsize="none"
+            android:text="다음 ▶"
+            android:textAllCaps="false"/>
+    </LinearLayout>
 
 </LinearLayout>

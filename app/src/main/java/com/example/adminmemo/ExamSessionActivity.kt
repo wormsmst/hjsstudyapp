@@ -29,6 +29,7 @@ import java.util.Locale
 class ExamSessionActivity : BaseActivity() {
 
     override val showScratchPad = true
+    override val showGeminiFab = true
 
     companion object {
         const val QUESTION_COUNT = 4
@@ -246,7 +247,7 @@ class ExamSessionActivity : BaseActivity() {
             tvPrompt.layoutParams = plp
 
             val et = EditText(this)
-            et.hint = "가능하면 종이에 쓰세요. 여기엔 목차만 적어도 됩니다."
+            et.hint = "가급적 앱 보다는 종이에 답안을 쓰세요."
             et.gravity = Gravity.TOP
             et.minLines = if (item.kind == Kind.CASE) 5 else 3
             et.setTextColor(ContextCompat.getColor(this, R.color.text_main))
@@ -362,7 +363,7 @@ class ExamSessionActivity : BaseActivity() {
             parent.addView(btnWrong)
 
             val tvScore = TextView(this)
-            tvScore.text = "자기채점 — 해당하면 체크. 분량이 아니라 목차와 문장입니다."
+            tvScore.text = "길게 썼는지는 보지 마세요. 목차와 한 문장이 있었는지만 체크하세요."
             tvScore.setTextColor(ContextCompat.getColor(this, R.color.text_sub))
             tvScore.textSize = 12f
             val slp = LinearLayout.LayoutParams(

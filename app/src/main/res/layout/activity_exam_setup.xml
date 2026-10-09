@@ -79,7 +79,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="실제 2차 시험처럼 문제만 보고 백지에 목차/답안을 써보는 연습이에요. 시작하면 바로 타이머가 돌아가요."
+        android:text="문제만 보고 종이에 쓰세요. 시작하면 타이머가 돌아갑니다."
         android:textColor="@color/text_sub"
         android:textSize="11sp"
         android:layout_marginBottom="28dp"/>

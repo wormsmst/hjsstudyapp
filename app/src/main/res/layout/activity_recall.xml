@@ -99,6 +99,7 @@
                     android:lineSpacingExtra="4dp"
                     android:textColor="@color/text_main"
                     android:textSize="14sp"
+                    android:textIsSelectable="true"
                     android:visibility="gone"/>
             </LinearLayout>
         </ScrollView>
@@ -133,7 +134,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginBottom="8dp"
-                            android:text="종이에 이 말이 있었는지 있음·없음만 고르세요. 고르면 등급이 정해집니다."
+                            android:text="이 목차가 있으면 「있음」, 없으면 「없음」입니다. 아래에 세부 문장이 있는 목차만 「핵심이 빠짐」이 있습니다."
                             android:textColor="@color/text_sub"
                             android:textSize="13sp"
                             android:textStyle="bold"/>
@@ -161,6 +162,7 @@
                         android:lineSpacingExtra="4dp"
                         android:textColor="@color/text_main"
                         android:textSize="14sp"
+                        android:textIsSelectable="true"
                         android:visibility="gone"/>
                 </LinearLayout>
             </ScrollView>
@@ -168,7 +170,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/bg_card"
+                android:background="@android:color/transparent"
                 android:orientation="vertical"
                 android:padding="16dp">
 
@@ -178,6 +180,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="목차 대조하기"/>
+
+                <LinearLayout
+                    android:id="@+id/layoutRecallMissNav"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal"
+                    android:visibility="gone"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnRecallBody"
@@ -219,7 +229,7 @@
                         style="@style/Widget.AdminMemo.Button"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="뼈대가 안 나옴"/>
+                        android:text="목차(뼈대)가 안 나옴"/>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnFailTip"

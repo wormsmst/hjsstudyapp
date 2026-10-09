@@ -55,7 +55,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="cards.json 본문·두문자 추가·수정·삭제"
+                    android:text="본문과 두문자를 추가·수정·삭제합니다."
                     android:textColor="@color/text_sub"
                     android:textSize="12.5sp"/>
             </LinearLayout>
@@ -101,7 +101,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="mock_exams 사례문제·해설·키워드 수정"
+                    android:text="사례 문제와 해설을 고칩니다."
                     android:textColor="@color/text_sub"
                     android:textSize="12.5sp"/>
             </LinearLayout>

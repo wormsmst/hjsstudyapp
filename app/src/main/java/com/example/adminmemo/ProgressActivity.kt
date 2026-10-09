@@ -19,7 +19,13 @@ class ProgressActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        bind()
+        if (FirebaseSyncManager.isSignedIn()) {
+            FirebaseSyncManager.syncProgressNow(this) { _, _ ->
+                runOnUiThread { bind() }
+            }
+        } else {
+            bind()
+        }
     }
 
     private fun bind() {
@@ -34,10 +40,26 @@ class ProgressActivity : BaseActivity() {
         pb.progress = if (goal <= 0) 0 else (today * 100 / goal).coerceAtMost(100)
 
         val last = StudyProgressStore.lastAt(this)
-        findViewById<TextView>(R.id.tvProgressLast).text =
-            if (last <= 0L) "아직 학습 기록이 없어요"
-            else "마지막 학습  ${DateFormatters.dateTime(last)}"
+        val topicN = StudyProgressStore.todayTopicCount(this)
+        findViewById<TextView>(R.id.tvProgressLast).text = when {
+            last > 0L -> "마지막 학습  ${DateFormatters.dateTime(last)}"
+            today > 0 || topicN > 0 -> "오늘 학습 기록이 있어요"
+            else -> "아직 학습 기록이 없어요"
+        }
         findViewById<TextView>(R.id.tvProgressPace).text = StudyProgressStore.paceLine(this)
+        val masteryLine = StudyProgressStore.masteryLine(this)
+        val tvMastery = findViewById<TextView>(R.id.tvProgressMastery)
+        val tvHint = findViewById<TextView>(R.id.tvProgressMasteryHint)
+        if (masteryLine.isBlank()) {
+            tvMastery.visibility = View.GONE
+            tvHint.visibility = View.GONE
+        } else {
+            tvMastery.visibility = View.VISIBLE
+            tvMastery.text = masteryLine
+            val hint = StudyProgressStore.masteryHint(this)
+            tvHint.visibility = if (hint.isBlank()) View.GONE else View.VISIBLE
+            tvHint.text = hint
+        }
         bindWeek()
 
         val exams = StudyProgressStore.examLogs(this).takeLast(3).reversed()
@@ -99,7 +121,7 @@ class ProgressActivity : BaseActivity() {
             val marks = TextView(this)
             val bits = buildList {
                 if (day.study) add("본")
-                if (day.quiz) add("퀴")
+                if (day.quiz) add("인")
                 if (day.exam) add("모")
             }
             marks.text = bits.joinToString(" ").ifBlank { "·" }
@@ -154,7 +176,14 @@ class ProgressActivity : BaseActivity() {
         title.setTypeface(title.typeface, android.graphics.Typeface.BOLD)
 
         val sub = TextView(this)
-        sub.text = "미학습 ${bar.unseen} · 약함 ${bar.weak} · 보통 ${bar.mid} · 숙달 ${bar.master}  (${bar.masteredPct}%)"
+        val subjectCards = CardStore.getAllCards(this).filter {
+            it.type == "concept" &&
+                canonicalizeSubject(it.subject) == bar.subject &&
+                it.topicTitle.isNotBlank()
+        }
+        sub.text = "아직 안 함 ${bar.unseen} · 약함 ${bar.weak} · 보통 ${bar.mid} · 잘 됨 ${bar.master}" +
+            StudyProgressStore.subjectMasterySuffix(this, bar) +
+            "  ·  " + ReadPassStore.averageLabel(this, subjectCards)
         sub.setTextColor(ContextCompat.getColor(this, R.color.text_sub))
         sub.textSize = 13f
         val slp = LinearLayout.LayoutParams(

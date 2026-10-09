@@ -84,12 +84,16 @@ object CardStore {
         val edited = readEditedCards(context)
         val deleted = readDeletedIds(context)
 
+        val chances = ExamChanceStore.all(context)
         val merged = (base + userAdded)
             .filter { it.id !in deleted }
             .map { edited[it.id] ?: it }
             .map { card ->
                 val subject = canonicalizeSubject(card.subject)
-                if (card.subject == subject) card else card.copy(subject = subject)
+                val chance = chances[card.id].orEmpty()
+                var out = if (card.subject == subject) card else card.copy(subject = subject)
+                if (out.grade != chance) out = out.copy(grade = chance)
+                out
             }
 
         return merged
@@ -399,7 +403,7 @@ object CardStore {
 
     fun memoryStarsLabel(level: Int): String {
         val n = level.coerceIn(1, 5)
-        return "★".repeat(n) + "☆".repeat(5 - n)
+        return "●".repeat(n) + "○".repeat(5 - n)
     }
 
     fun resetAllMemoryLevels(context: Context, level: Int) {

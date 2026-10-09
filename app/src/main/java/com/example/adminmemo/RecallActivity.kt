@@ -2,11 +2,14 @@ package com.example.adminmemo
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -17,6 +20,13 @@ import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 
 class RecallActivity : BaseActivity() {
+
+    override val showGeminiFab = true
+
+    override fun geminiStudyContext(): String {
+        val card = queue.getOrNull(index) ?: return ""
+        return "${card.topicTitle}\n${card.back}"
+    }
 
     private var queue: List<Card> = emptyList()
     private var index = 0
@@ -29,6 +39,7 @@ class RecallActivity : BaseActivity() {
     private var fromCards = false
     private var bodyWriteForced = false
     private var retrainMode = false
+    private var boostMode = false
     private var unseenMode = false
     private var sessionSubject = ALL_SUBJECTS_KEY
     private var sessionPeriod = 0
@@ -37,6 +48,11 @@ class RecallActivity : BaseActivity() {
     private var baseCount = 0
     private var caseStage = 0
     private var pendingGrade: Int? = null
+    private var pendingFailKind = RecallStore.FAIL_NONE
+    private var missLoop = false
+    private var missQueue: List<RecallCheckItem> = emptyList()
+    private var missIndex = 0
+    private var missPeekOpen = false
     private val results = mutableListOf<Pair<Card, Int>>()
     private val pendingFlush = mutableListOf<PendingGrade>()
     private val selfMissByCard = mutableMapOf<String, Int>()
@@ -68,6 +84,7 @@ class RecallActivity : BaseActivity() {
         fromCards = forcedIds.isNotEmpty()
         bodyWriteForced = intent.getBooleanExtra(EXTRA_RECALL_BODY, false)
         retrainMode = intent.getBooleanExtra(EXTRA_RECALL_RETRAIN, false)
+        boostMode = intent.getBooleanExtra(EXTRA_RECALL_BOOST, false)
         unseenMode = unseen
         sessionSubject = subject
         sessionPeriod = period
@@ -185,22 +202,53 @@ class RecallActivity : BaseActivity() {
         confirmLeaveOnBack("인출을 그만둘까요? 푼 장은 저장되어 다음에 이어서 풀 수 있어요.") {
             index < queue.size && results.size < queue.size
         }
-        findViewById<View>(R.id.btnRecallReveal).setOnClickListener { reveal() }
-        findViewById<View>(R.id.btnRecallBody).setOnClickListener { toggleBody() }
+        wireRecallGeminiBody()
+        findViewById<View>(R.id.btnRecallReveal).setOnClickListener {
+            if (!missLoop) reveal()
+        }
+        findViewById<View>(R.id.btnRecallReveal).setOnTouchListener { v, ev ->
+            if (!missLoop) return@setOnTouchListener false
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    missPeekOpen = true
+                    bindMissPeek()
+                    v.isPressed = true
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    missPeekOpen = false
+                    bindMissPeek()
+                    v.isPressed = false
+                    true
+                }
+                else -> true
+            }
+        }
+        findViewById<View>(R.id.btnRecallBody).setOnClickListener {
+            when {
+                missLoop && missIndex >= missQueue.size - 1 -> toggleBody()
+                missLoop -> confirmSkipMissLoop()
+                else -> toggleBody()
+            }
+        }
         findViewById<View>(R.id.btnRecallConfirm).setOnClickListener {
-            val g = computedGrade()
-            if (g == null) {
-                Toast.makeText(this, "모든 필수어에 있음·없음을 고르세요", Toast.LENGTH_SHORT).show()
+            if (missLoop) {
+                advanceMissLoop()
                 return@setOnClickListener
             }
-            if (g == RecallStore.GRADE_GOOD) grade(g, RecallStore.FAIL_NONE)
+            val g = computedGrade()
+            if (g == null) {
+                Toast.makeText(this, "모든 항목을 고르세요", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (g == RecallStore.GRADE_GOOD) continueAfterGrade(g, RecallStore.FAIL_NONE)
             else showFailKind(g)
         }
         findViewById<View>(R.id.btnFailStructure).setOnClickListener {
-            grade(pendingGrade ?: return@setOnClickListener, RecallStore.FAIL_STRUCTURE)
+            continueAfterGrade(pendingGrade ?: return@setOnClickListener, RecallStore.FAIL_STRUCTURE)
         }
         findViewById<View>(R.id.btnFailTip).setOnClickListener {
-            grade(pendingGrade ?: return@setOnClickListener, RecallStore.FAIL_TIP)
+            continueAfterGrade(pendingGrade ?: return@setOnClickListener, RecallStore.FAIL_TIP)
         }
         showCard()
     }
@@ -230,17 +278,20 @@ class RecallActivity : BaseActivity() {
         revealed = false
         bodyOpen = false
         caseStage = 0
+        missLoop = false
+        missQueue = emptyList()
+        missIndex = 0
+        missPeekOpen = false
+        pendingFailKind = RecallStore.FAIL_NONE
+        orderMissActions(missMode = false)
         items = emptyList()
         keyStates = intArrayOf()
         val card = queue[index]
         val bodyWrite = isBodyWrite(card)
-        remainSec = when {
-            caseMode -> CASE_THINK_SEC
-            bodyWrite -> BODY_THINK_SEC
-            else -> THINK_SEC
-        }
+        remainSec = thinkSecondsFor(card, bodyWrite)
         val modeLabel = when {
             retrainMode -> "다시 인출"
+            boostMode -> "보강 인출"
             caseMode -> "사례 인출"
             bodyWrite -> "본문 전체 쓰기"
             fromCards -> "퀘스트 인출"
@@ -258,11 +309,11 @@ class RecallActivity : BaseActivity() {
         }
         findViewById<TextView>(R.id.tvRecallHint).text = when {
             caseMode ->
-                "결론 한 문장 → 이유 → 목차 순으로 쓰세요. ${remainSec}초를 목표로 합니다."
+                "① 결론 한 문장 ② 이유 한 문장 ③ 목차 순으로 쓰세요. ${remainSec}초."
             bodyWrite ->
-                "제목만 보고 목차와 본문을 처음부터 끝까지 문장으로 쓰세요. 막힌 항목만 골라 쓰지 마세요. ${remainSec}초를 목표로 합니다."
+                "제목만 보고 목차와 본문을 처음부터 끝까지 문장으로 쓰세요. 막힌 항목만 골라 쓰지 마세요. ${remainSec}초."
             else ->
-                "① 몇 덩어리인지 세고  ② 덩어리 제목을 쓰고  ③ 제목만 보고 목차를 펼치세요. 시험장에서 이 제목만 보는 장면을 떠올리세요."
+                "1. 큰 덩어리가 몇 개인지  2. 제목을 쓰고  3. 제목만 보고 목차를 펼치세요. ${remainSec}초."
         }
         findViewById<LinearLayout>(R.id.layoutRecallRubric).visibility = View.GONE
         findViewById<View>(R.id.btnRecallReveal).visibility = View.VISIBLE
@@ -304,9 +355,9 @@ class RecallActivity : BaseActivity() {
             appendChecks(chunk)
             findViewById<LinearLayout>(R.id.layoutRecallRubric).visibility = View.VISIBLE
             findViewById<TextView>(R.id.tvRecallHint).text = when (caseStage) {
-                1 -> "결론에 들어가야 할 말이 종이에 있었는지 고르세요. 이어서 이유를 쓰세요."
-                2 -> "이유 필수어를 고른 뒤, 목차를 쓰세요."
-                else -> "목차 필수어가 종이에 있었는지 고르세요. 본문은 채점 뒤에 펼치세요."
+                1 -> "결론이 있었는지 고르세요. 이어서 이유를 쓰세요."
+                2 -> "이유의 핵심을 고른 뒤, 목차를 쓰세요."
+                else -> "이 목차가 있었는지 고르세요. 본문은 채점 뒤에 펼치세요."
             }
             findViewById<MaterialButton>(R.id.btnRecallReveal).text = when (caseStage) {
                 1 -> "이유 보기"
@@ -320,7 +371,13 @@ class RecallActivity : BaseActivity() {
         handler.removeCallbacks(tick)
         findViewById<LinearLayout>(R.id.layoutRecallChecks).removeAllViews()
         val chunk = outlineRecallItems(card).ifEmpty {
-            listOf(RecallCheckItem("쉬운 말로 몇 덩어리인지부터 나눠 보세요.", listOf("덩어리")))
+            listOf(
+                RecallCheckItem(
+                    "쉬운 말로 몇 덩어리인지부터 나눠 보세요.",
+                    listOf("덩어리"),
+                    "큰 덩어리가 몇 개인지부터 나눠 보세요."
+                )
+            )
         }
         appendChecks(chunk)
         finishReveal(card)
@@ -340,6 +397,7 @@ class RecallActivity : BaseActivity() {
             card.back,
             CardStore.isLocallyEdited(this, card.id)
         )
+        wireRecallGeminiBody()
         bindBodyOpen(false)
         bindGradeHint()
         bindCoach()
@@ -348,7 +406,7 @@ class RecallActivity : BaseActivity() {
     private fun appendChecks(chunk: List<RecallCheckItem>) {
         val startKeys = keyStates.size
         items = items + chunk
-        val newKeys = chunk.sumOf { it.keys.size }
+        val newKeys = chunk.size
         keyStates = IntArray(startKeys + newKeys) { i ->
             if (i < startKeys && i < keyStates.size) keyStates[i] else MARK_YES
         }
@@ -365,48 +423,56 @@ class RecallActivity : BaseActivity() {
             tv.setTextColor(ContextCompat.getColor(this, R.color.text_main))
             tv.setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (4 * d).toInt())
             col.addView(tv)
+            val hint = item.keys.firstOrNull().orEmpty().trim()
+            val title = outlineHeadingText(item.heading)
+            if (item.allowGap && hint.isNotBlank() && hint != title) {
+                val hintTv = TextView(this)
+                hintTv.text = "힌트  $hint"
+                hintTv.textSize = 13f
+                hintTv.setTextColor(ContextCompat.getColor(this, R.color.text_sub))
+                hintTv.setPadding((12 * d).toInt(), 0, (12 * d).toInt(), (4 * d).toInt())
+                col.addView(hintTv)
+            }
             val cap = TextView(this)
-            cap.text = "종이에 이 말이 있었나요?"
+            cap.text = "이 목차가 있었나요?"
             cap.textSize = 12f
             cap.setTextColor(ContextCompat.getColor(this, R.color.text_sub))
             cap.setPadding((12 * d).toInt(), 0, (12 * d).toInt(), (4 * d).toInt())
             col.addView(cap)
-            item.keys.forEach { key ->
-                val i = keyIndex
-                keyIndex++
-                val row = LinearLayout(this)
-                row.orientation = LinearLayout.VERTICAL
-                val name = TextView(this)
-                name.text = key
-                name.textSize = 14f
-                name.setTextColor(ContextCompat.getColor(this, R.color.text_main))
-                name.setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), 0)
-                val group = RadioGroup(this)
-                group.orientation = LinearLayout.HORIZONTAL
-                group.setPadding((8 * d).toInt(), 0, (8 * d).toInt(), (6 * d).toInt())
-                val yes = RadioButton(this)
-                yes.id = View.generateViewId()
-                yes.text = "있음"
-                yes.textSize = 13f
-                val no = RadioButton(this)
-                no.id = View.generateViewId()
-                no.text = "없음"
-                no.textSize = 13f
-                group.addView(yes)
-                group.addView(no)
-                group.setOnCheckedChangeListener { _, checkedId ->
-                    keyStates[i] = when (checkedId) {
-                        yes.id -> MARK_YES
-                        no.id -> MARK_NO
-                        else -> MARK_NONE
-                    }
-                    bindGradeHint()
+            val i = keyIndex
+            keyIndex++
+            val group = RadioGroup(this)
+            group.orientation = LinearLayout.VERTICAL
+            group.setPadding((8 * d).toInt(), 0, (8 * d).toInt(), (6 * d).toInt())
+            val yes = RadioButton(this)
+            yes.id = View.generateViewId()
+            yes.text = "있음"
+            yes.textSize = 13f
+            val no = RadioButton(this)
+            no.id = View.generateViewId()
+            no.text = "없음"
+            no.textSize = 13f
+            group.addView(yes)
+            group.addView(no)
+            val gapId = if (item.allowGap) {
+                val gapBtn = RadioButton(this)
+                gapBtn.id = View.generateViewId()
+                gapBtn.text = "핵심이 빠짐"
+                gapBtn.textSize = 13f
+                group.addView(gapBtn)
+                gapBtn.id
+            } else -1
+            group.setOnCheckedChangeListener { _, checkedId ->
+                keyStates[i] = when (checkedId) {
+                    yes.id -> MARK_YES
+                    no.id -> MARK_NO
+                    gapId -> MARK_GAP
+                    else -> MARK_NONE
                 }
-                yes.isChecked = true
-                row.addView(name)
-                row.addView(group)
-                col.addView(row)
+                bindGradeHint()
             }
+            yes.isChecked = true
+            col.addView(group)
             val cv = CardView(this)
             val lp = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -423,31 +489,89 @@ class RecallActivity : BaseActivity() {
         bindGradeHint()
     }
 
+    private fun recallBodyText(): CharSequence {
+        val card = queue.getOrNull(index) ?: return ""
+        return styledStudyAnswer(this, card.back, CardStore.isLocallyEdited(this, card.id))
+    }
+
     private fun bindBodyOpen(open: Boolean) {
         bodyOpen = open
         val land = isLandscape()
         val left = findViewById<TextView?>(R.id.tvRecallBodyLeft)
         val right = findViewById<TextView>(R.id.tvRecallBody)
+        val src = recallBodyText()
         if (bodyOpen) {
             if (land && left != null) {
-                left.text = right.text
+                left.text = src
                 left.visibility = View.VISIBLE
                 right.visibility = View.GONE
             } else {
                 left?.visibility = View.GONE
+                right.text = src
                 right.visibility = View.VISIBLE
             }
         } else {
             left?.visibility = View.GONE
             right.visibility = View.GONE
         }
-        findViewById<MaterialButton>(R.id.btnRecallBody).text =
-            if (bodyOpen) "본문 접기" else "본문 보기"
+        findViewById<MaterialButton>(R.id.btnRecallBody).text = when {
+            missLoop && missIndex >= missQueue.size - 1 ->
+                if (bodyOpen) "본문 접기" else "본문내용 보기"
+            missLoop -> "다음 문제로 건너뛰기"
+            bodyOpen -> "본문 접기"
+            else -> "본문 보기"
+        }
+        if (bodyOpen) wireRecallGeminiBody()
         bindCoach()
+    }
+
+    private fun wireRecallGeminiBody() {
+        val ctx = { geminiStudyContext() }
+        listOfNotNull(
+            findViewById<TextView?>(R.id.tvRecallBody),
+            findViewById<TextView?>(R.id.tvRecallBodyLeft)
+        ).forEach { tv ->
+            tv.setTextIsSelectable(true)
+            enableGeminiSelection(this, tv, ctx)
+        }
     }
 
     private fun toggleBody() {
         bindBodyOpen(!bodyOpen)
+    }
+
+    private fun thinkSecondsFor(card: Card, bodyWrite: Boolean): Int {
+        val letters = card.back.count { !it.isWhitespace() }
+        fun walk(nodes: List<OutlineNode>): Int =
+            nodes.sumOf { n -> if (n.level >= 0) 1 + walk(n.children) else walk(n.children) }
+        val heads = walk(parseOutline(card.back))
+        val base: Int
+        val cap: Int
+        val charOver: Int
+        val charStep: Int
+        val charBonus: Int
+        val headOver: Int
+        val headBonus: Int
+        when {
+            caseMode -> {
+                base = CASE_THINK_SEC; cap = 360
+                charOver = 450; charStep = 220; charBonus = 18
+                headOver = 6; headBonus = 8
+            }
+            bodyWrite -> {
+                base = BODY_THINK_SEC; cap = 540
+                charOver = 450; charStep = 160; charBonus = 25
+                headOver = 5; headBonus = 12
+            }
+            else -> {
+                base = THINK_SEC; cap = 240
+                charOver = 450; charStep = 200; charBonus = 15
+                headOver = 5; headBonus = 8
+            }
+        }
+        val extraChars = ((letters - charOver).coerceAtLeast(0) / charStep) * charBonus
+        val extraHeads = (heads - headOver).coerceAtLeast(0) * headBonus
+        return (base + extraChars + extraHeads).coerceIn(base, cap)
     }
 
     private fun isBodyWrite(card: Card): Boolean {
@@ -459,6 +583,7 @@ class RecallActivity : BaseActivity() {
     private fun bindCoach() {
         val card = queue.getOrNull(index)
         findViewById<TextView>(R.id.tvRecallCoach).text = when {
+            missLoop -> CoachHints.MISS_PEEK
             card != null && isBodyWrite(card) -> CoachHints.BODY_FULL
             bodyOpen -> CoachHints.BODY
             caseMode && caseStage in 1..2 -> CoachHints.CASE_MID
@@ -472,10 +597,10 @@ class RecallActivity : BaseActivity() {
     private fun selfMissCount(): Int {
         val n = keyStates.size
         if (n == 0) return 0
-        val no = keyStates.count { it == MARK_NO }
+        val miss = keyStates.count { it == MARK_NO || it == MARK_GAP }
         return when {
-            no * 2 >= n -> 2
-            no > 0 -> 1
+            miss * 2 >= n -> 2
+            miss > 0 -> 1
             else -> 0
         }
     }
@@ -504,16 +629,19 @@ class RecallActivity : BaseActivity() {
         val n = keyStates.size
         val yes = keyStates.count { it == MARK_YES }
         val no = keyStates.count { it == MARK_NO }
+        val gap = keyStates.count { it == MARK_GAP }
         val unset = keyStates.count { it == MARK_NONE }
         val g = computedGrade()
         val parts = mutableListOf<String>()
-        if (n > 0) parts.add("있음 $yes  ·  없음 $no / $n")
-        if (unset > 0) parts.add("남은 필수어 ${unset}개")
+        if (n > 0) parts.add("있음 $yes  ·  없음 $no  ·  빠짐 $gap / $n")
+        if (unset > 0) parts.add("남은 항목 ${unset}개")
         if (remainSec <= 0) parts.add("시간 종료 · 잘 떠올림 없음")
         if (g != null) parts.add("확정 등급 「${gradeLabel(g)}」")
-        findViewById<TextView>(R.id.tvRecallGradeHint).text = parts.joinToString("  ·  ")
+        val hint = findViewById<TextView>(R.id.tvRecallGradeHint)
+        hint.text = parts.joinToString("  ·  ")
+        hint.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
         btn.isEnabled = g != null
-        btn.text = if (g == null) "필수어를 모두 고르세요" else "채점 확정  ·  ${gradeLabel(g)}"
+        btn.text = if (g == null) "항목을 모두 고르세요" else "채점 확정  ·  ${gradeLabel(g)}"
     }
 
     private fun bindRecallSplit() {
@@ -533,14 +661,236 @@ class RecallActivity : BaseActivity() {
             right.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
         }
         if (bodyOpen) bindBodyOpen(true)
+        else if (missLoop) bindMissPeek()
+    }
+
+    private fun missedCheckItems(): List<RecallCheckItem> {
+        var i = 0
+        val out = mutableListOf<RecallCheckItem>()
+        for (item in items) {
+            val hit = i < keyStates.size && (keyStates[i] == MARK_NO || keyStates[i] == MARK_GAP)
+            i += 1
+            if (hit) out.add(item)
+        }
+        return out.take(MISS_CAP)
+    }
+
+    private fun continueAfterGrade(g: Int, failKind: Int) {
+        pendingGrade = g
+        pendingFailKind = failKind
+        val missed = missedCheckItems()
+        if (missed.isNotEmpty()) startMissLoop(g, missed)
+        else grade(g, failKind)
+    }
+
+    private fun startMissLoop(grade: Int, missed: List<RecallCheckItem>) {
+        pendingGrade = grade
+        missLoop = true
+        missQueue = missed
+        missIndex = 0
+        missPeekOpen = false
+        bodyOpen = false
+        findViewById<View>(R.id.layoutRecallFailKind).visibility = View.GONE
+        bindMissStep()
+    }
+
+    private fun bindMissStep() {
+        val item = missQueue.getOrNull(missIndex) ?: run {
+            finishMissLoop()
+            return
+        }
+        val n = missQueue.size
+        val last = missIndex >= n - 1
+        val card = queue.getOrNull(index)
+        val topic = card?.topicTitle.orEmpty().ifBlank { card?.title.orEmpty() }
+        findViewById<LinearLayout>(R.id.layoutRecallRubric).visibility = View.GONE
+        findViewById<View>(R.id.layoutRecallFailKind).visibility = View.GONE
+        findViewById<TextView>(R.id.tvRecallSubject).text =
+            listOfNotNull(
+                card?.subject?.let { canonicalizeSubject(it) }?.ifBlank { null },
+                topic.ifBlank { null }?.let { "「$it」" }
+            ).joinToString("  ·  ")
+        val headingTv = findViewById<TextView>(R.id.tvRecallTitle)
+        headingTv.text = missStepTitle(item.heading)
+        headingTv.animate().cancel()
+        headingTv.alpha = 0.15f
+        headingTv.animate().alpha(1f).setDuration(220).start()
+        findViewById<TextView>(R.id.tvRecallHint).text =
+            "빠진 항목 다시 쓰기  ${missIndex + 1} / $n  ·  이 목차만 다시 쓰세요"
+        findViewById<TextView>(R.id.tvRecallGradeHint).text = ""
+        findViewById<View>(R.id.tvRecallGradeHint).visibility = View.GONE
+        val reveal = findViewById<MaterialButton>(R.id.btnRecallReveal)
+        reveal.visibility = View.VISIBLE
+        reveal.text = "이 항목 보기"
+        val skip = findViewById<MaterialButton>(R.id.btnRecallBody)
+        skip.visibility = View.VISIBLE
+        skip.text = if (last) {
+            if (bodyOpen) "본문 접기" else "본문내용 보기"
+        } else {
+            "다음 문제로 건너뛰기"
+        }
+        val next = findViewById<MaterialButton>(R.id.btnRecallConfirm)
+        next.visibility = View.VISIBLE
+        next.isEnabled = true
+        next.text = if (last) "다음 문제 인출하기" else "다음 빈칸"
+        orderMissActions(missMode = true)
+        if (bodyOpen) bindBodyOpen(true) else bindMissPeek()
+        bindCoach()
+    }
+
+    private fun View.detachFromParent() {
+        (parent as? ViewGroup)?.removeView(this)
+    }
+
+    private fun orderMissActions(missMode: Boolean) {
+        val reveal = findViewById<View>(R.id.btnRecallReveal)
+        val skip = findViewById<MaterialButton>(R.id.btnRecallBody)
+        val next = findViewById<MaterialButton>(R.id.btnRecallConfirm)
+        val row = findViewById<LinearLayout>(R.id.layoutRecallMissNav)
+        val fail = findViewById<View>(R.id.layoutRecallFailKind)
+        val parent = reveal.parent as? LinearLayout ?: return
+        val floor = resources.getDimensionPixelSize(R.dimen.btn_min_height)
+        val h = floor * 2
+        val gap = (8 * resources.displayMetrics.density).toInt()
+        reveal.detachFromParent()
+        skip.detachFromParent()
+        next.detachFromParent()
+        row.detachFromParent()
+        fail.detachFromParent()
+        parent.addView(reveal)
+        val revealBtn = reveal as MaterialButton
+        revealBtn.insetTop = 0
+        revealBtn.insetBottom = 0
+        revealBtn.textSize = if (missMode) 20f else 15f
+        val tint = ContextCompat.getColor(this, if (missMode) R.color.miss_peek_btn else R.color.primary)
+        revealBtn.backgroundTintList = ColorStateList.valueOf(tint)
+        revealBtn.setTextColor(ContextCompat.getColor(this, R.color.text_on_header))
+        val revealH = if (missMode) h * 2 else h
+        revealBtn.minHeight = revealH
+        revealBtn.minimumHeight = revealH
+        val vPad = if (missMode) h / 3 else (12 * resources.displayMetrics.density).toInt()
+        revealBtn.setPaddingRelative(
+            revealBtn.paddingStart,
+            vPad,
+            revealBtn.paddingEnd,
+            vPad
+        )
+        revealBtn.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            revealH
+        )
+        if (missMode) {
+            next.minHeight = h
+            next.minimumHeight = h
+            skip.minHeight = h
+            skip.minimumHeight = h
+            next.textSize = 15f
+            skip.textSize = 15f
+            next.maxLines = 2
+            skip.maxLines = 2
+            val lastMiss = missIndex >= missQueue.size - 1
+            if (lastMiss) {
+                skip.layoutParams = LinearLayout.LayoutParams(0, h, 1f).apply { marginEnd = gap }
+                next.layoutParams = LinearLayout.LayoutParams(0, h, 1f)
+                row.addView(skip)
+                row.addView(next)
+            } else {
+                next.layoutParams = LinearLayout.LayoutParams(0, h, 1f).apply { marginEnd = gap }
+                skip.layoutParams = LinearLayout.LayoutParams(0, h, 1f)
+                row.addView(next)
+                row.addView(skip)
+            }
+            row.visibility = View.VISIBLE
+            parent.addView(row)
+        } else {
+            skip.minHeight = floor
+            skip.minimumHeight = floor
+            next.minHeight = floor
+            next.minimumHeight = floor
+            skip.textSize = 15f
+            next.textSize = 15f
+            val wrap = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = gap }
+            skip.layoutParams = wrap
+            next.layoutParams = LinearLayout.LayoutParams(wrap)
+            parent.addView(skip)
+            parent.addView(next)
+            row.visibility = View.GONE
+            parent.addView(row)
+        }
+        parent.addView(fail)
+    }
+
+    private fun confirmSkipMissLoop() {
+        AlertDialog.Builder(this)
+            .setMessage("남은 빠진 항목을 건너뛰고 다음 문제로 갈까요?")
+            .setPositiveButton("건너뛰기") { _, _ -> finishMissLoop() }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun advanceMissLoop() {
+        if (missIndex >= missQueue.size - 1) {
+            finishMissLoop()
+            return
+        }
+        missIndex++
+        missPeekOpen = false
+        bodyOpen = false
+        bindMissStep()
+    }
+
+    private fun finishMissLoop() {
+        missLoop = false
+        missPeekOpen = false
+        val g = pendingGrade ?: computedGrade() ?: return
+        val kind = if (g == RecallStore.GRADE_GOOD) RecallStore.FAIL_NONE else pendingFailKind
+        grade(g, kind)
+    }
+
+    private fun missStepTitle(heading: String): String {
+        val t = outlineHeadingText(heading).ifBlank { heading.trim() }
+        if (t.length <= 24) return t
+        val mark = outlineMarkerOf(heading)
+        return if (mark != "□") "$mark  세부 항목" else "세부 항목"
+    }
+
+    private fun bindMissPeek() {
+        if (bodyOpen && !missPeekOpen) {
+            bindBodyOpen(true)
+            return
+        }
+        val land = isLandscape()
+        val left = findViewById<TextView?>(R.id.tvRecallBodyLeft)
+        val right = findViewById<TextView>(R.id.tvRecallBody)
+        val text = missQueue.getOrNull(missIndex)?.peekText
+            ?.ifBlank { missQueue.getOrNull(missIndex)?.heading.orEmpty() }
+            .orEmpty()
+        if (missPeekOpen && text.isNotBlank()) {
+            if (land && left != null) {
+                left.text = text
+                left.visibility = View.VISIBLE
+                right.visibility = View.GONE
+            } else {
+                left?.visibility = View.GONE
+                right.text = text
+                right.visibility = View.VISIBLE
+            }
+        } else {
+            left?.visibility = View.GONE
+            right.visibility = View.GONE
+        }
     }
 
     private fun showFailKind(g: Int) {
         pendingGrade = g
         findViewById<View>(R.id.btnRecallConfirm).visibility = View.GONE
         findViewById<View>(R.id.layoutRecallFailKind).visibility = View.VISIBLE
-        findViewById<TextView>(R.id.tvRecallGradeHint).text =
-            "확정 등급 「${gradeLabel(g)}」  ·  막힌 이유를 고르세요"
+        val hint = findViewById<TextView>(R.id.tvRecallGradeHint)
+        hint.visibility = View.VISIBLE
+        hint.text = "확정 등급 「${gradeLabel(g)}」  ·  막힌 이유를 고르세요"
     }
 
     private fun grade(g: Int, failKind: Int = RecallStore.FAIL_NONE) {
@@ -648,10 +998,13 @@ class RecallActivity : BaseActivity() {
         pendingFlush.forEach { persistGrade(it) }
         pendingFlush.clear()
         RecallSessionStore.clear(this)
-        if (!caseMode && !fromCards && !retrainMode) {
+        val conceptResults = results.filter { !it.first.id.startsWith("case_") }
+        if (boostMode) {
+            DailyQuestStore.appendBoostFromSession(this, conceptResults, selfMissByCard, failKindByCard)
+        } else if (!caseMode && !fromCards && !retrainMode) {
             DailyQuestStore.rebuildFromSession(
                 this,
-                results.filter { !it.first.id.startsWith("case_") },
+                conceptResults,
                 selfMissByCard,
                 failKindByCard
             )
@@ -664,12 +1017,21 @@ class RecallActivity : BaseActivity() {
         findViewById<TextView>(R.id.tvRecallResultSummary).text = when {
             retrainMode ->
                 "다시 인출 ${good + half + miss}장  ·  잘 떠올림 ${good}  ·  반쯤 ${half}  ·  거의 못함 ${miss}\n오늘 훈련 세트가 끝났습니다."
+            boostMode ->
+                "보강 ${good + half + miss}장  ·  잘 떠올림 ${good}  ·  반쯤 ${half}  ·  거의 못함 ${miss}\n막힌 장만 보강 퀘스트로 넣었어요. 쓰고 나서 한 세트가 끝입니다."
             else ->
-                "잘 떠올림 ${good}  ·  반쯤 ${half}  ·  거의 못함 ${miss}\n다음은 부족한 부분을 채운 뒤, 그 장만 다시 인출하세요."
+                "잘 떠올림 ${good}  ·  반쯤 ${half}  ·  거의 못함 ${miss}\n막힌 장은 퀘스트에서 다시 쓴 뒤, 그 장만 다시 인출하세요."
         }
         val quests = DailyQuestStore.todayQuests(this)
+        val boostQuests = quests.filter { DailyQuestStore.isBoostQuest(it) && !it.done }
         findViewById<TextView>(R.id.tvRecallResultQuests).text = when {
             retrainMode -> "채운 장을 다시 풀어 본 결과입니다."
+            boostMode && boostQuests.isEmpty() -> "이번 세트에서 막힌 장이 없어서 보강 퀘스트가 없어요. 더 하려면 보강학습을 한 번 더 열면 됩니다."
+            boostMode -> boostQuests.joinToString("\n") { q ->
+                val kind = DailyQuestStore.kindLabel(q)
+                val hint = if (q.hint.isBlank()) "" else " (${q.hint})"
+                "· ${q.title}$hint  —  $kind"
+            }
             caseMode -> "사례 인출은 퀘스트를 새로 만들지 않아요. 약했던 사례는 모의고사에서 다시 쓰세요."
             quests.isEmpty() -> "오늘은 막힌 장이 없어서 추가 퀘스트가 없어요."
             else -> quests.joinToString("\n") { q ->
@@ -679,7 +1041,12 @@ class RecallActivity : BaseActivity() {
             }
         }
         val btnPr = findViewById<View>(R.id.btnRecallOpenMissed)
-        btnPr.visibility = if (retrainMode || quests.isEmpty()) View.GONE else View.VISIBLE
+        btnPr.visibility = when {
+            retrainMode -> View.GONE
+            boostMode -> if (boostQuests.isEmpty()) View.GONE else View.VISIBLE
+            quests.isEmpty() -> View.GONE
+            else -> View.VISIBLE
+        }
         btnPr.setOnClickListener {
             startActivity(Intent(this, QuestActivity::class.java))
             finish()
@@ -721,9 +1088,11 @@ class RecallActivity : BaseActivity() {
         private const val MARK_NONE = 0
         private const val MARK_YES = 1
         private const val MARK_NO = 2
+        private const val MARK_GAP = 3
         private const val THINK_SEC = 90
         private const val BODY_THINK_SEC = 240
         private const val CASE_THINK_SEC = 180
+        private const val MISS_CAP = 5
     }
 
     private data class PendingGrade(

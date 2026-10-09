@@ -58,7 +58,10 @@ object DailyQuestStore {
         return try {
             val book = gson.fromJson(f.readText(Charsets.UTF_8), QuestBook::class.java) ?: QuestBook()
             normalize(book)
-            roll(book)
+            val originalDate = book.date
+            val rolled = roll(book)
+            if (rolled.date != originalDate) writeFile(context, rolled, notify = false)
+            rolled
         } catch (_: Exception) {
             QuestBook(TodayTtsStore.todayKey())
         }
@@ -84,13 +87,25 @@ object DailyQuestStore {
         snapshot(book)
         if (book.date == today) return book
         val undone = book.quests.filter { !it.done && it.type != TYPE_LISTEN }
-        val backlog = (undone + book.backlog).distinctBy { it.type + "|" + it.cardId }.take(BACKLOG_CAP)
         return QuestBook(
             date = today,
             days = book.days,
-            backlog = backlog.toMutableList(),
+            backlog = compactBacklog(undone + book.backlog),
             retrainIds = mutableListOf()
         )
+    }
+
+    private fun compactBacklog(items: List<DailyQuest>): MutableList<DailyQuest> {
+        val map = linkedMapOf<String, DailyQuest>()
+        items.forEach { q ->
+            if (q.type == TYPE_LISTEN) return@forEach
+            val key = q.type + "|" + q.cardId
+            val old = map[key]
+            if (old == null || q.progress > old.progress) map[key] = q.copy()
+        }
+        val open = map.values.filter { !it.done }.take(BACKLOG_CAP)
+        val closed = map.values.filter { it.done }.takeLast(40)
+        return (open + closed).toMutableList()
     }
 
     private fun snapshot(book: QuestBook) {
@@ -111,10 +126,16 @@ object DailyQuestStore {
     }
 
     private fun write(context: Context, book: QuestBook) {
+        writeFile(context, book, notify = true)
+    }
+
+    private fun writeFile(context: Context, book: QuestBook, notify: Boolean) {
         snapshot(book)
         file(context).writeText(gson.toJson(book), Charsets.UTF_8)
-        AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
-        FirebaseSyncManager.notifyProgressChanged(context)
+        if (notify) {
+            AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
+            FirebaseSyncManager.notifyProgressChanged(context)
+        }
     }
 
     fun recallDoneToday(context: Context): Boolean = read(context).recallDone
@@ -189,7 +210,6 @@ object DailyQuestStore {
             ?: book.backlog.firstOrNull { it.id == questId }
             ?: return null
         q.progress = (q.progress + by).coerceAtMost(q.target)
-        if (q.done) book.backlog.removeAll { it.id == questId }
         write(context, book)
         return q
     }
@@ -200,7 +220,6 @@ object DailyQuestStore {
             ?: book.backlog.firstOrNull { it.id == questId }
             ?: return
         q.progress = if (done) q.target else 0
-        if (q.done) book.backlog.removeAll { it.id == questId }
         write(context, book)
     }
 
@@ -224,6 +243,13 @@ object DailyQuestStore {
             .filter { !it.done }
             .map { it.cardId }
 
+    fun openQuestCardIds(context: Context): Set<String> =
+        (todayQuests(context) + backlog(context))
+            .filter { !it.done }
+            .map { it.cardId }
+            .filter { it.isNotBlank() }
+            .toSet()
+
     fun retrainIds(context: Context): List<String> = read(context).retrainIds.filter { it.isNotBlank() }
 
     fun writesDoneToday(context: Context): Boolean {
@@ -239,23 +265,30 @@ object DailyQuestStore {
     }
 
     fun failHint(kind: Int): String = when (kind) {
-        RecallStore.FAIL_TIP -> "용어 · 제목만 보고 막힌 문장"
-        RecallStore.FAIL_STRUCTURE -> "뼈대 붕괴 · 제목만 보고 목차·문장 전부"
+        RecallStore.FAIL_TIP -> "단어만 안 나옴 · 제목만 보고 막힌 문장"
+        RecallStore.FAIL_STRUCTURE -> "목차부터 다시 · 제목만 보고 전부 쓰기"
         else -> "제목만 보고 목차·문장"
     }
 
     fun addDueCurveQuests(context: Context) {
         val book = read(context)
         if (!book.recallDone) return
+        val used = book.quests.count { !it.done }
+        val room = (todayQuestBudget(context) - used)
+            .coerceAtMost(curveCap(context))
+            .coerceAtLeast(0)
+        if (room <= 0) return
         val have = (book.quests + book.backlog).map { it.cardId }.toMutableSet()
+        val pairs = RecallStore.curveReviewCards(context)
+        val labelBy = pairs.associate { it.first.id to it.second }
         var added = 0
-        RecallStore.curveReviewCards(context).forEach { (card, label) ->
-            if (added >= curveCap()) return@forEach
-            if (card.id in have) return@forEach
+        for (card in pickByChance(context, pairs.map { it.first }.filter { it.id !in have }, room)) {
+            val label = labelBy[card.id] ?: continue
+            val hint = "$label · 복습 기한"
             book.quests.add(
                 if (isSeriousCard(context, card, missCount = 0, selfMiss = 0))
-                    bodyQuest(book.date, card)
-                else writeQuest(book.date, card, target = 1, hint = "$label · 망각곡선")
+                    bodyQuest(book.date, card, hint = "$hint · $HINT_BODY")
+                else writeQuest(book.date, card, target = 1, hint = hint)
             )
             have.add(card.id)
             added++
@@ -263,11 +296,56 @@ object DailyQuestStore {
         if (added > 0) write(context, book)
     }
 
+    private fun isCurveQuest(q: DailyQuest): Boolean = q.hint.contains("복습 기한")
+
+    fun isBoostQuest(q: DailyQuest): Boolean =
+        q.hint.contains("보강") || q.hint.contains("보충")
+
+    fun openBoostCount(context: Context): Int =
+        todayQuests(context).count { isBoostQuest(it) && !it.done }
+
+    fun appendBoostFromSession(
+        context: Context,
+        results: List<Pair<Card, Int>>,
+        selfMissByCard: Map<String, Int> = emptyMap(),
+        failKindByCard: Map<String, Int> = emptyMap()
+    ) {
+        val book = read(context)
+        val lastByCard = results
+            .groupBy { it.first.id }
+            .map { (_, rows) -> rows.last() }
+        val miss = lastByCard.filter { it.second == RecallStore.GRADE_MISS }.map { it.first }
+            .distinctBy { it.id }
+        val half = lastByCard.filter { it.second == RecallStore.GRADE_HALF }.map { it.first }
+            .distinctBy { it.id }
+            .filter { h -> miss.none { it.id == h.id } }
+        fun kindOf(card: Card) = failKindByCard[card.id]
+            ?: RecallStore.lastFailKind(context, card.id)
+        val have = book.quests.map { it.cardId }.toMutableSet()
+        fun addFor(card: Card) {
+            if (card.id in have) return
+            val hint = "보강 · ${failHint(kindOf(card))}"
+            book.quests.add(
+                if (isSeriousCard(context, card, missCount = 1, selfMiss = selfMissByCard[card.id] ?: 0))
+                    bodyQuest(book.date, card, hint = "보강 · $HINT_BODY")
+                else writeQuest(book.date, card, target = 1, hint = hint)
+            )
+            have.add(card.id)
+        }
+        miss.forEach(::addFor)
+        half.forEach(::addFor)
+        val extraIds = (miss + half).map { it.id }
+        extraIds.forEach { id ->
+            if (id !in book.retrainIds) book.retrainIds.add(id)
+        }
+        write(context, book)
+    }
+
     fun addExamWeak(context: Context, cards: List<Card>) {
         if (cards.isEmpty()) return
         val book = read(context)
         val have = (book.quests + book.backlog).map { it.cardId }.toMutableSet()
-        cards.distinctBy { it.id }.take(6).forEach { card ->
+        pickByChance(context, cards, 4).forEach { card ->
             if (card.id in have) return@forEach
             book.quests.add(
                 if (isSeriousCard(context, card, missCount = 0, selfMiss = 0))
@@ -328,14 +406,19 @@ object DailyQuestStore {
             .map { (_, rows) -> rows.last() }
         val missAll = lastByCard.filter { it.second == RecallStore.GRADE_MISS }.map { it.first }
             .distinctBy { it.id }
-        val miss = missAll.take(missWriteCap())
-        val half = lastByCard.filter { it.second == RecallStore.GRADE_HALF }.map { it.first }
-            .distinctBy { it.id }
-            .filter { h -> miss.none { it.id == h.id } }
-            .take(halfWriteCap())
+        val miss = pickByChance(context, missAll, missWriteCap(context))
+        val half = pickByChance(
+            context,
+            lastByCard.filter { it.second == RecallStore.GRADE_HALF }.map { it.first }
+                .distinctBy { it.id }
+                .filter { h -> miss.none { it.id == h.id } },
+            halfWriteCap(context)
+        )
         fun kindOf(card: Card) = failKindByCard[card.id]
             ?: RecallStore.lastFailKind(context, card.id)
-        val rankedSerious = missAll.sortedWith(
+        val rankedSerious = pickByChance(
+            context,
+            missAll.sortedWith(
             compareByDescending<Card> { if (kindOf(it) == RecallStore.FAIL_STRUCTURE) 1 else 0 }
                 .thenByDescending { RecallStore.lapses(context, it.id) }
                 .thenByDescending { selfMissByCard[it.id] ?: 0 }
@@ -347,11 +430,13 @@ object DailyQuestStore {
                 missCount = results.count { it.first.id == card.id && it.second == RecallStore.GRADE_MISS },
                 selfMiss = selfMissByCard[card.id] ?: 0
             )
-        }.take(bodyCap())
+        },
+            bodyCap(context)
+        )
         val seriousIds = rankedSerious.map { it.id }.toSet()
         val quests = mutableListOf<DailyQuest>()
         rankedSerious.forEach { card ->
-            quests.add(bodyQuest(book.date, card, hint = "뼈대 붕괴 · $HINT_BODY"))
+            quests.add(bodyQuest(book.date, card, hint = "목차부터 다시 · $HINT_BODY"))
         }
         miss.forEach { card ->
             if (card.id in seriousIds) return@forEach
@@ -361,7 +446,9 @@ object DailyQuestStore {
             if (card.id in seriousIds) return@forEach
             quests.add(writeQuest(book.date, card, target = 1, hint = failHint(kindOf(card))))
         }
-        val keepExam = book.quests.filter { it.hint.contains("모의고사") && !it.done }
+        val budget = todayQuestBudget(context)
+        val keepExam = book.quests.filter { !it.done && it.hint.contains("모의고사") }
+        val keepBoost = book.quests.filter { !it.done && isBoostQuest(it) }
         val have = quests.map { it.cardId }.toMutableSet()
         keepExam.forEach { q ->
             if (q.cardId !in have) {
@@ -369,11 +456,21 @@ object DailyQuestStore {
                 have.add(q.cardId)
             }
         }
+        keepBoost.forEach { q ->
+            if (q.cardId in have) return@forEach
+            if (quests.size >= budget) return@forEach
+            quests.add(q)
+            have.add(q.cardId)
+        }
         book.quests = quests
-        book.retrainIds = (miss + half + rankedSerious).map { it.id }.distinct().toMutableList()
+        book.retrainIds = (miss + half + rankedSerious).map { it.id }
+            .plus(keepExam.map { it.cardId })
+            .plus(keepBoost.map { it.cardId })
+            .distinct()
+            .toMutableList()
         write(context, book)
         addDueCurveQuests(context)
-        val listenCards = (miss + half).distinctBy { it.id }.take(listenCap())
+        val listenCards = pickByChance(context, (miss + half).distinctBy { it.id }, listenCap(context))
         if (listenCards.isNotEmpty()) {
             TodayTtsStore.setNextMorningFromIds(
                 context,
@@ -383,11 +480,45 @@ object DailyQuestStore {
         }
     }
 
-    private fun missWriteCap(): Int = if (RecallStore.isWeekend()) 4 else 2
-    private fun halfWriteCap(): Int = if (RecallStore.isWeekend()) 3 else 1
-    private fun bodyCap(): Int = if (RecallStore.isWeekend()) 2 else 1
-    private fun curveCap(): Int = if (RecallStore.isWeekend()) 5 else 2
-    private fun listenCap(): Int = if (RecallStore.isWeekend()) 8 else 3
+    /** 오늘 인출 장수의 약 1/3. 휴식일은 2장. */
+    fun todayQuestBudget(context: Context): Int {
+        val n = StudyLoadStore.todayCards(context)
+        if (n <= 0) return 2
+        return (n / 3).coerceIn(3, 8)
+    }
+
+    private fun missWriteCap(context: Context): Int =
+        ((todayQuestBudget(context) + 1) / 2).coerceAtLeast(1)
+
+    private fun halfWriteCap(context: Context): Int =
+        todayQuestBudget(context) / 4
+
+    private fun bodyCap(context: Context): Int =
+        (todayQuestBudget(context) / 4).coerceAtLeast(1)
+
+    private fun curveCap(context: Context): Int =
+        (todayQuestBudget(context) / 3).coerceAtLeast(0)
+
+    private fun listenCap(context: Context): Int =
+        (todayQuestBudget(context) + 1).coerceIn(2, 6)
+
+    private fun chanceRank(context: Context, cardId: String): Int =
+        when (ExamChanceStore.get(context, cardId)) {
+            ExamChanceStore.HIGH -> 3
+            ExamChanceStore.MID -> 2
+            ExamChanceStore.LOW -> 0
+            else -> 1
+        }
+
+    private fun pickByChance(context: Context, cards: List<Card>, cap: Int): List<Card> {
+        if (cap <= 0) return emptyList()
+        return cards.distinctBy { it.id }
+            .sortedWith(
+                compareByDescending<Card> { chanceRank(context, it.id) }
+                    .thenByDescending { RecallStore.lapses(context, it.id) }
+            )
+            .take(cap)
+    }
 
     fun mergeCloudJson(localJson: String, cloudJson: String): String {
         val today = TodayTtsStore.todayKey()
@@ -403,26 +534,44 @@ object DailyQuestStore {
         }
         val a = parse(localJson)
         val b = parse(cloudJson)
+        snapshot(a)
+        snapshot(b)
         val days = mutableMapOf<String, QuestDaySnap>()
         (a.days.keys + b.days.keys).forEach { k ->
-            val da = a.days[k]
-            val db = b.days[k]
-            days[k] = mergeDay(da, db)
+            days[k] = mergeDay(a.days[k], b.days[k])
         }
         val graded = linkedSetOf<String>()
-        if (a.date == today) graded.addAll(a.gradedIds)
-        if (b.date == today) graded.addAll(b.gradedIds)
         val quests = linkedMapOf<String, DailyQuest>()
-        listOf(a, b).forEach { book ->
-            if (book.date != today) return@forEach
-            book.quests.forEach { q ->
-                val key = q.type + "|" + q.cardId
-                val old = quests[key]
-                if (old == null || q.progress > old.progress) quests[key] = q
+        var recallDone = false
+        fun takeQuest(q: DailyQuest) {
+            val key = q.type + "|" + q.cardId
+            val old = quests[key]
+            if (old == null || q.progress > old.progress) quests[key] = q
+        }
+        fun absorbToday(book: QuestBook) {
+            if (book.date == today) {
+                book.quests.forEach(::takeQuest)
+                graded.addAll(book.gradedIds)
+                if (book.recallDone) recallDone = true
+            }
+            book.days[today]?.let { snap ->
+                snap.quests.forEach(::takeQuest)
+                graded.addAll(snap.gradedIds)
+                if (snap.recallDone) recallDone = true
             }
         }
-        val backlog = (a.backlog + b.backlog).distinctBy { it.type + "|" + it.cardId }.take(BACKLOG_CAP)
-        val recallDone = (a.date == today && a.recallDone) || (b.date == today && b.recallDone)
+        absorbToday(a)
+        absorbToday(b)
+        days[today] = mergeDay(
+            days[today],
+            QuestDaySnap(
+                date = today,
+                recallDone = recallDone,
+                quests = quests.values.map { it.copy() }.toMutableList(),
+                gradedIds = graded.toMutableList()
+            )
+        )
+        val backlog = compactBacklog(a.backlog + b.backlog)
         return gson.toJson(
             QuestBook(
                 date = today,
@@ -439,11 +588,16 @@ object DailyQuestStore {
     private fun mergeDay(da: QuestDaySnap?, db: QuestDaySnap?): QuestDaySnap {
         if (da == null) return db!!
         if (db == null) return da
-        val quests = if (da.quests.size >= db.quests.size) da.quests else db.quests
+        val quests = linkedMapOf<String, DailyQuest>()
+        (da.quests + db.quests).forEach { q ->
+            val key = q.type + "|" + q.cardId
+            val old = quests[key]
+            if (old == null || q.progress > old.progress) quests[key] = q
+        }
         return QuestDaySnap(
             date = da.date.ifBlank { db.date },
             recallDone = da.recallDone || db.recallDone,
-            quests = quests.map { it.copy() }.toMutableList(),
+            quests = quests.values.map { it.copy() }.toMutableList(),
             gradedIds = (da.gradedIds + db.gradedIds).distinct().toMutableList()
         )
     }

@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,6 +15,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
@@ -23,6 +25,12 @@ class ContentDetailActivity : BaseActivity() {
 
     override val showScratchPad = true
     override val scratchPadInToolbar = true
+    override val showGeminiFab = true
+
+    override fun geminiStudyContext(): String {
+        val card = if (::ids.isInitialized) currentCard() else null
+        return card?.let { "${it.topicTitle}\n${it.back}" }.orEmpty()
+    }
 
     companion object {
         const val EXTRA_IDS = "extra_ids"
@@ -45,6 +53,13 @@ class ContentDetailActivity : BaseActivity() {
     private lateinit var memoryStars: List<TextView>
     private lateinit var btnSpeak: ImageButton
     private var showOutlineTree = false
+    private var visitCardId = ""
+    private var bodyAccumMs = 0L
+    private var bodyTick = 0L
+    private var bodyWasShown = false
+    private var maxLeftScroll = 0f
+    private var seenRightPage = false
+    private var scrollWired = false
 
     private val ttsListener: (StudyTtsState) -> Unit = { st ->
         if (st.ids.isNotEmpty() && st.ids == ids && st.index in ids.indices && st.index != index) {
@@ -64,7 +79,15 @@ class ContentDetailActivity : BaseActivity() {
         applyIntent(intent)
 
         tvProgress = findViewById(R.id.tvDetailProgress)
+        tvProgress.setOnLongClickListener {
+            undoTodayReadPass()
+            true
+        }
         tvGrade = findViewById(R.id.tvDetailGrade)
+        tvGrade.setOnClickListener {
+            val id = currentCard()?.id ?: return@setOnClickListener
+            ExamChanceStore.pick(this, id) { render() }
+        }
         tvTitle = findViewById(R.id.tvDetailTitle)
         cardMnemonicBox = findViewById(R.id.cardMnemonicBox)
         tvMnemonic = findViewById(R.id.tvDetailMnemonic)
@@ -73,9 +96,6 @@ class ContentDetailActivity : BaseActivity() {
         enableGeminiSelection(this, tvBody) { currentCard()?.back ?: "" }
         enableGeminiSelection(this, tvBodyRight) { currentCard()?.back ?: "" }
         enableGeminiSelection(this, tvMnemonic) { currentCard()?.let { "${it.topicTitle}\n${it.mnemonic}\n${it.back}" } ?: "" }
-        findViewById<Button>(R.id.btnAskGemini).setOnClickListener {
-            askGeminiAboutSelection(this, tvBody) { currentCard()?.back ?: "" }
-        }
         etMemo = findViewById(R.id.etMemo)
         btnSpeak = findViewById(R.id.btnSpeak)
 
@@ -125,6 +145,7 @@ class ContentDetailActivity : BaseActivity() {
         }
 
         StudyTtsHub.addListener(ttsListener)
+        wireReadPassScroll()
         render()
     }
 
@@ -214,7 +235,11 @@ class ContentDetailActivity : BaseActivity() {
         val base = "${index + 1} / ${ids.size}"
         val st = StudyTtsHub.state
         val onThis = st.ids == ids && st.index == index && (st.playing || st.paused)
-        return if (onThis && st.repeat > 1) "$base  ·  ${st.pass}/${st.repeat}회" else base
+        val tts = if (onThis && st.repeat > 1) "  ·  ${st.pass}/${st.repeat}회" else ""
+        val id = ids.getOrNull(index).orEmpty()
+        val n = if (id.isBlank()) 0 else ReadPassStore.count(this, id)
+        val today = if (id.isNotBlank() && ReadPassStore.countedToday(this, id)) " · 오늘" else ""
+        return "$base$tts  ·  읽음 ${n}회$today"
     }
 
     private fun bindBookLayout() {
@@ -226,8 +251,13 @@ class ContentDetailActivity : BaseActivity() {
         val gutter = findViewById<View>(R.id.viewDetailGutter)
         val land = isLandscape() && !showOutlineTree
         split.orientation = if (land) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
-        (tools.parent as? ViewGroup)?.removeView(tools)
-        val leftScroll = split.getChildAt(0)
+            (tools.parent as? ViewGroup)?.removeView(tools)
+            tools.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+            val leftScroll = split.getChildAt(0)
         if (land) {
             rightInner.addView(tools)
             rightScroll.visibility = View.VISIBLE
@@ -262,8 +292,9 @@ class ContentDetailActivity : BaseActivity() {
             tvBody.text = ""
             return
         }
+        beginReadVisit(card.id)
         tvProgress.text = progressLabel()
-        tvGrade.text = card.grade
+        tvGrade.text = ExamChanceStore.label(card.grade)
         tvTitle.text = card.topicTitle
 
         if (card.mnemonic.isNotBlank()) {
@@ -288,10 +319,12 @@ class ContentDetailActivity : BaseActivity() {
             tvBodyRight.visibility = View.GONE
             treeBtn.setImageResource(R.drawable.ic_outline_body)
             treeBtn.contentDescription = "본문 보기"
+            pauseBodyClock()
             bindBookLayout()
         } else {
             treeScroll.visibility = View.GONE
             tvBody.visibility = View.VISIBLE
+            resumeBodyClock()
             treeBtn.setImageResource(R.drawable.ic_outline_tree)
             treeBtn.contentDescription = "목차 트리"
             bindBookLayout()
@@ -302,15 +335,7 @@ class ContentDetailActivity : BaseActivity() {
                 )
             )
             if (isLandscape()) {
-                val pages = splitStudySpread(formatted)
-                tvBody.text = buildStyledStudyBody(this, pages.first)
-                if (pages.second.isBlank()) {
-                    tvBodyRight.visibility = View.GONE
-                    tvBodyRight.text = ""
-                } else {
-                    tvBodyRight.visibility = View.VISIBLE
-                    tvBodyRight.text = buildStyledStudyBody(this, pages.second)
-                }
+                applyLandscapeSpread(formatted)
             } else {
                 tvBody.text = buildStyledStudyBody(this, formatted)
                 tvBodyRight.visibility = View.GONE
@@ -327,6 +352,47 @@ class ContentDetailActivity : BaseActivity() {
         bindQuestWrite()
     }
 
+    private fun applyLandscapeSpread(formatted: String) {
+        val leftInner = findViewById<LinearLayout>(R.id.layoutDetailLeftInner) ?: return
+        tvBody.post {
+            val d = resources.displayMetrics
+            val width = tvBody.width.takeIf { it > 0 }
+                ?: ((d.widthPixels / 2) - (40 * d.density).toInt()).coerceAtLeast(1)
+            var chrome = leftInner.paddingTop + leftInner.paddingBottom
+            val bodyIndex = leftInner.indexOfChild(tvBody)
+            for (i in 0 until bodyIndex) {
+                val child = leftInner.getChildAt(i)
+                if (child.visibility == View.GONE) continue
+                val lp = child.layoutParams as? ViewGroup.MarginLayoutParams
+                val h = when {
+                    child.height > 0 -> child.height
+                    child.measuredHeight > 0 -> child.measuredHeight
+                    else -> {
+                        child.measure(
+                            View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                        )
+                        child.measuredHeight
+                    }
+                }
+                chrome += h + (lp?.topMargin ?: 0) + (lp?.bottomMargin ?: 0)
+            }
+            val bodyLp = tvBody.layoutParams as? ViewGroup.MarginLayoutParams
+            chrome += bodyLp?.topMargin ?: 0
+            val cap = (d.heightPixels * 0.85f).toInt()
+            val maxBody = (cap - chrome).coerceAtLeast((120 * d.density).toInt())
+            val pages = splitStudySpread(this, formatted, tvBody, width, maxBody)
+            tvBody.text = buildStyledStudyBody(this, pages.first)
+            if (pages.second.isBlank()) {
+                tvBodyRight.visibility = View.GONE
+                tvBodyRight.text = ""
+            } else {
+                tvBodyRight.visibility = View.VISIBLE
+                tvBodyRight.text = buildStyledStudyBody(this, pages.second)
+            }
+        }
+    }
+
     private fun bindQuestWrite() {
         val btn = findViewById<Button>(R.id.btnQuestWrite)
         val card = currentCard()
@@ -341,9 +407,9 @@ class ContentDetailActivity : BaseActivity() {
 
     private fun renderMemoryStars(level: Int) {
         memoryStars.forEachIndexed { i, star ->
-            star.text = if (i < level) "★" else "☆"
+            star.text = if (i < level) "●" else "○"
             star.setTextColor(
-                if (i < level) ContextCompat.getColor(this, R.color.accent)
+                if (i < level) ContextCompat.getColor(this, R.color.mem_master)
                 else ContextCompat.getColor(this, R.color.text_sub)
             )
         }
@@ -356,6 +422,7 @@ class ContentDetailActivity : BaseActivity() {
         val etBody = view.findViewById<EditText>(R.id.etConceptBody)
         etTitle.setText(card.topicTitle)
         etBody.setText(card.back)
+        ExamChanceStore.attachPicker(view.findViewById(R.id.tvExamChance), card.id) { render() }
 
         AlertDialog.Builder(this)
             .setTitle("내용 수정")
@@ -382,12 +449,123 @@ class ContentDetailActivity : BaseActivity() {
     }
 
     override fun onPause() {
-        super.onPause()
+        pauseBodyClock()
+        maybeCommitReadPass()
         saveCurrentMemoSilently()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        if (isFinishing) maybeCommitReadPass()
+        super.onStop()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        resumeBodyClock()
     }
 
     override fun onDestroy() {
         StudyTtsHub.removeListener(ttsListener)
         super.onDestroy()
+    }
+
+    private fun wireReadPassScroll() {
+        if (scrollWired) return
+        scrollWired = true
+        val left = findViewById<ScrollView>(R.id.scrollDetailLeft)
+        left.viewTreeObserver.addOnScrollChangedListener {
+            val child = left.getChildAt(0) ?: return@addOnScrollChangedListener
+            val range = (child.height - left.height).coerceAtLeast(1)
+            maxLeftScroll = maxOf(maxLeftScroll, left.scrollY.toFloat() / range)
+        }
+        val right = findViewById<ScrollView>(R.id.scrollDetailRight)
+        right.viewTreeObserver.addOnScrollChangedListener {
+            if (right.scrollY > 24) seenRightPage = true
+            val child = right.getChildAt(0) ?: return@addOnScrollChangedListener
+            if (child.height <= right.height + 24) seenRightPage = true
+        }
+    }
+
+    private fun pauseBodyClock() {
+        if (bodyTick > 0L) {
+            bodyAccumMs += SystemClock.elapsedRealtime() - bodyTick
+            bodyTick = 0L
+        }
+    }
+
+    private fun resumeBodyClock() {
+        if (showOutlineTree) return
+        bodyWasShown = true
+        if (bodyTick == 0L) bodyTick = SystemClock.elapsedRealtime()
+    }
+
+    private fun bodyMs(): Long {
+        val extra = if (bodyTick > 0L) SystemClock.elapsedRealtime() - bodyTick else 0L
+        return bodyAccumMs + extra
+    }
+
+    private fun dwellNeeded(card: Card): Long {
+        val letters = card.back.count { !it.isWhitespace() }
+        return (8_000L + (letters / 90) * 1_000L).coerceIn(8_000L, 36_000L)
+    }
+
+    private fun landscapeEnough(card: Card): Boolean {
+        if (!isLandscape() || showOutlineTree) return true
+        if (tvBodyRight.visibility != View.VISIBLE || tvBodyRight.text.isBlank()) return true
+        val right = findViewById<ScrollView>(R.id.scrollDetailRight)
+        val child = right.getChildAt(0)
+        if (child != null && child.height <= right.height + 24) return true
+        return seenRightPage || bodyMs() >= dwellNeeded(card) + 6_000L
+    }
+
+    private fun readPassQualifies(card: Card): Boolean {
+        if (!bodyWasShown) return false
+        if (!landscapeEnough(card)) return false
+        val left = findViewById<ScrollView>(R.id.scrollDetailLeft)
+        val child = left?.getChildAt(0)
+        val range = if (child == null) 0 else child.height - left.height
+        val shortBody = range <= (48 * resources.displayMetrics.density).toInt()
+        val timeOk = bodyMs() >= dwellNeeded(card)
+        return if (shortBody) timeOk else (maxLeftScroll >= 0.7f || timeOk)
+    }
+
+    private fun maybeCommitReadPass(cardId: String = visitCardId) {
+        if (cardId.isBlank()) return
+        val card = CardStore.getAllCards(this).firstOrNull { it.id == cardId } ?: return
+        if (!readPassQualifies(card)) return
+        if (ReadPassStore.tryMark(this, cardId)) updateProgressLabel()
+    }
+
+    private fun beginReadVisit(cardId: String) {
+        if (visitCardId == cardId) {
+            if (!showOutlineTree) resumeBodyClock()
+            return
+        }
+        maybeCommitReadPass(visitCardId)
+        visitCardId = cardId
+        bodyAccumMs = 0L
+        bodyTick = 0L
+        bodyWasShown = false
+        maxLeftScroll = 0f
+        seenRightPage = false
+        findViewById<ScrollView>(R.id.scrollDetailLeft)?.scrollTo(0, 0)
+        if (!showOutlineTree) resumeBodyClock()
+    }
+
+    private fun undoTodayReadPass() {
+        val card = currentCard() ?: return
+        if (!ReadPassStore.countedToday(this, card.id)) {
+            Toast.makeText(this, "오늘 읽음으로 센 기록이 없어요", Toast.LENGTH_SHORT).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setMessage("오늘 이 장 회독을 취소할까요?")
+            .setPositiveButton("취소하기") { _, _ ->
+                ReadPassStore.undoToday(this, card.id)
+                updateProgressLabel()
+            }
+            .setNegativeButton("닫기", null)
+            .show()
     }
 }

@@ -45,7 +45,7 @@
                 android:layout_height="wrap_content"
                 android:textColor="#D4A017"
                 android:textSize="12sp"
-                android:text="☆☆☆☆☆"/>
+                android:text="○○○○○"/>
         </LinearLayout>
 
         <TextView

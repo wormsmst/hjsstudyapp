@@ -95,7 +95,7 @@ class QuizWidgetProvider : AppWidgetProvider() {
             val bgColor = Color.argb(alpha, Color.red(rgb), Color.green(rgb), Color.blue(rgb))
             views.setImageViewBitmap(R.id.widgetBgImage, makeRoundedBitmap(bgColor, 16f))
 
-            views.setTextViewText(R.id.widgetQuizGrade, target.grade.ifBlank { "기본" })
+            views.setTextViewText(R.id.widgetQuizGrade, ExamChanceStore.line(target.grade))
             views.setTextViewText(R.id.widgetQuizQuestion, "[${target.topicTitle}]\n이 주제의 두문자는?")
 
             views.setTextViewText(R.id.widgetChoice1, "① $choice0")

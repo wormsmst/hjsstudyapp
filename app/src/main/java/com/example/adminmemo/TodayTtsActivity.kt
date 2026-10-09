@@ -21,7 +21,7 @@ class TodayTtsActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_today_tts)
-        bindLandscapeSplit(R.id.layoutTodaySplit)
+        bindTodaySplit()
 
         findViewById<TextView>(R.id.btnCountMinus).setOnClickListener {
             AppPrefs.setTodayTtsCount(this, AppPrefs.getTodayTtsCount(this) - 1)
@@ -53,6 +53,30 @@ class TodayTtsActivity : BaseActivity() {
         }
         StudyTtsHub.addListener(ttsListener)
         bind()
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        bindTodaySplit()
+    }
+
+    private fun bindTodaySplit() {
+        bindLandscapeSplit(R.id.layoutTodaySplit)
+        val split = findViewById<LinearLayout>(R.id.layoutTodaySplit) ?: return
+        val d = resources.displayMetrics.density
+        val land = isLandscape()
+        val gutter = (40 * d).toInt()
+        for (i in 0 until split.childCount) {
+            val child = split.getChildAt(i)
+            val lp = child.layoutParams as LinearLayout.LayoutParams
+            lp.marginStart = if (land && i > 0) gutter else 0
+            lp.marginEnd = 0
+            child.layoutParams = lp
+        }
+        val header = findViewById<TextView>(R.id.tvTodayCardHeader)
+        val headerLp = header.layoutParams as LinearLayout.LayoutParams
+        headerLp.topMargin = if (land) 0 else (22 * d).toInt()
+        header.layoutParams = headerLp
     }
 
     override fun onDestroy() {

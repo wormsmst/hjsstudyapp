@@ -33,7 +33,7 @@
             android:layout_marginBottom="4dp"
             android:textColor="#FFC107"
             android:textSize="11sp"
-            android:text="☆☆☆☆☆"/>
+            android:text="○○○○○"/>
 
         <ListView
             android:id="@+id/widgetListView"

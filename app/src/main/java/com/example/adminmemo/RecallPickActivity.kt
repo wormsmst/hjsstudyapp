@@ -29,7 +29,8 @@ class RecallPickActivity : BaseActivity() {
     override fun onStart() {
         super.onStart()
         val next = RecallStore.peekOneSubject(this)
-        findViewById<TextView>(R.id.tvRecallSubjectNext).text = "다음  $next  ·  약한 과목은 더 자주"
+        findViewById<TextView>(R.id.tvRecallSubjectNext).text =
+            "$next  ·  이 과목에서 약한 장·새 장을 골라 줍니다"
         findViewById<TextView>(R.id.tvRecallPickCoach).text = CoachHints.PICK
     }
 

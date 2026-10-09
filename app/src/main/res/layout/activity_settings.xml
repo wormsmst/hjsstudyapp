@@ -20,6 +20,17 @@
         android:textStyle="bold"
         android:layout_marginBottom="24dp"/>
 
+    <LinearLayout
+        android:id="@+id/layoutSettingsSplit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -85,12 +96,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="진도·오답·인출은 로그인돼 있으면 자동으로 합쳐요. 앱을 켤 때 다른 기기 진도를 받고, 공부하다 파일이 바뀌면 잠시 뒤 클라우드에 올립니다. 본문·사례 수정만 아래 올리기/받기로 직접 옮기세요. 받기에서는 최근 본문 시점 최대 5개 중 하나를 고를 수 있어요."
+        android:text="Google로 로그인하면 진도가 다른 기기와 맞춰집니다. 본문 수정은 아래 「올리기/받기」로만 옮깁니다."
         android:textColor="@color/text_sub"
         android:textSize="11sp"
         android:layout_marginBottom="20dp"/>
 
-    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22808080" android:layout_marginTop="4dp" android:layout_marginBottom="20dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
     <TextView
         android:layout_width="wrap_content"
@@ -173,6 +189,40 @@
         android:textColor="@color/primary"
         android:textSize="13sp"
         android:textStyle="bold"/>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22808080" android:layout_marginBottom="20dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="홈 · 학습진도에 보여줄 숫자"
+        android:textColor="@color/text_main"
+        android:textStyle="bold"
+        android:textSize="15sp"
+        android:layout_marginBottom="6dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="둘 다 켜도 됩니다. 달성도는 모든 장의 암기정도를 5칸까지 채운 비율이고, 아직 인출하지 않은 장은 0입니다. 안정권은 암기정도 4칸 이상인 장의 비율입니다."
+        android:textColor="@color/text_sub"
+        android:textSize="11sp"
+        android:layout_marginBottom="8dp"/>
+
+    <CheckBox
+        android:id="@+id/cbShowAchieve"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/btn_min_height"
+        android:text="달성도"/>
+
+    <CheckBox
+        android:id="@+id/cbShowStable"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="@dimen/btn_min_height"
+        android:layout_marginBottom="20dp"
+        android:text="안정권"/>
 
     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22808080" android:layout_marginBottom="20dp"/>
 
@@ -347,7 +397,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="본문학습에서 텍스트를 드래그해 질문하려면 API 키가 필요해요"
+        android:text="본문에서 글을 드래그한 뒤, 반짝이 버튼으로 Gemini에게 물을 수 있습니다. API 키가 필요합니다."
         android:textColor="@color/text_sub"
         android:textSize="11sp"
         android:layout_marginBottom="8dp"/>
@@ -359,6 +409,9 @@
         android:hint="Gemini API 키 붙여넣기"
         android:inputType="textPassword"
         android:layout_marginBottom="24dp"/>
+
+    </LinearLayout>
+    </LinearLayout>
 
     <Button
         android:id="@+id/btnApplySettings"

@@ -66,7 +66,7 @@ class SubjectSelectActivity : BaseActivity() {
         }
         findViewById<TextView>(R.id.tvSubjectHint).text = when (purpose) {
             PURPOSE_STUDY -> "일하는 동안엔 약점학습으로, 최근 인출에서 막힌 장만 이어서 읽어요. 과목은 섞입니다."
-            else -> "과목은 새 PDF를 추가하면 계속 늘어나요"
+            else -> "과목은 「학습내용 관리」에서 본문을 넣으면 늘어납니다."
         }
 
         val subjects = if (purpose == PURPOSE_MANAGE_CASE) {

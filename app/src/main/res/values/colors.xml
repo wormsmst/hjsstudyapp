@@ -2,6 +2,7 @@
     <color name="primary">#0D7EF5</color>
     <color name="primary_dark">#0A64D6</color>
     <color name="accent">#FF9F0A</color>
+    <color name="miss_peek_btn">#FF9F0A</color>
     <color name="bg_card">#FFFFFF</color>
     <color name="bg_screen">#EEEEF2</color>
     <color name="text_main">#1C1C1E</color>
@@ -17,6 +18,7 @@
     <color name="tile_wrong">#F8E0E8</color>
     <color name="tile_progress">#E2F2E6</color>
     <color name="tile_today">#F3E6D4</color>
+    <color name="tile_recall">#DDE4F5</color>
     <color name="text_on_tile">#1C1C1E</color>
     <color name="btn_prev">#C5DCF7</color>
     <color name="mem_unseen">#C8C8CD</color>

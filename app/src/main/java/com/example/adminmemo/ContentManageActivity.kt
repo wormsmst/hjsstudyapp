@@ -167,6 +167,7 @@ class ContentManageActivity : BaseActivity() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_concept, null)
         val etTitle = view.findViewById<EditText>(R.id.etConceptTitle)
         val etBody = view.findViewById<EditText>(R.id.etConceptBody)
+        view.findViewById<TextView>(R.id.tvExamChance).visibility = View.GONE
 
         AlertDialog.Builder(this)
             .setTitle("새 주제 추가")
@@ -193,6 +194,7 @@ class ContentManageActivity : BaseActivity() {
         val etBody = view.findViewById<EditText>(R.id.etConceptBody)
         etTitle.setText(card.topicTitle)
         etBody.setText(card.back)
+        ExamChanceStore.attachPicker(view.findViewById(R.id.tvExamChance), card.id)
 
         AlertDialog.Builder(this)
             .setTitle("개념카드 수정")

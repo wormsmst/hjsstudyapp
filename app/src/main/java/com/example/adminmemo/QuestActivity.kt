@@ -68,6 +68,15 @@ class QuestActivity : BaseActivity() {
         bindAll()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (FirebaseSyncManager.isSignedIn()) {
+            FirebaseSyncManager.syncProgressNow(this) { _, _ ->
+                runOnUiThread { bindAll() }
+            }
+        }
+    }
+
     private fun bindAll() {
         findViewById<TextView>(R.id.tvQuestMonth).text = "${year}년 ${month1}월"
         bindToday()
@@ -94,6 +103,8 @@ class QuestActivity : BaseActivity() {
             bindRetrainButton()
             return
         }
+        val budget = DailyQuestStore.todayQuestBudget(this)
+        addHint(list, "오늘 상한 ${budget}장 · 공부분량 인출의 약 1/3, 출제가능성 높은 장 우선")
         quests.forEach { addQuestRow(list, it, editable = true) }
         bindRetrainButton()
     }
@@ -213,9 +224,9 @@ class QuestActivity : BaseActivity() {
         cb.isEnabled = editable
         cb.setTextColor(ContextCompat.getColor(this, R.color.text_main))
         if (editable) {
-            cb.setOnCheckedChangeListener { _, on ->
-                DailyQuestStore.setDone(this, q.id, on)
-                bindRetrainButton()
+            cb.setOnClickListener {
+                DailyQuestStore.setDone(this, q.id, cb.isChecked)
+                bindAll()
             }
         }
         row.addView(cb)

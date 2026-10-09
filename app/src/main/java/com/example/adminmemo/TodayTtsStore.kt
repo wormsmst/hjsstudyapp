@@ -20,13 +20,27 @@ private data class TodayTtsArchive(
 object TodayTtsStore {
     private const val FILE = "today_tts.json"
     private const val KEEP_DAYS = 90
+    /** 새벽 4시 전까지는 전날 공부로 친다. 밤늦게 시작해 2시에 끝내도 같은 날. */
+    const val STUDY_DAY_ROLL_HOUR = 4
     private val gson = Gson()
 
     private fun file(context: Context) = File(context.filesDir, FILE)
 
-    fun todayKey(): String {
+    fun studyCalendar(now: Calendar = Calendar.getInstance()): Calendar {
+        val c = now.clone() as Calendar
+        if (c.get(Calendar.HOUR_OF_DAY) < STUDY_DAY_ROLL_HOUR) {
+            c.add(Calendar.DAY_OF_YEAR, -1)
+        }
+        return c
+    }
+
+    fun todayKey(): String = keyOf(studyCalendar())
+
+    fun dayKey(at: Long): String {
+        if (at <= 0L) return ""
         val c = Calendar.getInstance()
-        return keyOf(c)
+        c.timeInMillis = at
+        return keyOf(studyCalendar(c))
     }
 
     fun keyOf(c: Calendar): String =
@@ -51,7 +65,7 @@ object TodayTtsStore {
     }
 
     private fun nextKey(): String {
-        val c = Calendar.getInstance()
+        val c = studyCalendar()
         c.add(Calendar.DAY_OF_YEAR, 1)
         return keyOf(c)
     }

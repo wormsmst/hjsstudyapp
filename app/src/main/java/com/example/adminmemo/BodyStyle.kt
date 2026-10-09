@@ -2,12 +2,15 @@ package com.example.adminmemo
 
 import android.content.Context
 import android.graphics.Typeface
+import android.text.Layout
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.StaticLayout
 import android.text.style.ForegroundColorSpan
 import android.text.style.LeadingMarginSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.StyleSpan
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 
 private val MAJOR_RE = Regex("^\\d+\\.\\s")
@@ -20,23 +23,76 @@ private val ROMAN_RE = Regex("^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]+[\\.．]\\s*")
 /** 본문 글자는 그대로 두고, 화면에서 목차 양식만 입힌다. */
 fun formatStudyOutlineText(text: String): String = normalizeNewlines(text)
 
-/** 가로 책 펼침: 목차 줄 경계에서 절반으로 나눈다. 짧으면 오른쪽은 비운다. */
-fun splitStudySpread(text: String): Pair<String, String> {
+/** 가로 펼침에서 페이지를 자를 수 있는 줄: 1. / Ⅰ. / 1) / (1). 목차와 그 아래 설명은 붙인다. */
+private fun isSpreadBreakHeading(line: String): Boolean {
+    val t = line.trimStart()
+    return MAJOR_RE.containsMatchIn(t) ||
+        ROMAN_RE.containsMatchIn(t) ||
+        SUB1_RE.containsMatchIn(t) ||
+        SUB2_RE.containsMatchIn(t)
+}
+
+/**
+ * 가로 책 펼침: 왼쪽 본문이 화면 높이의 85%를 넘기 직전까지만 담고,
+ * 넘치면 다음 1. · 1) · (1)부터 오른쪽으로 보낸다.
+ * 그 목차 줄과 바로 아래 설명은 한 덩어리로 두고, ① · - 이하는 그 안에 붙인다.
+ */
+fun splitStudySpread(
+    context: Context,
+    text: String,
+    sample: TextView,
+    widthPx: Int,
+    maxHeightPx: Int,
+): Pair<String, String> {
     val trimmed = text.trim()
-    val lines = trimmed.count { it == '\n' }
-    if (trimmed.length < 240 || lines < 3) return trimmed to ""
-    val mid = trimmed.length / 2
-    val minCut = (trimmed.length / 4).coerceAtLeast(1)
-    val maxCut = (mid + trimmed.length / 4).coerceAtMost(trimmed.lastIndex)
-    fun cutAt(token: String): Int {
-        val i = trimmed.lastIndexOf(token, maxCut)
-        return if (i >= minCut) i + token.length else -1
+    if (trimmed.isEmpty() || maxHeightPx <= 0) return trimmed to ""
+
+    val lines = trimmed.split('\n')
+    val blockStarts = mutableListOf(0)
+    for (i in 1 until lines.size) {
+        if (isSpreadBreakHeading(lines[i])) blockStarts.add(i)
     }
-    val cut = sequenceOf("\n\n", "\n").map { cutAt(it) }.firstOrNull { it > 0 } ?: mid
-    val left = trimmed.substring(0, cut).trim()
-    val right = trimmed.substring(cut).trim()
-    if (right.isBlank()) return trimmed to ""
+    val blocks = blockStarts.indices.map { bi ->
+        val from = blockStarts[bi]
+        val to = blockStarts.getOrElse(bi + 1) { lines.size }
+        lines.subList(from, to).joinToString("\n")
+    }
+    if (blocks.size <= 1) return trimmed to ""
+
+    fun heightOf(body: String): Int = measureStudyBodyHeight(context, body, sample, widthPx)
+
+    var cutAt = blocks.size
+    val leftParts = mutableListOf<String>()
+    for (i in blocks.indices) {
+        val candidate = (leftParts + blocks[i]).joinToString("\n")
+        val h = heightOf(candidate)
+        if (i > 0 && h > maxHeightPx) {
+            cutAt = i
+            break
+        }
+        leftParts += blocks[i]
+    }
+    if (cutAt >= blocks.size) return trimmed to ""
+    val left = blocks.subList(0, cutAt).joinToString("\n").trim()
+    val right = blocks.subList(cutAt, blocks.size).joinToString("\n").trim()
+    if (left.isBlank() || right.isBlank()) return trimmed to ""
     return left to right
+}
+
+private fun measureStudyBodyHeight(
+    context: Context,
+    text: String,
+    sample: TextView,
+    widthPx: Int,
+): Int {
+    val spanned = buildStyledStudyBody(context, text)
+    val layout = StaticLayout.Builder
+        .obtain(spanned, 0, spanned.length, sample.paint, widthPx.coerceAtLeast(1))
+        .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+        .setLineSpacing(sample.lineSpacingExtra, sample.lineSpacingMultiplier)
+        .setIncludePad(sample.includeFontPadding)
+        .build()
+    return layout.height
 }
 
 /**

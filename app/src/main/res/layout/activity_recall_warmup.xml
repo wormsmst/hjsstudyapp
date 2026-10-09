@@ -24,7 +24,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:lineSpacingExtra="4dp"
-            android:text="제목만 보고 뼈대를 말해 보세요. 힌트는 없습니다. 막혔던 자리를 먼저 두드리면 오늘 인출이 정확해집니다."
+            android:text="제목만 보고 목차를 말해 보세요. 힌트는 없습니다."
             android:textColor="@color/text_sub"
             android:textSize="14sp"/>
 

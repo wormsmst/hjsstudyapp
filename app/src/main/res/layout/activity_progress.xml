@@ -53,6 +53,26 @@
             android:textSize="15sp"/>
 
         <TextView
+            android:id="@+id/tvProgressMastery"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textColor="@color/text_main"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:visibility="gone"/>
+
+        <TextView
+            android:id="@+id/tvProgressMasteryHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/text_sub"
+            android:textSize="12sp"
+            android:visibility="gone"/>
+
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -73,7 +93,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="인출 · 본문 · 모의  표시만 해요"
+            android:text="본=본문·목차  인=인출  모=모의고사"/>
             android:textColor="@color/text_sub"
             android:textSize="12sp"/>
 
@@ -96,7 +116,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="회색 미학습 · 주황 약함 · 파랑 보통 · 초록 숙달"
+            android:text="회색 아직 안 함 · 주황 약함 · 파랑 보통 · 초록 잘 됨"
             android:textColor="@color/text_sub"
             android:textSize="12sp"/>
 

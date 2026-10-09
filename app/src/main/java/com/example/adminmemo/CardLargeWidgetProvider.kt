@@ -63,10 +63,14 @@ class CardLargeWidgetProvider : AppWidgetProvider() {
             views.setTextViewTextSize(R.id.widgetMemory, TypedValue.COMPLEX_UNIT_SP, 12f * fontScale)
             views.setTextViewTextSize(R.id.widgetNext, TypedValue.COMPLEX_UNIT_SP, 13f * fontScale)
 
-            views.setTextViewText(R.id.widgetGrade, "[${card.topicTitle}] · ${card.grade.ifBlank { "기본" }}")
+            val chance = ExamChanceStore.line(card.grade)
+            views.setTextViewText(
+                R.id.widgetGrade,
+                if (chance.isBlank()) "[${card.topicTitle}]" else "[${card.topicTitle}] · ${card.grade}"
+            )
 
             val level = CardStore.getMemoryLevel(context, card.subject, card.topicTitle)
-            views.setTextViewText(R.id.widgetMemory, "★".repeat(level) + "☆".repeat(5 - level))
+            views.setTextViewText(R.id.widgetMemory, CardStore.memoryStarsLabel(level))
 
             val adapterIntent = Intent(context, StudyWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)

@@ -14,7 +14,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="인출 끝. 맞춘 것보다 막힌 장을 채우는 게 오늘 본체입니다."
+            android:text="인출이 끝났습니다. 오늘 공부의 본모습은 막힌 장을 퀘스트에서 다시 쓰는 일입니다."
             android:textColor="@color/text_main"
             android:textSize="22sp"
             android:textStyle="bold"/>

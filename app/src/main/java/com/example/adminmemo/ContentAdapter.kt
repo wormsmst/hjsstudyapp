@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 
 /** 제목/부제 표시 방식을 람다로 주입받는 범용 리스트 어댑터 */
@@ -18,6 +19,7 @@ class ContentAdapter(
     class VH(view: View) : RecyclerView.ViewHolder(view) {
         val tvTitle: TextView = view.findViewById(R.id.tvRowTitle)
         val tvSubtitle: TextView = view.findViewById(R.id.tvRowSubtitle)
+        val tvChance: TextView = view.findViewById(R.id.tvRowChance)
         val tvMemory: TextView = view.findViewById(R.id.tvRowMemory)
     }
 
@@ -32,6 +34,7 @@ class ContentAdapter(
         val sub = subtitleFn(card)
         holder.tvSubtitle.text = sub
         holder.tvSubtitle.visibility = if (sub.isBlank()) View.GONE else View.VISIBLE
+        bindChance(holder.tvChance, card.grade)
         val mem = memoryFn?.invoke(card).orEmpty()
         if (mem.isBlank()) {
             holder.tvMemory.visibility = View.GONE
@@ -40,6 +43,22 @@ class ContentAdapter(
             holder.tvMemory.text = mem
         }
         holder.itemView.setOnClickListener { onClick(card) }
+    }
+
+    private fun bindChance(tv: TextView, grade: String) {
+        val chance = grade.trim()
+        if (chance.isBlank()) {
+            tv.visibility = View.GONE
+            return
+        }
+        tv.visibility = View.VISIBLE
+        tv.text = chance
+        val color = when (chance) {
+            ExamChanceStore.HIGH -> R.color.accent
+            ExamChanceStore.MID -> R.color.primary
+            else -> R.color.text_sub
+        }
+        tv.setTextColor(ContextCompat.getColor(tv.context, color))
     }
 
     override fun getItemCount() = items.size

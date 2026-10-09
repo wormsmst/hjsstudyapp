@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -43,6 +44,7 @@ class SettingsActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        bindLandscapeSplit(R.id.layoutSettingsSplit)
 
         setupThemeSection()
         setupFontSection()
@@ -50,6 +52,7 @@ class SettingsActivity : BaseActivity() {
         setupGeminiSection()
         setupAccountSection()
         setupDdaySection()
+        setupMasterySection()
         findViewById<Button>(R.id.btnTtsSettings).setOnClickListener { TtsVoiceUi.open(this) }
 
         findViewById<Button>(R.id.btnApplySettings).setOnClickListener {
@@ -202,6 +205,19 @@ class SettingsActivity : BaseActivity() {
     private fun setupDdaySection() {
         refreshExamDateLabel()
         findViewById<Button>(R.id.btnPickExamDate2).setOnClickListener { showExamDatePicker(2) }
+    }
+
+    private fun setupMasterySection() {
+        val achieve = findViewById<CheckBox>(R.id.cbShowAchieve)
+        val stable = findViewById<CheckBox>(R.id.cbShowStable)
+        achieve.isChecked = AppPrefs.showAchievePct(this)
+        stable.isChecked = AppPrefs.showStablePct(this)
+        achieve.setOnCheckedChangeListener { _, on ->
+            AppPrefs.setShowAchievePct(this, on)
+        }
+        stable.setOnCheckedChangeListener { _, on ->
+            AppPrefs.setShowStablePct(this, on)
+        }
     }
 
     private fun refreshExamDateLabel() {

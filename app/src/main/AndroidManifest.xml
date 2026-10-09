@@ -73,6 +73,11 @@
             android:label="사례문제 관리" />
 
         <activity
+            android:name=".StudyLoadActivity"
+            android:exported="false"
+            android:label="공부분량 관리" />
+
+        <activity
             android:name=".SettingsActivity"
             android:exported="false"
             android:label="설정" />
@@ -114,6 +119,11 @@
             android:exported="false"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:label="퀘스트" />
+
+        <activity
+            android:name=".ExtraStudyActivity"
+            android:exported="false"
+            android:label="보강학습" />
 
         <activity
             android:name=".OutlineFadeActivity"

@@ -18,6 +18,10 @@ object AppPrefs {
     private const val KEY_EXAM1_DATE = "exam1_date_millis"
     private const val KEY_EXAM2_DATE = "exam2_date_millis"
     private const val KEY_HOME_TAB = "home_tab"
+    private const val KEY_GEMINI_FAB_X = "gemini_fab_x"
+    private const val KEY_GEMINI_FAB_Y = "gemini_fab_y"
+    private const val KEY_SHOW_ACHIEVE = "show_achieve_pct"
+    private const val KEY_SHOW_STABLE = "show_stable_pct"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -221,5 +225,29 @@ object AppPrefs {
             else -> "today"
         }
         prefs(context).edit().putString(KEY_HOME_TAB, v).apply()
+    }
+
+    fun getGeminiFabX(context: Context): Float =
+        prefs(context).getFloat(KEY_GEMINI_FAB_X, -1f)
+
+    fun getGeminiFabY(context: Context): Float =
+        prefs(context).getFloat(KEY_GEMINI_FAB_Y, -1f)
+
+    fun setGeminiFabPos(context: Context, x: Float, y: Float) {
+        prefs(context).edit().putFloat(KEY_GEMINI_FAB_X, x).putFloat(KEY_GEMINI_FAB_Y, y).apply()
+    }
+
+    fun showAchievePct(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SHOW_ACHIEVE, true)
+
+    fun setShowAchievePct(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean(KEY_SHOW_ACHIEVE, on).apply()
+    }
+
+    fun showStablePct(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SHOW_STABLE, true)
+
+    fun setShowStablePct(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean(KEY_SHOW_STABLE, on).apply()
     }
 }

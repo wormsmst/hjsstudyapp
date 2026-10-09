@@ -2,11 +2,14 @@ package com.example.adminmemo
 
 import android.graphics.Typeface
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 
 sealed class OutlineUiItem {
@@ -101,7 +104,7 @@ class OutlineTreeAdapter(
         val d = context.resources.displayMetrics.density
         fun dp(v: Int) = (v * d).toInt()
         val cv = CardView(context).apply {
-            layoutParams = ViewGroup.MarginLayoutParams(
+            layoutParams = RecyclerView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
@@ -117,7 +120,38 @@ class OutlineTreeAdapter(
                     setLineSpacing(dp(4).toFloat(), 1f)
                     setPadding(dp(16), dp(14), dp(16), dp(14))
                 }
-                cv.addView(tv)
+                val cap = (context.resources.displayMetrics.heightPixels * 0.72f).toInt()
+                val nsv = CappedNestedScrollView(context).apply {
+                    maxHeightPx = cap
+                    isFillViewport = false
+                    addView(
+                        tv,
+                        ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT
+                        )
+                    )
+                    setOnTouchListener { v, ev ->
+                        if (v.canScrollVertically(1) || v.canScrollVertically(-1)) {
+                            var p = v.parent
+                            while (p != null) {
+                                p.requestDisallowInterceptTouchEvent(
+                                    ev.actionMasked != MotionEvent.ACTION_UP &&
+                                        ev.actionMasked != MotionEvent.ACTION_CANCEL
+                                )
+                                p = p.parent
+                            }
+                        }
+                        false
+                    }
+                }
+                cv.addView(
+                    nsv,
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    )
+                )
                 BodyVH(cv, tv)
             }
             else -> HeadingVH(cv)
@@ -172,6 +206,8 @@ class OutlineTreeAdapter(
             }
             holder is BodyVH && item is OutlineUiItem.Body -> {
                 val lp = holder.itemView.layoutParams as ViewGroup.MarginLayoutParams
+                lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
                 lp.marginStart = dp(16) + item.indentLevel * dp(12)
                 lp.marginEnd = dp(16)
                 lp.topMargin = dp(2)
@@ -179,6 +215,9 @@ class OutlineTreeAdapter(
                 holder.itemView.layoutParams = lp
                 holder.card.setCardBackgroundColor(ContextCompat.getColor(context, R.color.bg_card))
                 holder.tvBody.text = item.text
+                (context as? android.app.Activity)?.let { act ->
+                    enableGeminiSelection(act, holder.tvBody) { item.text }
+                }
             }
         }
     }
@@ -238,4 +277,16 @@ class OutlineTreeAdapter(
     }
 
     class BodyVH(val card: CardView, val tvBody: TextView) : RecyclerView.ViewHolder(card)
+}
+
+private class CappedNestedScrollView(context: android.content.Context) : NestedScrollView(context) {
+    var maxHeightPx = 0
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val spec = if (maxHeightPx > 0) {
+            View.MeasureSpec.makeMeasureSpec(maxHeightPx, View.MeasureSpec.AT_MOST)
+        } else {
+            heightMeasureSpec
+        }
+        super.onMeasure(widthMeasureSpec, spec)
+    }
 }

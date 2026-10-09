@@ -42,17 +42,16 @@ class ContentStudyListActivity : BaseActivity() {
             subtitleFn = {
                 when {
                     outlineMode -> ""
-                    weakStudy -> {
-                        val stars = CardStore.memoryStarsLabel(
-                            CardStore.getMemoryLevel(this, it.subject, it.topicTitle)
-                        )
-                        "${canonicalizeSubject(it.subject)}  $stars"
+                    weakStudy -> canonicalizeSubject(it.subject)
+                    else -> {
+                        val pass = ReadPassStore.count(this, it.id)
+                        val passPart = if (pass > 0) "${pass}회" else ""
+                        val mnemo = if (it.mnemonic.isNotBlank()) "두문자: ${it.mnemonic}" else ""
+                        listOf(mnemo, passPart).filter { p -> p.isNotBlank() }.joinToString("  ·  ")
                     }
-                    it.mnemonic.isNotBlank() -> "두문자: ${it.mnemonic}"
-                    else -> ""
                 }
             },
-            memoryFn = if (outlineMode || weakStudy) null else { card ->
+            memoryFn = if (outlineMode) null else { card ->
                 CardStore.memoryStarsLabel(CardStore.getMemoryLevel(this, card.subject, card.topicTitle))
             },
             onClick = { card -> openCard(card.id) }

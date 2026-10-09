@@ -26,6 +26,7 @@ class HomeActivity : BaseActivity() {
     private var swipeLocked = false
     private var downX = 0f
     private var downY = 0f
+    private val onCloudProgress: () -> Unit = { refreshHomeHeader() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +45,9 @@ class HomeActivity : BaseActivity() {
         }
         findViewById<CardView>(R.id.tileOutlineFade).setOnClickListener {
             startActivity(Intent(this, OutlineFadeActivity::class.java))
+        }
+        findViewById<CardView>(R.id.tileExtraStudy).setOnClickListener {
+            startActivity(Intent(this, ExtraStudyActivity::class.java))
         }
         findViewById<CardView>(R.id.tileStudy).setOnClickListener {
             goToSubjectSelect(PURPOSE_STUDY)
@@ -66,6 +70,9 @@ class HomeActivity : BaseActivity() {
         findViewById<CardView>(R.id.tileSettings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+        findViewById<CardView>(R.id.tileStudyLoad).setOnClickListener {
+            startActivity(Intent(this, StudyLoadActivity::class.java))
+        }
         findViewById<View>(R.id.rowHomeQuestSummary).setOnClickListener {
             startActivity(Intent(this, QuestActivity::class.java))
         }
@@ -76,6 +83,7 @@ class HomeActivity : BaseActivity() {
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) bumpKeepScreen()
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 swipeLocked = false
@@ -113,11 +121,26 @@ class HomeActivity : BaseActivity() {
         super.onStart()
         refreshHomeHeader()
         scheduleTipRefresh()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        FirebaseSyncManager.addUiListener(onCloudProgress)
         if (FirebaseSyncManager.isSignedIn()) {
             FirebaseSyncManager.syncProgressNow(this) { _, _ ->
-                runOnUiThread { refreshHomeHeader() }
+                runOnUiThread {
+                    DailyQuestStore.addDueCurveQuests(this)
+                    refreshHomeHeader()
+                }
             }
+        } else {
+            DailyQuestStore.addDueCurveQuests(this)
         }
+    }
+
+    override fun onPause() {
+        FirebaseSyncManager.removeUiListener(onCloudProgress)
+        super.onPause()
     }
 
     override fun onStop() {
@@ -142,25 +165,38 @@ class HomeActivity : BaseActivity() {
             tvSecond.text = dday.second
         }
         findViewById<TextView>(R.id.tvDdaySub).text = dday.sub
+        findViewById<TextView>(R.id.tvDdayLoad).text = StudyLoadStore.todayLine(this)
+        val mastery = findViewById<TextView>(R.id.tvHomeMastery)
+        val masteryLine = StudyProgressStore.masteryLine(this)
+        if (masteryLine.isBlank()) {
+            mastery.visibility = View.GONE
+        } else {
+            mastery.visibility = View.VISIBLE
+            mastery.text = masteryLine
+        }
         val due = RecallStore.dueCount(this)
         val graded = DailyQuestStore.gradedToday(this)
         findViewById<TextView>(R.id.tvTileRecallLabel).text =
             if (due > 0) "인출학습\n오늘 ${due}장" else "인출학습"
+        val boostN = DailyQuestStore.openBoostCount(this)
+        findViewById<TextView>(R.id.tvTileExtraLabel).text =
+            if (boostN > 0) "보강학습\n퀘스트 ${boostN}" else "보강학습"
         val wrongN = WrongNoteStore.all(this).size
         findViewById<TextView>(R.id.tvTileWrongLabel).text =
             if (wrongN > 0) "오답노트\n${wrongN}건" else "오답노트"
         val goal = StudyProgressStore.dailyGoal(this)
         findViewById<TextView>(R.id.tvTileProgressLabel).text = "학습진도\n$graded/$goal"
-        DailyQuestStore.addDueCurveQuests(this)
         bindHomeQuests()
         val account = findViewById<TextView>(R.id.tvHomeAccount)
         val user = FirebaseSyncManager.currentUser
         val email = user?.email?.trim().orEmpty()
-        if (email.isBlank()) {
-            account.visibility = View.GONE
-        } else {
-            account.visibility = View.VISIBLE
-            account.text = email
+        val err = FirebaseSyncManager.lastError
+        account.visibility = View.VISIBLE
+        account.text = when {
+            user == null -> "설정에서 같은 Google 계정으로 로그인해야 진도가 합쳐져요"
+            !err.isNullOrBlank() -> "진도 합치기 실패 · $err"
+            email.isNotBlank() -> email
+            else -> "로그인됨"
         }
     }
 
@@ -270,7 +306,8 @@ class HomeActivity : BaseActivity() {
         val backlog = DailyQuestStore.backlog(this).size
         val n = open.size + backlog
         findViewById<TextView>(R.id.tvHomeQuestSummary).text = when {
-            !DailyQuestStore.recallDoneToday(this) -> "오늘의 퀘스트 · 인출하면 열려요"
+            !DailyQuestStore.recallDoneToday(this) ->
+                "오늘의 퀘스트 · 먼저 인출학습을 하세요."
             n == 0 -> "오늘의 퀘스트 완료"
             else -> "오늘의 퀘스트 ${n}개"
         }
