@@ -23,8 +23,8 @@ class QuestActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_quest)
-        bindLandscapeSplit(R.id.layoutQuestSplit)
-        findViewById<TextView>(R.id.tvQuestCoach).text = CoachHints.QUEST
+        bindLandscapeSplit(R.id.layoutQuestSplit, stackPortrait = true)
+        bindCoach(R.id.tvQuestCoach, "quest", CoachHints.QUEST)
         val cal = Calendar.getInstance()
         year = cal.get(Calendar.YEAR)
         month1 = cal.get(Calendar.MONTH) + 1
@@ -44,6 +44,12 @@ class QuestActivity : BaseActivity() {
             }
             bindAll()
         }
+        findViewById<View>(R.id.btnQuestHome).setOnClickListener {
+            startActivity(
+                Intent(this, HomeActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            )
+        }
         findViewById<View>(R.id.btnQuestGoRecall).setOnClickListener {
             startActivity(Intent(this, RecallPickActivity::class.java))
         }
@@ -59,12 +65,13 @@ class QuestActivity : BaseActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        bindLandscapeSplit(R.id.layoutQuestSplit)
+        bindLandscapeSplit(R.id.layoutQuestSplit, stackPortrait = true)
         findViewById<View>(R.id.layoutQuestRight).post { bindCalendar() }
     }
 
     override fun onStart() {
         super.onStart()
+        DailyQuestStore.addDueCurveQuests(this)
         bindAll()
     }
 
@@ -103,8 +110,6 @@ class QuestActivity : BaseActivity() {
             bindRetrainButton()
             return
         }
-        val budget = DailyQuestStore.todayQuestBudget(this)
-        addHint(list, "오늘 상한 ${budget}장 · 공부분량 인출의 약 1/3, 출제가능성 높은 장 우선")
         quests.forEach { addQuestRow(list, it, editable = true) }
         bindRetrainButton()
     }
@@ -131,18 +136,12 @@ class QuestActivity : BaseActivity() {
         val box = findViewById<LinearLayout>(R.id.layoutQuestBacklog)
         box.removeAllViews()
         val items = DailyQuestStore.backlog(this)
-        if (items.isEmpty()) {
-            addHint(box, "밀린 퀘스트가 없어요.")
-            return
-        }
         items.forEach { addQuestRow(box, it, editable = true) }
     }
 
     private fun bindUnseen() {
         val n = RecallStore.unseenThisMonth(this).size
-        findViewById<TextView>(R.id.tvQuestUnseen).text =
-            if (n == 0) "이번 달 인출하지 않은 주제가 없어요."
-            else "이번 달 아직 인출하지 않은 주제 ${n}개"
+        findViewById<TextView>(R.id.tvQuestUnseenTitle).text = "이번달 미인출 ${n}개"
         findViewById<View>(R.id.btnQuestUnseen).visibility = if (n == 0) View.GONE else View.VISIBLE
     }
 
@@ -154,28 +153,27 @@ class QuestActivity : BaseActivity() {
         cal.set(Calendar.YEAR, year)
         cal.set(Calendar.MONTH, month1 - 1)
         cal.set(Calendar.DAY_OF_MONTH, 1)
-        val firstDow = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7
+        val firstDow = cal.get(Calendar.DAY_OF_WEEK) - 1
         val days = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
         val today = TodayTtsStore.todayKey()
         val cell = calendarCellSize()
+        listOf("일", "월", "화", "수", "목", "금", "토").forEach { name ->
+            grid.addView(weekdayCell(name, cell))
+        }
         repeat(firstDow) { grid.addView(dayCell("", Color.TRANSPARENT, cell, null)) }
         for (d in 1..days) {
-            val key = "$year-$month1-$d"
-            val snap = snaps[key]
+            val key = TodayTtsStore.canonKey("$year-$month1-$d")
+            val snap = snaps[key] ?: snaps.entries.firstOrNull {
+                TodayTtsStore.canonKey(it.key) == key
+            }?.value
             val bg = when {
                 snap == null -> ContextCompat.getColor(this, R.color.bg_card)
-                snap.allDone() -> Color.parseColor("#C8E6C9")
-                snap.hasRecall() -> Color.parseColor("#FFE0B2")
+                snap.allDone() -> ContextCompat.getColor(this, R.color.quest_cal_done)
+                snap.hasRecall() -> ContextCompat.getColor(this, R.color.quest_cal_recall)
                 else -> ContextCompat.getColor(this, R.color.bg_card)
             }
-            val mark = when {
-                snap == null -> d.toString()
-                snap.allDone() -> "$d\n완"
-                snap.hasRecall() -> "$d\n인"
-                else -> d.toString()
-            }
             val selected = key == today
-            grid.addView(dayCell(mark, bg, cell) {
+            grid.addView(dayCell(d.toString(), bg, cell) {
                 showDay(key, snap)
             }.also { tv ->
                 if (selected) tv.setTypeface(tv.typeface, Typeface.BOLD)
@@ -216,13 +214,15 @@ class QuestActivity : BaseActivity() {
         lp.bottomMargin = dp(6)
         row.layoutParams = lp
         val cb = CheckBox(this)
-        val kind = "${DailyQuestStore.kindLabel(q)} ${q.progress}/${q.target}"
-        val hint = if (q.hint.isBlank()) "" else " · ${q.hint}"
-        cb.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        cb.text = "${q.title}  ($kind)$hint"
+        val box = dp(40)
+        cb.layoutParams = LinearLayout.LayoutParams(box, box)
+        cb.minWidth = box
+        cb.minHeight = box
+        cb.scaleX = 1.35f
+        cb.scaleY = 1.35f
+        cb.text = ""
         cb.isChecked = q.done
         cb.isEnabled = editable
-        cb.setTextColor(ContextCompat.getColor(this, R.color.text_main))
         if (editable) {
             cb.setOnClickListener {
                 DailyQuestStore.setDone(this, q.id, cb.isChecked)
@@ -230,9 +230,17 @@ class QuestActivity : BaseActivity() {
             }
         }
         row.addView(cb)
+        val title = TextView(this)
+        val titleLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        titleLp.marginStart = dp(4)
+        title.layoutParams = titleLp
+        title.text = q.title
+        title.setTextColor(ContextCompat.getColor(this, R.color.text_main))
+        title.textSize = 15f
+        row.addView(title)
         if (q.type == DailyQuestStore.TYPE_WRITE || q.type == DailyQuestStore.TYPE_BODY) {
             val btn = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
-            btn.text = "본문"
+            btn.text = "인출하기"
             btn.textSize = 12f
             btn.minimumWidth = 0
             btn.minWidth = 0
@@ -243,19 +251,13 @@ class QuestActivity : BaseActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
             btn.layoutParams = btnLp
-            btn.setOnClickListener { openBody(q) }
+            btn.setOnClickListener { openQuest(q) }
             row.addView(btn)
         }
         parent.addView(row)
         if (editable) {
             row.setOnClickListener { openQuest(q) }
         }
-    }
-
-    private fun openBody(q: DailyQuest) {
-        if (q.cardId.isBlank()) return
-        val card = CardStore.getAllCards(this).firstOrNull { it.id == q.cardId } ?: return
-        launchConceptDetail(this, card, q.id)
     }
 
     private fun openQuest(q: DailyQuest) {
@@ -268,6 +270,7 @@ class QuestActivity : BaseActivity() {
             Intent(this, RecallActivity::class.java)
                 .putStringArrayListExtra(EXTRA_RECALL_CARD_IDS, arrayListOf(q.cardId))
                 .putExtra(EXTRA_RECALL_BODY, q.type == DailyQuestStore.TYPE_BODY)
+                .putExtra(EXTRA_RECALL_FROM_QUEST, true)
         )
     }
 
@@ -286,16 +289,43 @@ class QuestActivity : BaseActivity() {
         parent.addView(tv)
     }
 
+    private fun weekdayCell(name: String, size: Int): TextView {
+        val tv = TextView(this)
+        tv.text = name
+        tv.gravity = Gravity.CENTER
+        tv.textSize = 12f
+        tv.includeFontPadding = false
+        tv.maxLines = 1
+        tv.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (name == "토" || name == "일") R.color.text_sub else R.color.text_main
+            )
+        )
+        val lp = GridLayout.LayoutParams()
+        lp.width = size
+        lp.height = (size * 0.55f).toInt().coerceAtLeast(dp(22))
+        lp.setMargins(dp(1), dp(1), dp(1), dp(4))
+        tv.layoutParams = lp
+        return tv
+    }
+
     private fun dayCell(text: String, bg: Int, size: Int, click: (() -> Unit)?): TextView {
         val tv = TextView(this)
         tv.text = text
         tv.gravity = Gravity.CENTER
         tv.textSize = 11f
+        tv.includeFontPadding = false
+        tv.maxLines = 1
+        tv.minHeight = size
+        tv.maxHeight = size
+        tv.minWidth = size
+        tv.maxWidth = size
         tv.setTextColor(ContextCompat.getColor(this, R.color.text_main))
         tv.setBackgroundColor(bg)
         val lp = GridLayout.LayoutParams()
         lp.width = size
-        lp.height = (size * 0.9f).toInt()
+        lp.height = size
         lp.setMargins(dp(1), dp(1), dp(1), dp(1))
         tv.layoutParams = lp
         if (click != null) tv.setOnClickListener { click() }

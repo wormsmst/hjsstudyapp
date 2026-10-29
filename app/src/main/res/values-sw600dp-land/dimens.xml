@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="home_screen_tile_min">257dp</dimen>
+    <dimen name="subject_tile_min">224dp</dimen>
+    <dimen name="recall_pick_tile_min">224dp</dimen>
+    <dimen name="home_tile_icon_text_gap">4dp</dimen>
+</resources>

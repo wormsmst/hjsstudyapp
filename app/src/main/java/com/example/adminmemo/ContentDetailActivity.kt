@@ -20,11 +20,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.core.widget.ImageViewCompat
 
 class ContentDetailActivity : BaseActivity() {
 
-    override val showScratchPad = true
-    override val scratchPadInToolbar = true
     override val showGeminiFab = true
 
     override fun geminiStudyContext(): String {
@@ -109,7 +108,6 @@ class ContentDetailActivity : BaseActivity() {
         }
 
         btnSpeak.setOnClickListener { onSpeakClicked() }
-        findViewById<ImageButton>(R.id.btnScratchPad).setOnClickListener { toggleScratchPad() }
 
         findViewById<ImageButton>(R.id.btnEditDetail).setOnClickListener {
             StudyTtsService.stop(this)
@@ -217,12 +215,21 @@ class ContentDetailActivity : BaseActivity() {
         }
     }
 
+    private fun setToolbarIcon(btn: ImageButton, drawableRes: Int) {
+        btn.setImageResource(drawableRes)
+        ImageViewCompat.setImageTintList(
+            btn,
+            ContextCompat.getColorStateList(this, R.color.primary)
+        )
+    }
+
     private fun refreshSpeakButton() {
         val st = StudyTtsHub.state
         val onThis = st.ids == ids && st.index == index && st.playing
-        btnSpeak.setImageResource(
+        setToolbarIcon(
+            btnSpeak,
             if (onThis) android.R.drawable.ic_media_pause
-            else android.R.drawable.ic_lock_silent_mode_off
+            else R.drawable.ic_tile_tts
         )
     }
 
@@ -296,6 +303,11 @@ class ContentDetailActivity : BaseActivity() {
         tvProgress.text = progressLabel()
         tvGrade.text = ExamChanceStore.label(card.grade)
         tvTitle.text = card.topicTitle
+        val confuse = findViewById<TextView>(R.id.tvDetailConfuse)
+        val confuseLine = SimilarTopics.confuseLine(this, card)
+        confuse.text = confuseLine
+        confuse.visibility = if (confuseLine.isBlank()) View.GONE else View.VISIBLE
+        confuse.setOnClickListener { showEditDialog() }
 
         if (card.mnemonic.isNotBlank()) {
             cardMnemonicBox.visibility = View.VISIBLE
@@ -313,11 +325,11 @@ class ContentDetailActivity : BaseActivity() {
             } catch (_: Exception) {
                 emptyList()
             }
-            treeView.setOutline(card.topicTitle, roots, isLandscape())
+            treeView.setOutline(card.topicTitle, roots, true)
             treeScroll.visibility = View.VISIBLE
             tvBody.visibility = View.GONE
             tvBodyRight.visibility = View.GONE
-            treeBtn.setImageResource(R.drawable.ic_outline_body)
+            setToolbarIcon(treeBtn, R.drawable.ic_tile_study)
             treeBtn.contentDescription = "본문 보기"
             pauseBodyClock()
             bindBookLayout()
@@ -325,7 +337,7 @@ class ContentDetailActivity : BaseActivity() {
             treeScroll.visibility = View.GONE
             tvBody.visibility = View.VISIBLE
             resumeBodyClock()
-            treeBtn.setImageResource(R.drawable.ic_outline_tree)
+            setToolbarIcon(treeBtn, R.drawable.ic_tile_outline)
             treeBtn.contentDescription = "목차 트리"
             bindBookLayout()
             val formatted = formatStudyOutlineText(
@@ -420,8 +432,10 @@ class ContentDetailActivity : BaseActivity() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_concept, null)
         val etTitle = view.findViewById<EditText>(R.id.etConceptTitle)
         val etBody = view.findViewById<EditText>(R.id.etConceptBody)
+        val etConfuse = view.findViewById<EditText>(R.id.etConceptConfuse)
         etTitle.setText(card.topicTitle)
         etBody.setText(card.back)
+        etConfuse.setText(SimilarTopics.editorText(this, card))
         ExamChanceStore.attachPicker(view.findViewById(R.id.tvExamChance), card.id) { render() }
 
         AlertDialog.Builder(this)
@@ -430,13 +444,16 @@ class ContentDetailActivity : BaseActivity() {
             .showWithEditConfirms(this, onSave = {
                 val newTitle = etTitle.text.toString().trim().ifEmpty { "(제목없음)" }
                 val newBody = etBody.text.toString().trim()
+                val newConfuse = etConfuse.text.toString().trim()
                 val updated = card.copy(
                     topicTitle = newTitle,
                     title = "${card.num} $newTitle".trim(),
                     front = if (card.grade.isNotBlank()) "$newTitle\n(${card.grade})" else newTitle,
-                    back = newBody
+                    back = newBody,
+                    confuse = newConfuse
                 )
                 CardStore.updateCard(this, updated)
+                SimilarTopics.invalidate()
                 render()
                 Toast.makeText(this, "저장했어요", Toast.LENGTH_SHORT).show()
                 true

@@ -66,6 +66,20 @@ object StudyProgressStore {
     val EXAM1_SUBJECTS = listOf("민법", "행정절차론")
     val EXAM2_SUBJECTS = listOf("사무관리론", "행정사실무법")
 
+    fun periodSubjects(context: Context, period: Int): List<String> {
+        val all = CardStore.getSubjects(context)
+        val fallback = if (period == 1) EXAM1_SUBJECTS else EXAM2_SUBJECTS
+        if (all.isEmpty()) return fallback
+        if (all.size == 1) return if (period == 1) all else emptyList()
+        val mid = (all.size + 1) / 2
+        return if (period == 1) all.take(mid) else all.drop(mid)
+    }
+
+    fun periodLabel(context: Context, period: Int): String {
+        val names = periodSubjects(context, period)
+        return names.joinToString(" + ").ifBlank { if (period == 1) "1교시" else "2교시" }
+    }
+
     private const val FILE = "study_log.json"
     private val gson = Gson()
 
@@ -127,6 +141,58 @@ object StudyProgressStore {
 
     fun todayTopicKeys(context: Context): Set<String> = rolled(context).todayTopics.toSet()
 
+    fun todayFlags(context: Context): Triple<Boolean, Boolean, Boolean> {
+        val log = rolled(context)
+        return Triple(log.todayStudy, log.todayQuiz, log.todayExam)
+    }
+
+    fun flagsForDay(context: Context, date: String): Triple<Boolean, Boolean, Boolean> {
+        val log = rolled(context)
+        val key = TodayTtsStore.canonKey(date)
+        if (TodayTtsStore.canonKey(log.todayKey) == key) {
+            return Triple(log.todayStudy, log.todayQuiz, log.todayExam)
+        }
+        val f = log.dayFlags.find { TodayTtsStore.canonKey(it.key) == key }
+        return Triple(f?.study == true, f?.quiz == true, f?.exam == true)
+    }
+
+    fun overlayToday(
+        context: Context,
+        date: String,
+        topics: Collection<String>,
+        study: Boolean,
+        quiz: Boolean,
+        exam: Boolean
+    ) {
+        if (date.isBlank()) return
+        val today = todayKey()
+        if (TodayTtsStore.canonKey(date) == today) {
+            val log = rolled(context)
+            topics.forEach { if (it.isNotBlank() && it !in log.todayTopics) log.todayTopics.add(it) }
+            log.todayStudy = log.todayStudy || study
+            log.todayQuiz = log.todayQuiz || quiz
+            log.todayExam = log.todayExam || exam
+            file(context).writeText(gson.toJson(log), Charsets.UTF_8)
+            return
+        }
+        val log = read(context)
+        val day = TodayTtsStore.canonKey(date)
+        val n = maxOf(log.dayHistory.find { TodayTtsStore.canonKey(it.key) == day }?.count ?: 0, topics.size)
+        log.dayHistory.removeAll { TodayTtsStore.canonKey(it.key) == day }
+        log.dayHistory.add(DayCount(day, n))
+        val old = log.dayFlags.find { TodayTtsStore.canonKey(it.key) == day }
+        log.dayFlags.removeAll { TodayTtsStore.canonKey(it.key) == day }
+        log.dayFlags.add(
+            DayFlags(
+                day,
+                (old?.study == true) || study,
+                (old?.quiz == true) || quiz,
+                (old?.exam == true) || exam
+            )
+        )
+        file(context).writeText(gson.toJson(log), Charsets.UTF_8)
+    }
+
     fun markTopic(
         context: Context,
         subject: String,
@@ -167,6 +233,7 @@ object StudyProgressStore {
             log.examLogs = log.examLogs.takeLast(40).toMutableList()
         }
         write(context, log)
+        StudyWeekStore.noteExam(context)
     }
 
     fun lastAt(context: Context): Long = read(context).lastAt
@@ -186,46 +253,63 @@ object StudyProgressStore {
         val master: Int,
         val total: Int,
         val starSum: Int,
-        val stable: Int
+        val stable: Int,
+        val achieved: Int
     ) {
         val masteredPct: Int
             get() = if (total == 0) 0 else (master * 100 / total)
         val fillPct: Int
-            get() = if (total == 0) 0 else (starSum * 100 / (total * 5))
+            get() = if (total == 0) 0 else (achieved * 100 / total)
         val stablePct: Int
             get() = if (total == 0) 0 else (stable * 100 / total)
+        fun share(n: Int): Int = if (total == 0) 0 else n * 100 / total
     }
 
     data class MasterySnap(
         val cards: Int,
         val starSum: Int,
-        val stable: Int
+        val stable: Int,
+        val achieved: Int
     ) {
         val fillPct: Int
-            get() = if (cards == 0) 0 else (starSum * 100 / (cards * 5))
+            get() = if (cards == 0) 0 else (achieved * 100 / cards)
         val stablePct: Int
             get() = if (cards == 0) 0 else (stable * 100 / cards)
+    }
+
+    const val ACHIEVE_RECALLS = 5
+
+    /** 5·10·15… 회에 처음 닿은 구간. 아니면 null. */
+    fun achieveMilestone(before: Int, after: Int): Int? {
+        if (after <= before) return null
+        val from = (before.coerceAtLeast(0) / ACHIEVE_RECALLS) * ACHIEVE_RECALLS
+        val to = (after / ACHIEVE_RECALLS) * ACHIEVE_RECALLS
+        if (to < ACHIEVE_RECALLS || to <= from) return null
+        return to
     }
 
     private fun conceptCards(context: Context) =
         CardStore.getAllCards(context).filter { it.type == "concept" && it.topicTitle.isNotBlank() }
 
-    private fun starPoints(context: Context, card: Card): Int {
-        if (RecallStore.recallCount(context, card.id) <= 0) return 0
-        return CardStore.getMemoryLevel(context, card.subject, card.topicTitle).coerceIn(1, 5)
-    }
-
-    private fun isStable(context: Context, card: Card): Boolean {
-        if (RecallStore.recallCount(context, card.id) <= 0) return false
-        return CardStore.getMemoryLevel(context, card.subject, card.topicTitle) >= 4
-    }
-
     fun mastery(context: Context): MasterySnap {
         val list = conceptCards(context)
+        val counts = RecallStore.allRecallCounts(context)
+        var starSum = 0
+        var stable = 0
+        var achieved = 0
+        for (card in list) {
+            val n = counts[card.id] ?: 0
+            if (n <= 0) continue
+            val mem = CardStore.getMemoryLevel(context, card.subject, card.topicTitle)
+            starSum += mem.coerceIn(1, 5)
+            if (mem >= 4) stable++
+            if (n >= ACHIEVE_RECALLS) achieved++
+        }
         return MasterySnap(
             cards = list.size,
-            starSum = list.sumOf { starPoints(context, it) },
-            stable = list.count { isStable(context, it) }
+            starSum = starSum,
+            stable = stable,
+            achieved = achieved
         )
     }
 
@@ -235,9 +319,14 @@ object StudyProgressStore {
         if (!showA && !showS) return ""
         val snap = mastery(context)
         val parts = mutableListOf<String>()
-        if (showA) parts += "달성도 ${snap.fillPct}%"
-        if (showS) parts += "안정권 ${snap.stablePct}%"
+        if (showA) parts += "달성 ${snap.fillPct}%"
+        if (showS) parts += "안정 ${snap.stablePct}%"
         return parts.joinToString("  ·  ")
+    }
+
+    fun progressStableLine(context: Context): String {
+        val snap = mastery(context)
+        return "잘 됨 ${snap.stable} / ${snap.cards}  ·  안정 ${snap.stablePct}%"
     }
 
     fun subjectMasterySuffix(context: Context, bar: SubjectBar): String {
@@ -245,25 +334,51 @@ object StudyProgressStore {
         val showS = AppPrefs.showStablePct(context)
         if (!showA && !showS) return ""
         val parts = mutableListOf<String>()
-        if (showA) parts += "달성도 ${bar.fillPct}%"
-        if (showS) parts += "안정권 ${bar.stablePct}%"
+        if (showA) parts += "달성 ${bar.fillPct}%"
+        if (showS) parts += "안정 ${bar.stablePct}%"
         return "  (${parts.joinToString(" · ")})"
     }
+
+    fun progressSubjectSuffix(bar: SubjectBar): String = "  (안정 ${bar.stablePct}%)"
 
     fun masteryHint(context: Context): String {
         val showA = AppPrefs.showAchievePct(context)
         val showS = AppPrefs.showStablePct(context)
         val parts = mutableListOf<String>()
-        if (showA) parts += "달성도는 암기정도를 5칸까지 채운 비율입니다. 인출 전 장은 0입니다."
+        if (showA) parts += "달성도는 인출학습으로 5회 이상 풀어 본 장의 비율입니다."
         if (showS) parts += "안정권은 암기정도 4칸 이상인 장의 비율입니다."
         return parts.joinToString(" ")
     }
 
+    fun unseenLoadLine(context: Context): String {
+        val bars = subjectBars(context)
+        val unseen = bars.sumOf { it.unseen }
+        val total = bars.sumOf { it.total }
+        if (total <= 0) return "인출할 주제가 없어요"
+        if (unseen <= 0) return "현재 학습하지 않은 부분이 남아 있지 않습니다."
+        val pct = unseen * 100 / total
+        val head = "현재 학습하지 않은 부분이 ${pct}% 남아 있습니다."
+        val days = StudyLoadStore.daysToOpenUnseen(context, unseen)
+        val tail = when {
+            days == null && StudyLoadStore.weekEffectiveCards(context) <= 0 ->
+                "공부하는 요일이 없어 예상할 수 없습니다."
+            days == null ->
+                "하루 신규가 0장이라 예상할 수 없습니다."
+            else -> {
+                val weeks = ceil(days / 7.0).toInt().coerceAtLeast(1)
+                "지금 설정된 학습량으로 전체 내용을 다 보려면 약 ${weeks}주가 소요됩니다."
+            }
+        }
+        return "$head $tail"
+    }
+
     fun subjectBars(context: Context): List<SubjectBar> {
         val concepts = conceptCards(context)
-        return CardStore.getSubjects(context)
+        val extras = CardStore.getSubjects(context)
             .map { canonicalizeSubject(it) }
-            .distinct()
+            .filter { it.isNotBlank() }
+        val names = (EXAM1_SUBJECTS + EXAM2_SUBJECTS + extras).distinct()
+        return names
             .map { subject ->
                 val list = concepts.filter { canonicalizeSubject(it.subject) == subject }
                 var unseen = 0
@@ -272,6 +387,7 @@ object StudyProgressStore {
                 var master = 0
                 var starSum = 0
                 var stable = 0
+                var achieved = 0
                 list.forEach {
                     val n = RecallStore.recallCount(context, it.id)
                     val mem = CardStore.getMemoryLevel(context, it.subject, it.topicTitle)
@@ -281,10 +397,13 @@ object StudyProgressStore {
                         mem == 3 -> mid++
                         else -> master++
                     }
-                    starSum += starPoints(context, it)
-                    if (isStable(context, it)) stable++
+                    if (n > 0) {
+                        starSum += mem.coerceIn(1, 5)
+                        if (mem >= 4) stable++
+                    }
+                    if (n >= ACHIEVE_RECALLS) achieved++
                 }
-                SubjectBar(subject, unseen, weak, mid, master, list.size, starSum, stable)
+                SubjectBar(subject, unseen, weak, mid, master, list.size, starSum, stable, achieved)
             }
     }
 
@@ -359,6 +478,25 @@ object StudyProgressStore {
         return out
     }
 
+    fun studiedDayKeys(context: Context): Set<String> {
+        val log = rolled(context)
+        val out = mutableSetOf<String>()
+        if (log.todayStudy || log.todayQuiz || log.todayExam || log.todayTopics.isNotEmpty()) {
+            if (log.todayKey.isNotBlank()) out.add(log.todayKey)
+        }
+        log.dayFlags.forEach { f ->
+            if (f.study || f.quiz || f.exam) out.add(f.key)
+        }
+        log.dayHistory.forEach { h ->
+            if (h.count > 0) out.add(h.key)
+        }
+        log.examLogs.forEach { e ->
+            val day = TodayTtsStore.dayKey(e.at)
+            if (day.isNotBlank()) out.add(day)
+        }
+        return out
+    }
+
     fun last7Flags(context: Context): List<DayFlags> {
         val log = rolled(context)
         val map = log.dayFlags.associateBy { it.key }.toMutableMap()
@@ -414,9 +552,27 @@ object StudyProgressStore {
         } else {
             "2차까지 ${cov.days}일  ·  하루 권장 약 ${cov.perDay}회"
         }
-        val load = StudyLoadStore.todayLine(context)
-        return "오늘 공부분량은 $load 입니다.\n" +
-            "기본 목표 5회, 인출에서 막히면 그 주제는 10회입니다.\n$cover\n$dateLine"
+        return "$cover\n$dateLine"
+    }
+
+    fun todayVolume(json: String): Int {
+        val log = parse(json)
+        val today = todayKey()
+        var n = 0
+        if (log.todayKey == today) {
+            n += log.todayTopics.distinct().size
+            if (log.todayStudy) n += 2
+            if (log.todayQuiz) n += 2
+            if (log.todayExam) n += 2
+        }
+        n += log.dayHistory.find { it.key == today }?.count ?: 0
+        val flags = log.dayFlags.find { it.key == today }
+        if (flags != null) {
+            if (flags.study) n += 2
+            if (flags.quiz) n += 2
+            if (flags.exam) n += 2
+        }
+        return n
     }
 
     fun mergeCloudJson(localJson: String, cloudJson: String): String {

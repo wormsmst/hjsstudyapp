@@ -20,6 +20,16 @@ import java.util.UUID
 object CardStore {
 
     private val gson = Gson()
+    @Volatile private var mergedCache: List<Card>? = null
+    @Volatile private var memoryCache: MutableMap<String, Int>? = null
+
+    fun invalidateMergedCache() {
+        mergedCache = null
+    }
+
+    fun invalidateMemoryCache() {
+        memoryCache = null
+    }
 
     private fun userCardsFile(context: Context) = File(context.filesDir, "user_cards.json")
     private fun editedCardsFile(context: Context) = File(context.filesDir, "edited_cards.json")
@@ -41,6 +51,7 @@ object CardStore {
     }
 
     private fun writeUserCards(context: Context, cards: List<Card>) {
+        mergedCache = null
         userCardsFile(context).writeText(gson.toJson(cards), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
     }
@@ -57,6 +68,7 @@ object CardStore {
     }
 
     private fun writeEditedCards(context: Context, map: Map<String, Card>) {
+        mergedCache = null
         editedCardsFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
     }
@@ -73,30 +85,35 @@ object CardStore {
     }
 
     private fun writeDeletedIds(context: Context, ids: Set<String>) {
+        mergedCache = null
         deletedIdsFile(context).writeText(gson.toJson(ids), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
     }
 
     /** 기본 카드 + 사용자 추가 카드를 합치고, 수정본을 반영하고, 삭제된 것을 뺀 최종 목록 */
     fun getAllCards(context: Context): List<Card> {
+        mergedCache?.let { return it }
         val base = CardRepository.loadCards(context)
         val userAdded = readUserCards(context)
         val edited = readEditedCards(context)
         val deleted = readDeletedIds(context)
 
         val chances = ExamChanceStore.all(context)
-        val merged = (base + userAdded)
-            .filter { it.id !in deleted }
-            .map { edited[it.id] ?: it }
-            .map { card ->
-                val subject = canonicalizeSubject(card.subject)
-                val chance = chances[card.id].orEmpty()
-                var out = if (card.subject == subject) card else card.copy(subject = subject)
-                if (out.grade != chance) out = out.copy(grade = chance)
-                out
-            }
-
-        return merged
+        val byId = linkedMapOf<String, Card>()
+        for (card in base + userAdded) {
+            if (card.id in deleted) continue
+            byId[card.id] = card
+        }
+        val result = byId.values.map { raw ->
+            val card = edited[raw.id] ?: raw
+            val subject = canonicalizeSubject(card.subject)
+            val chance = chances[card.id].orEmpty()
+            var out = if (card.subject == subject) card else card.copy(subject = subject)
+            if (out.grade != chance) out = out.copy(grade = chance)
+            out
+        }
+        mergedCache = result
+        return result
     }
 
     fun getAllMnemonicCards(context: Context): List<Card> =
@@ -131,7 +148,13 @@ object CardStore {
     }
 
     /** 새 주제(개념카드) 추가. 맨 마지막 순서로 붙인다. */
-    fun addConceptCard(context: Context, subject: String, topicTitle: String, body: String): Card {
+    fun addConceptCard(
+        context: Context,
+        subject: String,
+        topicTitle: String,
+        body: String,
+        confuse: String = ""
+    ): Card {
         val subjectName = canonicalizeSubject(subject)
         val id = "user_" + UUID.randomUUID().toString().take(8)
         val card = Card(
@@ -145,7 +168,8 @@ object CardStore {
             grade = "",
             front = topicTitle,
             back = body,
-            mnemonics = emptyList()
+            mnemonics = emptyList(),
+            confuse = confuse.trim().ifBlank { null }
         )
         val list = readUserCards(context)
         list.add(card)
@@ -170,32 +194,30 @@ object CardStore {
 
     /** 카드 수정 (사용자 추가 카드든 기본 카드든 동일하게 처리) */
     fun updateCard(context: Context, updated: Card) {
+        SimilarTopics.invalidate()
         val card = updated.copy(subject = canonicalizeSubject(updated.subject))
-        if (card.id.startsWith("user_")) {
-            val list = readUserCards(context)
-            val idx = list.indexOfFirst { it.id == card.id }
-            if (idx >= 0) {
-                list[idx] = card
-                writeUserCards(context, list)
-            }
-        } else {
-            val map = readEditedCards(context)
-            map[card.id] = card
-            writeEditedCards(context, map)
+        val list = readUserCards(context)
+        val idx = list.indexOfFirst { it.id == card.id }
+        if (idx >= 0) {
+            list[idx] = card
+            writeUserCards(context, list)
         }
+        // assets에 들어 있는 user_ 아이디도 여기로 저장한다.
+        // (예전엔 user_면 user_cards.json만 찾아서, 없으면 저장이 조용히 무시됐다.)
+        val map = readEditedCards(context)
+        map[card.id] = card
+        writeEditedCards(context, map)
     }
 
     /** 카드 삭제 */
     fun deleteCard(context: Context, id: String) {
-        if (id.startsWith("user_")) {
-            val list = readUserCards(context)
-            list.removeAll { it.id == id }
+        val list = readUserCards(context)
+        if (list.removeAll { it.id == id }) {
             writeUserCards(context, list)
-        } else {
-            val deleted = readDeletedIds(context)
-            deleted.add(id)
-            writeDeletedIds(context, deleted)
         }
+        val deleted = readDeletedIds(context)
+        deleted.add(id)
+        writeDeletedIds(context, deleted)
         // 순서 목록에도 남아있다면 같이 정리
         val orders = readAllOrders(context)
         var changed = false
@@ -358,17 +380,25 @@ object CardStore {
     }
 
     private fun readMemoryLevels(context: Context): MutableMap<String, Int> {
+        memoryCache?.let { return it }
         val f = memoryFile(context)
-        if (!f.exists()) return mutableMapOf()
-        val type = object : TypeToken<MutableMap<String, Int>>() {}.type
-        return try {
-            gson.fromJson(f.readText(Charsets.UTF_8), type) ?: mutableMapOf()
-        } catch (e: Exception) {
-            mutableMapOf()
+        val map = if (!f.exists()) {
+            mutableMapOf<String, Int>()
+        } else {
+            val type = object : TypeToken<MutableMap<String, Int>>() {}.type
+            try {
+                gson.fromJson<MutableMap<String, Int>>(f.readText(Charsets.UTF_8), type)
+                    ?: mutableMapOf<String, Int>()
+            } catch (e: Exception) {
+                mutableMapOf<String, Int>()
+            }
         }
+        memoryCache = map
+        return map
     }
 
     private fun writeMemoryLevels(context: Context, map: Map<String, Int>) {
+        memoryCache = map.toMutableMap()
         memoryFile(context).writeText(gson.toJson(map), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
         FirebaseSyncManager.notifyProgressChanged(context)
@@ -527,8 +557,8 @@ object CardStore {
     }
 
     private fun richerCard(a: Card, b: Card): Card {
-        val aLen = a.back.length + a.front.length + a.mnemonic.length
-        val bLen = b.back.length + b.front.length + b.mnemonic.length
+        val aLen = a.back.length + a.front.length + a.mnemonic.length + (a.confuse?.length ?: 0)
+        val bLen = b.back.length + b.front.length + b.mnemonic.length + (b.confuse?.length ?: 0)
         return if (bLen > aLen) b else a
     }
 }

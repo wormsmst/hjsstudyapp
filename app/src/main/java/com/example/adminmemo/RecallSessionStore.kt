@@ -68,11 +68,19 @@ object RecallSessionStore {
             snap.retrain == retrain &&
             snap.forcedIds == forcedIds
 
-    fun unfinished(snap: RecallSessionSnap?): Boolean =
-        snap != null && snap.queueIds.isNotEmpty() && snap.index > 0
+    fun unfinished(snap: RecallSessionSnap?): Boolean {
+        if (snap == null || snap.queueIds.isEmpty()) return false
+        if (snap.pendingRetry.isNotEmpty()) return true
+        return snap.index < snap.queueIds.size
+    }
 
     fun isToday(snap: RecallSessionSnap): Boolean =
         snap.date == TodayTtsStore.todayKey()
+
+    fun openToday(context: Context): Boolean {
+        val snap = load(context) ?: return false
+        return unfinished(snap) && isToday(snap)
+    }
 
     fun scopeLabel(snap: RecallSessionSnap): String {
         val who = when {
@@ -88,5 +96,24 @@ object RecallSessionStore {
         }
         val base = if (snap.baseCount > 0) snap.baseCount else snap.queueIds.size
         return "$who  ·  ${snap.index} / $base"
+    }
+
+    fun progressNow(snap: RecallSessionSnap): String {
+        val base = if (snap.baseCount > 0) snap.baseCount else snap.queueIds.size
+        val at = (snap.index + 1).coerceAtMost(base.coerceAtLeast(1))
+        return "$at / $base"
+    }
+
+    /** 인출 선택 타일. 퀘스트·다시 인출 등은 null. */
+    fun pickTile(snap: RecallSessionSnap): String? {
+        if (snap.forcedIds.isNotEmpty() || snap.retrain || snap.bodyWrite) return null
+        return when {
+            snap.caseMode -> "case"
+            snap.unseen -> "unseen"
+            snap.period == 1 -> "p1"
+            snap.period == 2 -> "p2"
+            snap.subject.isNotBlank() && snap.subject != ALL_SUBJECTS_KEY -> "one"
+            else -> "all"
+        }
     }
 }

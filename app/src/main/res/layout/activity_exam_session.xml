@@ -83,6 +83,8 @@
             android:layout_height="wrap_content"
             android:minHeight="@dimen/btn_min_height"
             android:paddingVertical="14dp"
+            android:gravity="center"
+            android:maxLines="2"
             android:text="✅ 제출하고 해답 보기"
             android:textSize="15sp"
             android:textStyle="bold"/>

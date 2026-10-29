@@ -49,7 +49,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:gravity="center"
-            android:textColor="#2962FF"
+            android:textColor="#0D7EF5"
             android:textSize="12sp"
             android:textStyle="bold"
             android:padding="4dp"

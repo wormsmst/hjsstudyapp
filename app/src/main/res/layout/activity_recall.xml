@@ -6,15 +6,6 @@
     android:background="@color/bg_screen"
     android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/tvRecallProgress"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingHorizontal="20dp"
-        android:paddingTop="16dp"
-        android:textColor="@color/text_sub"
-        android:textSize="13sp"/>
-
     <LinearLayout
         android:id="@+id/layoutRecallSplit"
         android:layout_width="match_parent"
@@ -23,6 +14,7 @@
         android:orientation="vertical">
 
         <ScrollView
+            android:id="@+id/svRecallLeft"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
@@ -45,41 +37,74 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="20dp">
+                        android:paddingHorizontal="20dp"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="18dp">
 
-                        <TextView
-                            android:id="@+id/tvRecallSubject"
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:textColor="@color/text_on_tile"
-                            android:textSize="13sp"/>
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/tvRecallSubject"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:textColor="@color/text_on_tile"
+                                android:textSize="13sp"/>
+
+                            <TextView
+                                android:id="@+id/tvRecallProgress"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="10dp"
+                                android:textColor="@color/text_on_tile"
+                                android:textSize="15sp"
+                                android:textStyle="bold"/>
+                        </LinearLayout>
 
                         <TextView
                             android:id="@+id/tvRecallTitle"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:lineSpacingExtra="4dp"
+                            android:layout_marginTop="12dp"
+                            android:lineSpacingExtra="3dp"
                             android:textColor="@color/text_on_tile"
-                            android:textSize="22sp"
+                            android:textSize="26sp"
                             android:textStyle="bold"/>
+
+                        <TextView
+                            android:id="@+id/tvRecallConfuse"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="@color/accent"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:visibility="gone"/>
 
                         <TextView
                             android:id="@+id/tvRecallHint"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
+                            android:layout_marginTop="10dp"
+                            android:alpha="0.78"
                             android:lineSpacingExtra="3dp"
                             android:textColor="@color/text_on_tile"
-                            android:textSize="14sp"/>
+                            android:textSize="13sp"/>
 
                         <TextView
                             android:id="@+id/tvRecallTimer"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
+                            android:layout_marginTop="8dp"
                             android:textColor="@color/text_on_tile"
-                            android:textSize="18sp"
+                            android:textSize="16sp"
                             android:textStyle="bold"/>
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
@@ -91,16 +116,37 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"/>
 
-                <TextView
-                    android:id="@+id/tvRecallBodyLeft"
+                <LinearLayout
+                    android:id="@+id/layoutRecallBodyLeftPane"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:lineSpacingExtra="4dp"
-                    android:textColor="@color/text_main"
-                    android:textSize="14sp"
-                    android:textIsSelectable="true"
-                    android:visibility="gone"/>
+                    android:background="@drawable/bg_recall_body_pane"
+                    android:orientation="vertical"
+                    android:padding="14dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tvRecallBodyLeftCaption"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:text="본문"
+                        android:textColor="@color/accent"
+                        android:textSize="12sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:id="@+id/tvRecallBodyLeft"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_marginTop="8dp"
+                        android:lineSpacingExtra="4dp"
+                        android:textColor="@color/text_main"
+                        android:textIsSelectable="true"
+                        android:textSize="14sp"/>
+                </LinearLayout>
             </LinearLayout>
         </ScrollView>
 
@@ -112,6 +158,7 @@
             android:orientation="vertical">
 
             <ScrollView
+                android:id="@+id/svRecallRight"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
@@ -130,15 +177,6 @@
                         android:orientation="vertical"
                         android:visibility="gone">
 
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
-                            android:text="이 목차가 있으면 「있음」, 없으면 「없음」입니다. 아래에 세부 문장이 있는 목차만 「핵심이 빠짐」이 있습니다."
-                            android:textColor="@color/text_sub"
-                            android:textSize="13sp"
-                            android:textStyle="bold"/>
-
                         <LinearLayout
                             android:id="@+id/layoutRecallChecks"
                             android:layout_width="match_parent"
@@ -146,28 +184,54 @@
                             android:orientation="vertical"/>
                     </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/tvRecallGradeHint"
+                    <LinearLayout
+                        android:id="@+id/layoutRecallBodyPane"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:textColor="@color/text_sub"
-                        android:textSize="13sp"/>
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_recall_body_pane"
+                        android:orientation="vertical"
+                        android:padding="14dp"
+                        android:visibility="gone">
 
-                    <TextView
-                        android:id="@+id/tvRecallBody"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:lineSpacingExtra="4dp"
-                        android:textColor="@color/text_main"
-                        android:textSize="14sp"
-                        android:textIsSelectable="true"
-                        android:visibility="gone"/>
+                        <TextView
+                            android:id="@+id/tvRecallBodyCaption"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:text="본문"
+                            android:textColor="@color/accent"
+                            android:textSize="12sp"
+                            android:textStyle="bold"/>
+
+                        <TextView
+                            android:id="@+id/tvRecallBody"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_marginTop="8dp"
+                            android:lineSpacingExtra="4dp"
+                            android:textColor="@color/text_main"
+                            android:textIsSelectable="true"
+                            android:textSize="14sp"/>
+                    </LinearLayout>
                 </LinearLayout>
             </ScrollView>
 
+            <TextView
+                android:id="@+id/tvRecallGradeHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:paddingBottom="4dp"
+                android:textColor="@color/text_sub"
+                android:textSize="13sp"
+                android:visibility="gone"/>
+
             <LinearLayout
+                android:id="@+id/layoutRecallActions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@android:color/transparent"
@@ -224,20 +288,29 @@
                         android:textColor="@color/text_sub"
                         android:textSize="13sp"/>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnFailStructure"
-                        style="@style/Widget.AdminMemo.Button"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="목차(뼈대)가 안 나옴"/>
+                        android:orientation="horizontal">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnFailTip"
-                        style="@style/Widget.AdminMemo.Button.Outlined"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="단어만 안 떠오름"/>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnFailStructure"
+                            style="@style/Widget.AdminMemo.Button.Row"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:text="목차가 안 떠오름"/>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnFailTip"
+                            style="@style/Widget.AdminMemo.Button.Outlined.Row"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:text="단어만 안 떠오름"/>
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>

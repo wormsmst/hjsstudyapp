@@ -28,6 +28,17 @@
             android:textColor="@color/text_main"
             android:textSize="16sp"/>
 
+        <TextView
+            android:id="@+id/tvRecallResultAchieved"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:lineSpacingExtra="5dp"
+            android:textColor="@color/text_main"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:visibility="gone"/>
+
         <include
             android:id="@+id/tvRecallResultCoach"
             layout="@layout/view_coach_pill"
@@ -53,36 +64,56 @@
             android:textColor="@color/text_sub"
             android:textSize="14sp"/>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnRecallOpenMissed"
-            style="@style/Widget.AdminMemo.Button"
+        <LinearLayout
+            android:id="@+id/layoutRecallResultRow1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="부족한 부분 채우기"/>
+            android:orientation="horizontal">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnRecallOpenTts"
-            style="@style/Widget.AdminMemo.Button.Outlined"
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRecallOpenMissed"
+                style="@style/Widget.AdminMemo.Button.Row"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:text="부족한 부분 채우기"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRecallOpenTts"
+                style="@style/Widget.AdminMemo.Button.Outlined.Row"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:text="막힌 장 TTS로 듣기"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layoutRecallResultRow2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="막힌 장 TTS로 듣기"/>
+            android:orientation="horizontal">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnRecallOpenQuests"
-            style="@style/Widget.AdminMemo.Button.Outlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="채운 장 다시 인출"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRecallOpenQuests"
+                style="@style/Widget.AdminMemo.Button.Outlined.Row"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:text="채운 장 다시 인출"/>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnRecallHome"
-            style="@style/Widget.AdminMemo.Button.Outlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="홈으로"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRecallHome"
+                style="@style/Widget.AdminMemo.Button.Outlined.Row"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:text="홈으로"/>
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

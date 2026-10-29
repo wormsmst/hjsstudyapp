@@ -3,6 +3,8 @@ package com.example.adminmemo
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.view.View
+import android.widget.TextView
 
 /**
  * PDF에서 자동 추출한 grade 문자열(예: "A+,미기출", "약술형,B")에서
@@ -192,6 +194,7 @@ const val EXTRA_RECALL_CARD_IDS = "extra_recall_card_ids"
 const val EXTRA_RECALL_BODY = "extra_recall_body"
 const val EXTRA_RECALL_RETRAIN = "extra_recall_retrain"
 const val EXTRA_RECALL_BOOST = "extra_recall_boost"
+const val EXTRA_RECALL_FROM_QUEST = "extra_recall_from_quest"
 const val EXTRA_EXAM_PERIOD = "extra_exam_period"
 const val ALL_SUBJECTS_KEY = "__ALL__"
 const val WEAK_STUDY_KEY = "__WEAK_STUDY__"
@@ -295,4 +298,30 @@ fun launchQuizSession(activity: Activity, subject: String, reviewOnly: Boolean) 
         if (ids.isNotEmpty()) intent.putStringArrayListExtra(EXTRA_RECALL_CARD_IDS, ArrayList(ids))
     }
     activity.startActivity(intent)
+}
+
+fun bindStatusBadge(tv: TextView, done: Boolean, inProgress: Boolean, n: Int) {
+    when {
+        done -> {
+            tv.visibility = View.VISIBLE
+            tv.text = "완"
+            tv.setBackgroundResource(R.drawable.bg_tile_done_badge)
+        }
+        inProgress && n > 0 -> {
+            tv.visibility = View.VISIBLE
+            tv.text = if (n > 99) "99+" else n.toString()
+            tv.setBackgroundResource(R.drawable.bg_tile_busy_badge)
+        }
+        n > 0 -> {
+            tv.visibility = View.VISIBLE
+            tv.text = if (n > 99) "99+" else n.toString()
+            tv.setBackgroundResource(R.drawable.bg_tile_count_badge)
+        }
+        inProgress -> {
+            tv.visibility = View.VISIBLE
+            tv.text = "중"
+            tv.setBackgroundResource(R.drawable.bg_tile_busy_badge)
+        }
+        else -> tv.visibility = View.GONE
+    }
 }

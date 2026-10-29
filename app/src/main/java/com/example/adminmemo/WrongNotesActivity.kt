@@ -80,7 +80,7 @@ class WrongNotesActivity : BaseActivity() {
         val box = findViewById<LinearLayout>(R.id.layoutWrongChips)
         box.removeAllViews()
         val d = resources.displayMetrics.density
-        val chips = listOf(null to "전체") + WrongNoteStore.subjects(this).map { it to it }
+        val chips = listOf(null to "전과목") + WrongNoteStore.subjects(this).map { it to it }
         chips.forEach { (key, label) ->
             val b = Button(this)
             val lp = LinearLayout.LayoutParams(

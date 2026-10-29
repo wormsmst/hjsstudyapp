@@ -45,8 +45,8 @@ object MockExamRepository {
         val scoped = all.filter { item ->
             val sub = canonicalizeSubject(item.subject)
             when (period) {
-                1 -> sub in StudyProgressStore.EXAM1_SUBJECTS
-                2 -> sub in StudyProgressStore.EXAM2_SUBJECTS
+                1 -> sub in StudyProgressStore.periodSubjects(context, 1)
+                2 -> sub in StudyProgressStore.periodSubjects(context, 2)
                 else -> subject == ALL_SUBJECTS_KEY || sub == canonicalizeSubject(subject)
             }
         }

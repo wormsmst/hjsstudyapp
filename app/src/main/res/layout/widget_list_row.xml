@@ -3,7 +3,7 @@
     android:id="@+id/tvRowItem"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:textColor="#1A1C1E"
+    android:textColor="#1C1C1E"
     android:textSize="13sp"
     android:lineSpacingExtra="3dp"
     android:paddingTop="1dp"

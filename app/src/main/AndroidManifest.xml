@@ -18,7 +18,8 @@
 
         <activity
             android:name=".HomeActivity"
-            android:exported="true">
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -123,13 +124,13 @@
         <activity
             android:name=".ExtraStudyActivity"
             android:exported="false"
-            android:label="보강학습" />
+            android:label="보충학습" />
 
         <activity
             android:name=".OutlineFadeActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
-            android:label="목차암기" />
+            android:label="목차학습" />
 
         <service
             android:name=".StudyTtsService"

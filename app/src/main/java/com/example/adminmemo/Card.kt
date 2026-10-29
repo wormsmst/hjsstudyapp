@@ -11,5 +11,6 @@ data class Card(
     val grade: String,
     val front: String,
     val back: String,
-    val mnemonics: List<String>
+    val mnemonics: List<String>,
+    val confuse: String? = null
 )

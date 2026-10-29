@@ -31,7 +31,6 @@ import com.google.android.material.button.MaterialButton
  */
 class QuizSessionActivity : BaseActivity() {
 
-    override val showScratchPad = true
     override val showGeminiFab = true
 
     private enum class QType { CHOICE, ORDER, OX, FILLBLANK, REVERSE, MATCH, KEYWORD, OUTLINE, SENTENCE }
@@ -69,9 +68,9 @@ class QuizSessionActivity : BaseActivity() {
     private val REQ_VOICE = 4201
 
     // ---------- 색상 ----------
-    private val colorCorrect = Color.parseColor("#58CC02")
-    private val colorWrong = Color.parseColor("#FF4B4B")
-    private val colorSelected = Color.parseColor("#DCE9FF")
+    private val colorCorrect by lazy { ContextCompat.getColor(this, R.color.mem_master) }
+    private val colorWrong by lazy { ContextCompat.getColor(this, R.color.stat_delta_down) }
+    private val colorSelected by lazy { ContextCompat.getColor(this, R.color.text_on_header_muted) }
     private val colorWhite = Color.WHITE
 
     override fun onCreate(savedInstanceState: Bundle?) {

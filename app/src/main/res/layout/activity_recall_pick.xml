@@ -48,9 +48,10 @@
                 android:layout_margin="6dp"
                 android:layout_weight="1"
                 android:foreground="?android:attr/selectableItemBackground"
-                app:cardBackgroundColor="@color/tile_outline"
+                app:cardBackgroundColor="@color/recall_pick_one"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="2dp">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="8dp">
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="한 과목" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
                     <TextView
@@ -59,10 +60,13 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:gravity="center"
-                        android:text="이 과목에서 약한 장·새 장을 앱이 골라 줍니다"
                         android:textColor="@color/text_on_tile"
-                        android:textSize="12sp"/>
+                        android:textSize="12sp"
+                        android:visibility="gone"/>
                 </LinearLayout>
+                <include android:id="@+id/tvRecallSubjectBadge" layout="@layout/view_tile_count_badge"/>
+                <include android:id="@+id/tvRecallSubjectCont" layout="@layout/view_tile_continue"/>
+                </FrameLayout>
             </androidx.cardview.widget.CardView>
 
             <androidx.cardview.widget.CardView
@@ -75,10 +79,14 @@
                 app:cardBackgroundColor="@color/tile_today"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="2dp">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="8dp">
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="전 과목" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:text="시험 직전용 · 과목을 섞음" android:textColor="@color/text_on_tile" android:textSize="12sp"/>
+                    <TextView android:id="@+id/tvRecallAllSub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:textColor="@color/text_on_tile" android:textSize="12sp" android:visibility="gone"/>
                 </LinearLayout>
+                <include android:id="@+id/tvRecallAllBadge" layout="@layout/view_tile_count_badge"/>
+                <include android:id="@+id/tvRecallAllCont" layout="@layout/view_tile_continue"/>
+                </FrameLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>
 
@@ -97,10 +105,14 @@
                 app:cardBackgroundColor="@color/tile_exam"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="2dp">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="8dp">
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="1교시만" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:text="민법 + 행정절차론" android:textColor="@color/text_on_tile" android:textSize="12sp"/>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:maxLines="2" android:minLines="2" android:text="1교시" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tvRecallP1Sub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:ellipsize="end" android:gravity="center" android:maxLines="2" android:text="민법 + 행정절차론" android:textColor="@color/text_on_tile" android:textSize="12sp"/>
                 </LinearLayout>
+                <include android:id="@+id/tvRecallP1Badge" layout="@layout/view_tile_count_badge"/>
+                <include android:id="@+id/tvRecallP1Cont" layout="@layout/view_tile_continue"/>
+                </FrameLayout>
             </androidx.cardview.widget.CardView>
 
             <androidx.cardview.widget.CardView
@@ -113,10 +125,14 @@
                 app:cardBackgroundColor="@color/tile_study"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="2dp">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="8dp">
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="2교시만" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:text="사무관리론 + 행정사실무법" android:textColor="@color/text_on_tile" android:textSize="12sp"/>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:maxLines="2" android:minLines="2" android:text="2교시" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tvRecallP2Sub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:ellipsize="end" android:gravity="center" android:maxLines="2" android:text="사무관리론 + 행정사실무법" android:textColor="@color/text_on_tile" android:textSize="12sp"/>
                 </LinearLayout>
+                <include android:id="@+id/tvRecallP2Badge" layout="@layout/view_tile_count_badge"/>
+                <include android:id="@+id/tvRecallP2Cont" layout="@layout/view_tile_continue"/>
+                </FrameLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>
 
@@ -135,10 +151,14 @@
                 app:cardBackgroundColor="@color/tile_quiz"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="2dp">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="8dp">
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="사례 인출" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:text="결론 → 이유 → 목차" android:textColor="@color/text_on_tile" android:textSize="12sp"/>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:maxLines="2" android:minLines="2" android:text="사례 인출" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tvRecallCaseSub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:ellipsize="end" android:gravity="center" android:maxLines="2" android:text="결론 → 이유 → 목차" android:textColor="@color/text_on_tile" android:textSize="12sp"/>
                 </LinearLayout>
+                <include android:id="@+id/tvRecallCaseBadge" layout="@layout/view_tile_count_badge"/>
+                <include android:id="@+id/tvRecallCaseCont" layout="@layout/view_tile_continue"/>
+                </FrameLayout>
             </androidx.cardview.widget.CardView>
 
             <androidx.cardview.widget.CardView
@@ -151,10 +171,14 @@
                 app:cardBackgroundColor="@color/tile_manage"
                 app:cardCornerRadius="20dp"
                 app:cardElevation="2dp">
+                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="8dp">
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="이번 달 미인출" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center" android:text="아직 한 번도 안 쓴 주제" android:textColor="@color/text_on_tile" android:textSize="12sp"/>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:ellipsize="end" android:gravity="center" android:maxLines="2" android:minLines="2" android:text="이번 달 미인출" android:textColor="@color/text_on_tile" android:textSize="20sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tvRecallUnseenSub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:ellipsize="end" android:gravity="center" android:maxLines="2" android:text="아직 한 번도 안 쓴 주제" android:textColor="@color/text_on_tile" android:textSize="12sp"/>
                 </LinearLayout>
+                <include android:id="@+id/tvRecallUnseenBadge" layout="@layout/view_tile_count_badge"/>
+                <include android:id="@+id/tvRecallUnseenCont" layout="@layout/view_tile_continue"/>
+                </FrameLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>
     </LinearLayout>

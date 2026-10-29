@@ -27,7 +27,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="#2962FF"
+                android:textColor="#0D7EF5"
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:text="🎲 미니 퀴즈"/>
@@ -45,7 +45,7 @@
             android:id="@+id/widgetQuizQuestion"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#1A1C1E"
+            android:textColor="#1C1C1E"
             android:textSize="12.5sp"
             android:textStyle="bold"
             android:maxLines="2"
@@ -67,7 +67,7 @@
                 android:layout_marginBottom="4dp"
                 android:textSize="11sp"
                 android:textAllCaps="false"
-                android:textColor="#1A1C1E"
+                android:textColor="#1C1C1E"
                 android:background="@drawable/widget_background"
                 android:text="보기 1"/>
 
@@ -78,7 +78,7 @@
                 android:layout_marginBottom="4dp"
                 android:textSize="11sp"
                 android:textAllCaps="false"
-                android:textColor="#1A1C1E"
+                android:textColor="#1C1C1E"
                 android:background="@drawable/widget_background"
                 android:text="보기 2"/>
 
@@ -88,7 +88,7 @@
                 android:layout_height="36dp"
                 android:textSize="11sp"
                 android:textAllCaps="false"
-                android:textColor="#1A1C1E"
+                android:textColor="#1C1C1E"
                 android:background="@drawable/widget_background"
                 android:text="보기 3"/>
         </LinearLayout>
@@ -99,7 +99,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:gravity="center"
-            android:textColor="#2962FF"
+            android:textColor="#0D7EF5"
             android:textSize="11sp"
             android:textStyle="bold"
             android:padding="4dp"

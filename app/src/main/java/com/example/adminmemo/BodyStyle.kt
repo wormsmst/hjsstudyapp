@@ -6,6 +6,7 @@ import android.text.Layout
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.StaticLayout
+import android.text.TextPaint
 import android.text.style.ForegroundColorSpan
 import android.text.style.LeadingMarginSpan
 import android.text.style.RelativeSizeSpan
@@ -111,38 +112,68 @@ fun buildStyledStudyBody(context: Context, text: String): SpannableStringBuilder
     val lines = text.split("\n")
     val sb = SpannableStringBuilder()
     var currentIndent = 0
+    var currentHang = 0
+    val paint = TextPaint()
+    paint.density = density
+    fun markerHang(re: Regex, source: String, sizeRel: Float, bold: Boolean): Int {
+        val m = re.find(source) ?: return dp(16)
+        paint.textSize = 15f * density * sizeRel
+        paint.typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        return paint.measureText(m.value).toInt().coerceAtLeast(dp(12))
+    }
 
     for (line in lines) {
         val trimmed = line.trimStart()
         val start = sb.length
         var indent = currentIndent
+        var hang = currentHang
         var sizeRel = 1.0f
         var bold = false
         var color: Int? = null
 
         when {
-            trimmed.isBlank() -> indent = 0
+            trimmed.isBlank() -> {
+                indent = 0
+                hang = 0
+            }
             ROMAN_RE.containsMatchIn(trimmed) || MAJOR_RE.containsMatchIn(trimmed) -> {
                 indent = 0; sizeRel = 1.12f; bold = true; color = primaryColor
+                hang = if (ROMAN_RE.containsMatchIn(trimmed)) {
+                    markerHang(ROMAN_RE, trimmed, sizeRel, true)
+                } else {
+                    markerHang(MAJOR_RE, trimmed, sizeRel, true)
+                }
                 currentIndent = 0
+                currentHang = hang
             }
             SUB1_RE.containsMatchIn(trimmed) -> {
                 indent = dp(18); bold = true
+                hang = markerHang(SUB1_RE, trimmed, 1f, true)
                 currentIndent = dp(18)
+                currentHang = hang
             }
             SUB2_RE.containsMatchIn(trimmed) -> {
                 indent = dp(36); sizeRel = 0.97f
+                hang = markerHang(SUB2_RE, trimmed, sizeRel, false)
                 currentIndent = dp(36)
+                currentHang = hang
             }
             CIRCLE_RE.containsMatchIn(trimmed) -> {
                 indent = dp(48); sizeRel = 0.97f
+                hang = markerHang(CIRCLE_RE, trimmed, sizeRel, false)
                 currentIndent = dp(48)
+                currentHang = hang
             }
             DASH_RE.containsMatchIn(trimmed) -> {
                 indent = dp(60); sizeRel = 0.95f
+                hang = markerHang(DASH_RE, trimmed, sizeRel, false)
                 currentIndent = dp(60)
+                currentHang = hang
             }
-            else -> indent = currentIndent
+            else -> {
+                indent = currentIndent + currentHang
+                hang = 0
+            }
         }
 
         sb.append(if (trimmed.isBlank()) "" else trimmed)
@@ -150,7 +181,14 @@ fun buildStyledStudyBody(context: Context, text: String): SpannableStringBuilder
         sb.append("\n")
 
         if (end > start) {
-            sb.setSpan(LeadingMarginSpan.Standard(indent, indent), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+            val first = indent
+            val rest = indent + hang
+            sb.setSpan(
+                LeadingMarginSpan.Standard(first, rest),
+                start,
+                end,
+                Spanned.SPAN_INCLUSIVE_EXCLUSIVE
+            )
             if (sizeRel != 1.0f) sb.setSpan(RelativeSizeSpan(sizeRel), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
             if (bold) sb.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
             if (color != null) sb.setSpan(ForegroundColorSpan(color), start, end, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)

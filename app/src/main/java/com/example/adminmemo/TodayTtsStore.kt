@@ -46,6 +46,15 @@ object TodayTtsStore {
     fun keyOf(c: Calendar): String =
         "${c.get(Calendar.YEAR)}-${c.get(Calendar.MONTH) + 1}-${c.get(Calendar.DAY_OF_MONTH)}"
 
+    fun canonKey(key: String): String {
+        val p = key.trim().split("-")
+        if (p.size < 3) return key.trim()
+        val y = p[0].toIntOrNull() ?: return key.trim()
+        val m = p[1].toIntOrNull() ?: return key.trim()
+        val d = p[2].toIntOrNull() ?: return key.trim()
+        return "$y-$m-$d"
+    }
+
     fun displayDate(key: String, today: String = todayKey()): String {
         val p = key.split("-")
         if (p.size < 3) return key
@@ -67,6 +76,19 @@ object TodayTtsStore {
     private fun nextKey(): String {
         val c = studyCalendar()
         c.add(Calendar.DAY_OF_YEAR, 1)
+        return keyOf(c)
+    }
+
+    fun previousKey(key: String = todayKey()): String {
+        val p = canonKey(key).split("-")
+        if (p.size < 3) return key
+        val y = p[0].toIntOrNull() ?: return key
+        val m = p[1].toIntOrNull() ?: return key
+        val d = p[2].toIntOrNull() ?: return key
+        val c = Calendar.getInstance()
+        c.clear()
+        c.set(y, m - 1, d)
+        c.add(Calendar.DAY_OF_YEAR, -1)
         return keyOf(c)
     }
 

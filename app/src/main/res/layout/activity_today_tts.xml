@@ -234,23 +234,24 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnTodayPlay"
-            style="@style/Widget.AdminMemo.Button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="사연처럼 듣기"/>
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="16dp"
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTodayPlay"
+                style="@style/Widget.AdminMemo.Button.Row"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:text="사연처럼 듣기"/>
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnTodayStop"
-                style="@style/Widget.AdminMemo.Button.Outlined"
+                style="@style/Widget.AdminMemo.Button.Outlined.Row"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="6dp"
@@ -259,10 +260,9 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnTodayReshuffle"
-                style="@style/Widget.AdminMemo.Button.Outlined"
+                style="@style/Widget.AdminMemo.Button.Outlined.Row"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:text="다시 뽑기"/>
         </LinearLayout>

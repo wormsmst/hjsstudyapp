@@ -47,12 +47,12 @@ class CardWidgetProvider : AppWidgetProvider() {
             )
 
             val dark = WidgetLooks.isDarkRgb(rgb)
-            val main = if (dark) Color.WHITE else Color.parseColor("#1A1C1E")
-            val accent = if (dark) Color.parseColor("#8AB4F8") else Color.parseColor("#2F6FED")
+            val main = if (dark) Color.WHITE else Color.parseColor("#1C1C1E")
+            val accent = if (dark) Color.parseColor("#6BB4FF") else Color.parseColor("#0D7EF5")
             views.setTextColor(R.id.widgetTitle, main)
             views.setTextColor(R.id.widgetGrade, if (dark) Color.parseColor("#FFB74D") else Color.parseColor("#C45A00"))
             views.setTextColor(R.id.widgetNext, accent)
-            views.setTextColor(R.id.widgetMemory, if (dark) Color.parseColor("#81C784") else Color.parseColor("#3D9A6E"))
+            views.setTextColor(R.id.widgetMemory, if (dark) Color.parseColor("#4AAA78") else Color.parseColor("#3D9A6E"))
 
             val fontScale = AppPrefs.getWidgetFontScale(context)
             views.setTextViewTextSize(R.id.widgetGrade, TypedValue.COMPLEX_UNIT_SP, 11f * fontScale)

@@ -17,7 +17,7 @@ class StudyWidgetService : RemoteViewsService() {
 class StudyViewsFactory(private val context: Context, intent: Intent) : RemoteViewsService.RemoteViewsFactory {
     private val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
     private var lines: List<String> = emptyList()
-    private var textColor = Color.parseColor("#1A1C1E")
+    private var textColor = Color.parseColor("#1C1C1E")
     private var fontScale = 1f
 
     override fun onCreate() {
@@ -33,7 +33,7 @@ class StudyViewsFactory(private val context: Context, intent: Intent) : RemoteVi
         textColor = if (WidgetLooks.isDarkRgb(AppPrefs.getWidgetColor(context))) {
             Color.WHITE
         } else {
-            Color.parseColor("#1A1C1E")
+            Color.parseColor("#1C1C1E")
         }
         val cards = CardStore.getAllCards(context)
         if (cards.isEmpty()) {

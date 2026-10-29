@@ -1,7 +1,6 @@
 package com.example.adminmemo
 
 import android.content.Intent
-import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -28,7 +27,6 @@ import java.util.Locale
  */
 class ExamSessionActivity : BaseActivity() {
 
-    override val showScratchPad = true
     override val showGeminiFab = true
 
     companion object {
@@ -86,7 +84,7 @@ class ExamSessionActivity : BaseActivity() {
         tvTimer = findViewById(R.id.tvExamTimer)
         tvPace = findViewById(R.id.tvExamPace)
         tvSubtitle = findViewById(R.id.tvExamSubtitle)
-        findViewById<TextView>(R.id.tvExamCoach).text = CoachHints.EXAM
+        bindCoach(R.id.tvExamCoach, "exam", CoachHints.EXAM)
         container = findViewById(R.id.examContainer)
         btnSubmit = findViewById(R.id.btnExamSubmit)
 
@@ -100,20 +98,16 @@ class ExamSessionActivity : BaseActivity() {
             return
         }
         StudyProgressStore.markActivity(this, subject, StudyProgressStore.KIND_EXAM)
-        if (examPeriod == 1) {
-            StudyProgressStore.EXAM1_SUBJECTS.forEach {
-                StudyProgressStore.markActivity(this, it, StudyProgressStore.KIND_EXAM)
-            }
-        } else if (examPeriod == 2) {
-            StudyProgressStore.EXAM2_SUBJECTS.forEach {
+        if (examPeriod == 1 || examPeriod == 2) {
+            StudyProgressStore.periodSubjects(this, examPeriod).forEach {
                 StudyProgressStore.markActivity(this, it, StudyProgressStore.KIND_EXAM)
             }
         }
 
         tvSubtitle.text = when {
             notice.isNotEmpty() -> notice
-            examPeriod == 1 -> "1교시 · 민법+행정절차론 · 종이에 쓰고, 앱은 타이머와 해답만 쓰세요"
-            examPeriod == 2 -> "2교시 · 사무관리론+행정사실무법 · 종이에 쓰고, 앱은 타이머와 해답만 쓰세요"
+            examPeriod == 1 -> "1교시 · ${StudyProgressStore.periodLabel(this, 1)} · 종이에 쓰고, 앱은 타이머와 해답만 쓰세요"
+            examPeriod == 2 -> "2교시 · ${StudyProgressStore.periodLabel(this, 2)} · 종이에 쓰고, 앱은 타이머와 해답만 쓰세요"
             else -> "📚 $subject · 종이에 답안을 쓰고, 앱은 타이머와 해답만 쓰세요"
         }
 
@@ -141,7 +135,7 @@ class ExamSessionActivity : BaseActivity() {
     /** 과목별 출제 규칙에 따라 문제를 구성한다. 반환: (문제 목록, 안내 문구) */
     private fun buildItems(): Pair<List<ExamItem>, String> {
         if (examPeriod == 1 || examPeriod == 2) {
-            val subs = if (examPeriod == 1) StudyProgressStore.EXAM1_SUBJECTS else StudyProgressStore.EXAM2_SUBJECTS
+            val subs = StudyProgressStore.periodSubjects(this, examPeriod)
             val all = mutableListOf<ExamItem>()
             val notes = mutableListOf<String>()
             for (sub in subs) {
@@ -280,7 +274,7 @@ class ExamSessionActivity : BaseActivity() {
             override fun onTick(millisUntilFinished: Long) {
                 val totalSec = millisUntilFinished / 1000
                 tvTimer.text = String.format(Locale.getDefault(), "%02d:%02d", totalSec / 60, totalSec % 60)
-                if (totalSec <= 300) tvTimer.setTextColor(Color.parseColor("#FF4B4B"))
+                if (totalSec <= 300) tvTimer.setTextColor(ContextCompat.getColor(this@ExamSessionActivity, R.color.stat_delta_down))
                 if (!submitted) tvPace.text = paceLine(totalMillis - millisUntilFinished)
             }
 
@@ -319,8 +313,10 @@ class ExamSessionActivity : BaseActivity() {
             val tvAnswer = answerViews[i]
             val btnReveal = Button(this)
             btnReveal.text = "📖 해답 보기"
-            val blp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            blp.topMargin = dp(10)
+            btnReveal.maxLines = 2
+            btnReveal.gravity = Gravity.CENTER
+            val blp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            blp.marginEnd = dp(6)
             btnReveal.layoutParams = blp
             btnReveal.setOnClickListener {
                 if (tvAnswer.visibility == View.VISIBLE) {
@@ -334,15 +330,13 @@ class ExamSessionActivity : BaseActivity() {
                 }
             }
             val parent = tvAnswer.parent as LinearLayout
-            parent.addView(btnReveal, parent.indexOfChild(tvAnswer))
 
             val btnWrong = Button(this)
             btnWrong.text = "오답노트에 넣기"
-            val wlp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            wlp.topMargin = dp(6)
+            btnWrong.maxLines = 2
+            btnWrong.gravity = Gravity.CENTER
+            val wlp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            wlp.marginStart = dp(6)
             btnWrong.layoutParams = wlp
             btnWrong.setOnClickListener {
                 val caseItem = item.caseItem
@@ -360,7 +354,17 @@ class ExamSessionActivity : BaseActivity() {
                 }
                 Toast.makeText(this, "오답노트에 넣었어요", Toast.LENGTH_SHORT).show()
             }
-            parent.addView(btnWrong)
+            val btnRow = LinearLayout(this)
+            btnRow.orientation = LinearLayout.HORIZONTAL
+            val rowLp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            rowLp.topMargin = dp(10)
+            btnRow.layoutParams = rowLp
+            btnRow.addView(btnReveal)
+            btnRow.addView(btnWrong)
+            parent.addView(btnRow, parent.indexOfChild(tvAnswer))
 
             val tvScore = TextView(this)
             tvScore.text = "길게 썼는지는 보지 마세요. 목차와 한 문장이 있었는지만 체크하세요."

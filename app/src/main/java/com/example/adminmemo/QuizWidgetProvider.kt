@@ -13,6 +13,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
 
 class QuizWidgetProvider : AppWidgetProvider() {
 
@@ -103,8 +104,8 @@ class QuizWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widgetChoice3, "③ $choice2")
 
             val defaultFill = Color.parseColor("#15000000")
-            val correctColor = Color.parseColor("#58CC02")
-            val wrongColor = Color.parseColor("#FF4B4B")
+            val correctColor = ContextCompat.getColor(context, R.color.mem_master)
+            val wrongColor = ContextCompat.getColor(context, R.color.stat_delta_down)
 
             fun setButtonColor(viewId: Int, idx: Int) {
                 if (!answered) {

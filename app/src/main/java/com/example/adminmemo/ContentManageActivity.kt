@@ -6,7 +6,6 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -17,16 +16,11 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 
 class ContentManageActivity : BaseActivity() {
 
-    private enum class Tab { CONCEPT, MNEMONIC, UNREGISTERED }
-
     private lateinit var subject: String
     private lateinit var adapter: ContentAdapter
-    private var currentTab = Tab.CONCEPT
     private var query = ""
 
     private var conceptCards: List<Card> = emptyList()
-    private var mnemonicCards: List<Card> = emptyList()
-    private var unregisteredCards: List<Card> = emptyList()
 
     private lateinit var fab: FloatingActionButton
 
@@ -41,10 +35,7 @@ class ContentManageActivity : BaseActivity() {
         adapter = ContentAdapter(
             titleFn = { it.topicTitle },
             subtitleFn = { card ->
-                when (currentTab) {
-                    Tab.MNEMONIC -> "두문자: ${card.mnemonic}"
-                    else -> card.back.take(40).replace("\n", " ")
-                }
+                card.back.take(40).replace("\n", " ")
             },
             onClick = { card -> onRowClick(card) }
         )
@@ -52,7 +43,7 @@ class ContentManageActivity : BaseActivity() {
 
         val touchCallback = object : ItemTouchHelper.SimpleCallback(0, 0) {
             override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
-                return if (currentTab == Tab.CONCEPT && query.isBlank()) {
+                return if (query.isBlank()) {
                     makeMovementFlags(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0)
                 } else {
                     0
@@ -75,41 +66,29 @@ class ContentManageActivity : BaseActivity() {
 
             override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                 super.clearView(recyclerView, viewHolder)
-                if (currentTab == Tab.CONCEPT) {
-                    val newOrder = adapter.currentList().map { it.id }
-                    CardStore.setCustomOrder(this@ContentManageActivity, subject, newOrder)
-                    conceptCards = sortConceptCards(this@ContentManageActivity, conceptCards, subject)
-                }
+                val newOrder = adapter.currentList().map { it.id }
+                CardStore.setCustomOrder(this@ContentManageActivity, subject, newOrder)
+                conceptCards = sortConceptCards(this@ContentManageActivity, conceptCards, subject)
             }
         }
         ItemTouchHelper(touchCallback).attachToRecyclerView(rv)
 
         fab = findViewById(R.id.fabManageAdd)
-        fab.setOnClickListener {
-            when (currentTab) {
-                Tab.CONCEPT -> showAddConceptDialog()
-                Tab.MNEMONIC -> showAddMnemonicDialog(prefillTopic = "")
-                Tab.UNREGISTERED -> {}
-            }
-        }
-
-        findViewById<Button>(R.id.btnTabConcept).setOnClickListener { switchTab(Tab.CONCEPT) }
-        findViewById<Button>(R.id.btnTabMnemonic).setOnClickListener { switchTab(Tab.MNEMONIC) }
-        findViewById<Button>(R.id.btnTabUnregistered).setOnClickListener { switchTab(Tab.UNREGISTERED) }
+        fab.setOnClickListener { showAddConceptDialog() }
 
         findViewById<EditText>(R.id.etManageSearch).addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 query = s?.toString() ?: ""
                 findViewById<TextView>(R.id.tvReorderHint).visibility =
-                    if (currentTab == Tab.CONCEPT && query.isBlank()) View.VISIBLE else View.GONE
+                    if (query.isBlank()) View.VISIBLE else View.GONE
                 refreshList()
             }
             override fun afterTextChanged(s: Editable?) {}
         })
 
         loadData()
-        switchTab(Tab.CONCEPT)
+        refreshList()
     }
 
     override fun onResume() {
@@ -122,31 +101,12 @@ class ContentManageActivity : BaseActivity() {
         val all = CardStore.getAllCards(this).filter { it.subject == subject }
         val rawConcepts = all.filter { it.type == "concept" }
         conceptCards = sortConceptCards(this, rawConcepts, subject)
-        mnemonicCards = all.filter { it.type == "mnemonic" }
-            .sortedWith(
-                compareBy<Card>(
-                    { numSortKey(it.num).first },
-                    { numSortKey(it.num).second }
-                ).thenComparator { a, b -> compareNatural(a.topicTitle, b.topicTitle) }
-            )
-        val mnemonicTopics = mnemonicCards.map { it.topicTitle }.toSet()
-        unregisteredCards = conceptCards.filter { it.topicTitle !in mnemonicTopics }
-    }
-
-    private fun switchTab(tab: Tab) {
-        currentTab = tab
-        fab.visibility = if (tab == Tab.UNREGISTERED) View.GONE else View.VISIBLE
         findViewById<TextView>(R.id.tvReorderHint).visibility =
-            if (tab == Tab.CONCEPT && query.isBlank()) View.VISIBLE else View.GONE
-        refreshList()
+            if (query.isBlank()) View.VISIBLE else View.GONE
     }
 
     private fun refreshList() {
-        val base = when (currentTab) {
-            Tab.CONCEPT -> conceptCards
-            Tab.MNEMONIC -> mnemonicCards
-            Tab.UNREGISTERED -> unregisteredCards
-        }
+        val base = conceptCards
         val q = query.trim()
         val filtered = if (q.isEmpty()) base else base.filter {
             it.topicTitle.contains(q, true) || it.back.contains(q, true) || it.mnemonic.contains(q, true)
@@ -155,11 +115,7 @@ class ContentManageActivity : BaseActivity() {
     }
 
     private fun onRowClick(card: Card) {
-        when (currentTab) {
-            Tab.CONCEPT -> showEditConceptDialog(card)
-            Tab.MNEMONIC -> showEditMnemonicDialog(card)
-            Tab.UNREGISTERED -> showAddMnemonicDialog(prefillTopic = card.topicTitle, sourceCard = card)
-        }
+        showEditConceptDialog(card)
     }
 
     // ---- 새 주제(개념카드) 추가 ----
@@ -167,6 +123,7 @@ class ContentManageActivity : BaseActivity() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_concept, null)
         val etTitle = view.findViewById<EditText>(R.id.etConceptTitle)
         val etBody = view.findViewById<EditText>(R.id.etConceptBody)
+        val etConfuse = view.findViewById<EditText>(R.id.etConceptConfuse)
         view.findViewById<TextView>(R.id.tvExamChance).visibility = View.GONE
 
         AlertDialog.Builder(this)
@@ -175,11 +132,12 @@ class ContentManageActivity : BaseActivity() {
             .setPositiveButton("추가") { _, _ ->
                 val title = etTitle.text.toString().trim()
                 val body = etBody.text.toString().trim()
+                val confuse = etConfuse.text.toString().trim()
                 if (title.isEmpty()) {
                     Toast.makeText(this, "제목을 입력해주세요", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                CardStore.addConceptCard(this, subject, title, body)
+                CardStore.addConceptCard(this, subject, title, body, confuse)
                 loadData(); refreshList()
                 Toast.makeText(this, "새 주제를 추가했어요. 맨 아래에 있어요 — 길게 눌러서 순서를 옮길 수 있어요", Toast.LENGTH_LONG).show()
             }
@@ -192,8 +150,10 @@ class ContentManageActivity : BaseActivity() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_concept, null)
         val etTitle = view.findViewById<EditText>(R.id.etConceptTitle)
         val etBody = view.findViewById<EditText>(R.id.etConceptBody)
+        val etConfuse = view.findViewById<EditText>(R.id.etConceptConfuse)
         etTitle.setText(card.topicTitle)
         etBody.setText(card.back)
+        etConfuse.setText(SimilarTopics.editorText(this, card))
         ExamChanceStore.attachPicker(view.findViewById(R.id.tvExamChance), card.id)
 
         AlertDialog.Builder(this)
@@ -204,11 +164,13 @@ class ContentManageActivity : BaseActivity() {
                 onSave = {
                     val newTitle = etTitle.text.toString().trim().ifEmpty { "(제목없음)" }
                     val newBody = etBody.text.toString().trim()
+                    val newConfuse = etConfuse.text.toString().trim()
                     val updated = card.copy(
                         topicTitle = newTitle,
                         title = "${card.num} $newTitle".trim(),
                         front = if (card.grade.isNotBlank()) "$newTitle\n(${card.grade})" else newTitle,
-                        back = newBody
+                        back = newBody,
+                        confuse = newConfuse
                     )
                     CardStore.updateCard(this, updated)
                     loadData(); refreshList()
@@ -220,82 +182,5 @@ class ContentManageActivity : BaseActivity() {
                     loadData(); refreshList()
                 }
             )
-    }
-
-    // ---- 두문자 편집 ----
-    private fun showEditMnemonicDialog(card: Card) {
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_mnemonic, null)
-        val etTopic = view.findViewById<EditText>(R.id.etTopicTitle)
-        val etMnemonic = view.findViewById<EditText>(R.id.etMnemonic)
-        val etContext = view.findViewById<EditText>(R.id.etContext)
-        etTopic.setText(card.topicTitle)
-        etMnemonic.setText(card.mnemonic)
-        etContext.setText(card.back)
-
-        AlertDialog.Builder(this)
-            .setTitle("두문자 수정")
-            .setView(view)
-            .showWithEditConfirms(
-                this,
-                onSave = {
-                    val topic = etTopic.text.toString().trim().ifEmpty { "(제목없음)" }
-                    val mnemonic = etMnemonic.text.toString().trim()
-                    val ctx = etContext.text.toString().trim()
-                    if (mnemonic.isEmpty()) {
-                        Toast.makeText(this, "두문자를 입력해주세요", Toast.LENGTH_SHORT).show()
-                        false
-                    } else {
-                        val updated = card.copy(
-                            topicTitle = topic,
-                            mnemonic = mnemonic,
-                            title = "두문자: $mnemonic",
-                            front = "[$topic]\n두문자 '$mnemonic' 은(는) 무엇의 앞글자일까?",
-                            back = ctx,
-                            mnemonics = listOf(mnemonic)
-                        )
-                        CardStore.updateCard(this, updated)
-                        loadData(); refreshList()
-                        true
-                    }
-                },
-                onDelete = {
-                    CardStore.deleteCard(this, card.id)
-                    loadData(); refreshList()
-                }
-            )
-    }
-
-    // ---- 새 두문자 추가 (두문자미등록 탭 또는 FAB) ----
-    private fun showAddMnemonicDialog(prefillTopic: String, sourceCard: Card? = null) {
-        val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_mnemonic, null)
-        val etTopic = view.findViewById<EditText>(R.id.etTopicTitle)
-        val etMnemonic = view.findViewById<EditText>(R.id.etMnemonic)
-        val etContext = view.findViewById<EditText>(R.id.etContext)
-        etTopic.setText(prefillTopic)
-        if (sourceCard != null && etContext.text.isBlank()) {
-            // 본문 앞부분을 힌트로 살짝 채워준다
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle(if (prefillTopic.isNotEmpty()) "'$prefillTopic'에 두문자 추가" else "두문자 추가")
-            .setView(view)
-            .setPositiveButton("저장") { _, _ ->
-                val topic = etTopic.text.toString().trim().ifEmpty { "(제목없음)" }
-                val mnemonic = etMnemonic.text.toString().trim()
-                val ctx = etContext.text.toString().trim()
-                if (mnemonic.isEmpty()) {
-                    Toast.makeText(this, "두문자를 입력해주세요", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                CardStore.addMnemonicCard(
-                    this, topicTitle = topic, mnemonic = mnemonic, contextText = ctx,
-                    subject = sourceCard?.subject ?: subject,
-                    num = sourceCard?.num ?: ""
-                )
-                loadData(); refreshList()
-                Toast.makeText(this, "두문자를 추가했어요", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("취소", null)
-            .show()
     }
 }

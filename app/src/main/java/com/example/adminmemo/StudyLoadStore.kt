@@ -9,7 +9,21 @@ private data class StudyLoadBook(
     var cardsPerHalf: Int = 3,
     var minutes: MutableMap<String, Int> = mutableMapOf(),
     var lastMinutes: MutableMap<String, Int> = mutableMapOf(),
+    var complyPct: Int = 100,
+    var recallTarget: Int = 5,
+    var newPerDay: Int? = null,
     var updatedAt: Long = 0L
+)
+
+data class LoadForecast(
+    val topics: Int,
+    val target: Int,
+    val weekPlan: Int,
+    val weekEffective: Int,
+    val remaining: Int,
+    val days: Int?,
+    val doneAt: Long?,
+    val alreadyDone: Boolean
 )
 
 /** 요일별 공부시간(30분 단위)과 30분당 인출 장수. */
@@ -22,6 +36,11 @@ object StudyLoadStore {
     private const val DEFAULT_CARDS = 3
     private const val DEFAULT_WEEKDAY_MIN = 120
     private const val DEFAULT_WEEKEND_MIN = 180
+    private const val DEFAULT_NEW_PER_DAY = 3
+    private const val FORECAST_MAX_DAYS = 3650
+    val COMPLY_PCTS = listOf(50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100)
+    val RECALL_TARGETS = listOf(3, 4, 5, 6, 7, 8, 9, 10)
+    val NEW_PER_DAYS = (0..10).toList()
     private val gson = Gson()
 
     val weekDays = listOf(
@@ -45,6 +64,8 @@ object StudyLoadStore {
             val book = gson.fromJson(json, StudyLoadBook::class.java) ?: StudyLoadBook()
             book.minutes = book.minutes ?: mutableMapOf()
             book.lastMinutes = book.lastMinutes ?: mutableMapOf()
+            book.complyPct = COMPLY_PCTS.find { it == book.complyPct } ?: 100
+            book.recallTarget = RECALL_TARGETS.find { it == book.recallTarget } ?: 5
             book
         } catch (_: Exception) {
             StudyLoadBook()
@@ -161,7 +182,162 @@ object StudyLoadStore {
     fun todayLine(context: Context): String {
         val min = todayMinutes(context)
         if (min <= 0) return "오늘은 휴식일"
-        return "오늘 ${formatMinutes(min)}  ·  인출 ${todayCards(context)}장"
+        return "공부 ${formatMinutes(min)}  ·  인출 ${todayCards(context)}장"
+    }
+
+    fun complyPct(context: Context): Int = read(context).complyPct
+
+    fun setComplyPct(context: Context, pct: Int) {
+        val book = read(context)
+        book.complyPct = COMPLY_PCTS.find { it == pct } ?: 100
+        write(context, book)
+    }
+
+    fun recallTarget(context: Context): Int = read(context).recallTarget
+
+    fun setRecallTarget(context: Context, n: Int) {
+        val book = read(context)
+        book.recallTarget = RECALL_TARGETS.find { it == n } ?: 5
+        write(context, book)
+    }
+
+    fun stepComplyPct(context: Context, dir: Int) {
+        val i = (COMPLY_PCTS.indexOf(complyPct(context)).takeIf { it >= 0 } ?: COMPLY_PCTS.lastIndex) + dir
+        if (i in COMPLY_PCTS.indices) setComplyPct(context, COMPLY_PCTS[i])
+    }
+
+    fun stepRecallTarget(context: Context, dir: Int) {
+        val i = (RECALL_TARGETS.indexOf(recallTarget(context)).takeIf { it >= 0 } ?: 2) + dir
+        if (i in RECALL_TARGETS.indices) setRecallTarget(context, RECALL_TARGETS[i])
+    }
+
+    fun newPerDay(context: Context): Int =
+        (read(context).newPerDay ?: DEFAULT_NEW_PER_DAY).coerceIn(NEW_PER_DAYS.first(), NEW_PER_DAYS.last())
+
+    fun setNewPerDay(context: Context, n: Int) {
+        val book = read(context)
+        book.newPerDay = n.coerceIn(NEW_PER_DAYS.first(), NEW_PER_DAYS.last())
+        write(context, book)
+    }
+
+    fun stepNewPerDay(context: Context, dir: Int) {
+        val i = (NEW_PER_DAYS.indexOf(newPerDay(context)).takeIf { it >= 0 } ?: NEW_PER_DAYS.indexOf(DEFAULT_NEW_PER_DAY)) + dir
+        if (i in NEW_PER_DAYS.indices) setNewPerDay(context, NEW_PER_DAYS[i])
+    }
+
+    fun plannedCardsFor(context: Context, dow: Int): Int {
+        val min = minutesFor(context, dow)
+        if (min <= 0) return 0
+        return (min / STEP_MIN) * cardsPerHalfHour(context)
+    }
+
+    fun effectiveCardsFor(context: Context, dow: Int): Int {
+        val plan = plannedCardsFor(context, dow)
+        if (plan <= 0) return 0
+        return ((plan * complyPct(context) + 50) / 100).coerceIn(1, plan)
+    }
+
+    fun weekPlannedCards(context: Context): Int =
+        weekDays.sumOf { plannedCardsFor(context, it.first) }
+
+    fun weekEffectiveCards(context: Context): Int =
+        weekDays.sumOf { effectiveCardsFor(context, it.first) }
+
+    fun forecast(context: Context): LoadForecast {
+        val target = recallTarget(context)
+        val byTopic = linkedMapOf<String, Int>()
+        for (card in CardStore.getAllCards(context)) {
+            if (card.type != "concept") continue
+            if (card.topicTitle.isBlank() || card.back.isBlank()) continue
+            val key = canonicalizeSubject(card.subject) + "\u0000" + card.topicTitle.trim()
+            val n = RecallStore.recallCount(context, card.id).coerceAtLeast(0)
+            byTopic[key] = maxOf(byTopic[key] ?: 0, n)
+        }
+        val counts = byTopic.values.toIntArray()
+        val remaining = counts.sumOf { (target - it).coerceAtLeast(0) }
+        val weekPlan = weekPlannedCards(context)
+        val weekEff = weekEffectiveCards(context)
+        val topics = byTopic.size
+        if (topics == 0) {
+            return LoadForecast(0, target, weekPlan, weekEff, 0, 0, System.currentTimeMillis(), true)
+        }
+        if (remaining <= 0) {
+            return LoadForecast(topics, target, weekPlan, weekEff, 0, 0, System.currentTimeMillis(), true)
+        }
+        if (weekEff <= 0) {
+            return LoadForecast(topics, target, weekPlan, weekEff, remaining, null, null, false)
+        }
+        val cal = Calendar.getInstance()
+        if (cal.get(Calendar.HOUR_OF_DAY) < TodayTtsStore.STUDY_DAY_ROLL_HOUR) {
+            cal.add(Calendar.DAY_OF_YEAR, -1)
+        }
+        cal.set(Calendar.HOUR_OF_DAY, 12)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        var days = 0
+        val dailyNew = newPerDay(context)
+        while (days < FORECAST_MAX_DAYS) {
+            days++
+            var slots = effectiveCardsFor(context, cal.get(Calendar.DAY_OF_WEEK))
+            val used = mutableSetOf<Int>()
+            var fresh = 0
+            if (slots > 0) {
+                for (i in counts.indices) {
+                    if (fresh >= dailyNew || slots <= 0) break
+                    if (counts[i] != 0) continue
+                    counts[i] = 1
+                    used.add(i)
+                    fresh++
+                    slots--
+                }
+                while (slots > 0) {
+                    var best = -1
+                    var bestCnt = Int.MAX_VALUE
+                    for (i in counts.indices) {
+                        if (i in used) continue
+                        val n = counts[i]
+                        if (n in 1 until target && n < bestCnt) {
+                            best = i
+                            bestCnt = n
+                        }
+                    }
+                    if (best < 0) break
+                    counts[best]++
+                    used.add(best)
+                    slots--
+                }
+            }
+            if (counts.all { it >= target }) {
+                return LoadForecast(topics, target, weekPlan, weekEff, remaining, days, cal.timeInMillis, false)
+            }
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return LoadForecast(topics, target, weekPlan, weekEff, remaining, null, null, false)
+    }
+
+    /** 지금 분량(신규 인출·요일 슬롯)으로 미인출 장이 0이 되기까지 걸리는 날. 계산 불가면 null. */
+    fun daysToOpenUnseen(context: Context, unseen: Int): Int? {
+        if (unseen <= 0) return 0
+        val dailyNew = newPerDay(context)
+        if (dailyNew <= 0 || weekEffectiveCards(context) <= 0) return null
+        val cal = Calendar.getInstance()
+        if (cal.get(Calendar.HOUR_OF_DAY) < TodayTtsStore.STUDY_DAY_ROLL_HOUR) {
+            cal.add(Calendar.DAY_OF_YEAR, -1)
+        }
+        cal.set(Calendar.HOUR_OF_DAY, 12)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        var left = unseen
+        var days = 0
+        while (days < FORECAST_MAX_DAYS && left > 0) {
+            days++
+            val slots = effectiveCardsFor(context, cal.get(Calendar.DAY_OF_WEEK))
+            if (slots > 0) left -= minOf(dailyNew, slots, left)
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return if (left > 0) null else days
     }
 
     fun mergeCloudJson(localJson: String, cloudJson: String): String {

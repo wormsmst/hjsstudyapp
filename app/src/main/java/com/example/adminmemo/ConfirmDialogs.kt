@@ -17,6 +17,30 @@ fun Activity.confirmChoice(message: String, confirmLabel: String, onConfirm: () 
         .show()
 }
 
+/** 다음 장·다음 문제 확인. 제목 없이 문구만, 상자 높이는 20px 낮춘다. */
+fun Activity.confirmAdvance(
+    message: String,
+    confirmLabel: String,
+    cancelLabel: String = "돌아가기",
+    onConfirm: () -> Unit
+) {
+    val dialog = AlertDialog.Builder(this)
+        .setMessage(message)
+        .setPositiveButton(confirmLabel) { _, _ -> onConfirm() }
+        .setNegativeButton(cancelLabel, null)
+        .create()
+    dialog.setOnShowListener {
+        val msg = dialog.findViewById<android.widget.TextView>(android.R.id.message) ?: return@setOnShowListener
+        msg.setPadding(
+            msg.paddingLeft,
+            (msg.paddingTop - 20).coerceAtLeast(0),
+            msg.paddingRight,
+            msg.paddingBottom
+        )
+    }
+    dialog.show()
+}
+
 /** 진행 중인 퀴즈·모의고사에서 뒤로가기를 누르면 나갈지 한 번 더 묻는다. */
 fun androidx.appcompat.app.AppCompatActivity.confirmLeaveOnBack(
     message: String,

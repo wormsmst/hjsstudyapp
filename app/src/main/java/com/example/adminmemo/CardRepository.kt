@@ -10,6 +10,7 @@ object CardRepository {
 
     fun invalidateCache() {
         cache = null
+        CardStore.invalidateMergedCache()
     }
 
     fun loadCards(context: Context): List<Card> {

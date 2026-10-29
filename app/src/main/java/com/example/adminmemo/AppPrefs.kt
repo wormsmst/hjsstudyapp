@@ -22,6 +22,7 @@ object AppPrefs {
     private const val KEY_GEMINI_FAB_Y = "gemini_fab_y"
     private const val KEY_SHOW_ACHIEVE = "show_achieve_pct"
     private const val KEY_SHOW_STABLE = "show_stable_pct"
+    private const val KEY_HOME_TILE_ORDER = "home_tile_order_"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -249,5 +250,21 @@ object AppPrefs {
 
     fun setShowStablePct(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean(KEY_SHOW_STABLE, on).apply()
+    }
+
+    fun coachSeen(context: Context, key: String): Boolean =
+        prefs(context).getBoolean("coach_seen_$key", false)
+
+    fun markCoachSeen(context: Context, key: String) {
+        prefs(context).edit().putBoolean("coach_seen_$key", true).apply()
+    }
+
+    fun getHomeTileOrder(context: Context, tab: String): List<String> {
+        val raw = prefs(context).getString(KEY_HOME_TILE_ORDER + tab, "") ?: ""
+        return raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
+    fun setHomeTileOrder(context: Context, tab: String, names: List<String>) {
+        prefs(context).edit().putString(KEY_HOME_TILE_ORDER + tab, names.joinToString(",")).apply()
     }
 }

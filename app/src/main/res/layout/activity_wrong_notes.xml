@@ -41,8 +41,10 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginEnd="6dp"
+            android:gravity="center"
+            android:maxLines="2"
             android:minHeight="@dimen/btn_min_height"
-            android:text="전체"/>
+            android:text="전과목"/>
 
         <Button
             android:id="@+id/btnWrongToday"
@@ -50,6 +52,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginEnd="6dp"
+            android:gravity="center"
+            android:maxLines="2"
             android:minHeight="@dimen/btn_min_height"
             android:text="오늘"/>
 
@@ -58,6 +62,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:gravity="center"
+            android:maxLines="2"
             android:minHeight="@dimen/btn_min_height"
             android:text="최근순"/>
     </LinearLayout>

@@ -79,10 +79,58 @@ object WrongNoteStore {
     }
 
     fun all(context: Context): List<WrongEntry> =
-        read(context).sortedByDescending { it.lastWrongAt }
+        synced(context).sortedByDescending { it.lastWrongAt }
 
     fun cardIds(context: Context): Set<String> =
-        read(context).filter { it.kind == "card" }.map { it.targetId }.toSet()
+        synced(context).filter { it.kind == "card" }.map { it.targetId }.toSet()
+
+    /** 본문·사례를 고치거나 지운 뒤 오답노트 제목/목록을 맞춘다. */
+    private fun synced(context: Context): MutableList<WrongEntry> {
+        val list = read(context)
+        if (list.isEmpty()) return list
+        val cards = CardStore.getAllCards(context).associateBy { it.id }
+        val cases = MockExamStore.getAll(context).associateBy { it.id }
+        var dirty = false
+        val out = ArrayList<WrongEntry>(list.size)
+        for (e in list) {
+            when (e.kind) {
+                "card" -> {
+                    val card = cards[e.targetId]
+                    if (card == null) {
+                        dirty = true
+                        continue
+                    }
+                    val title = card.topicTitle.ifBlank { card.title }
+                    val subject = canonicalizeSubject(card.subject)
+                    val typeLabel = if (card.type == "mnemonic") "두문자" else "본문"
+                    if (title != e.title || subject != e.subject || typeLabel != e.typeLabel) {
+                        dirty = true
+                        out.add(e.copy(title = title, subject = subject, typeLabel = typeLabel))
+                    } else {
+                        out.add(e)
+                    }
+                }
+                "case" -> {
+                    val item = cases[e.targetId]
+                    if (item == null) {
+                        dirty = true
+                        continue
+                    }
+                    val title = item.title.ifBlank { "사례문제" }
+                    val subject = canonicalizeSubject(item.subject)
+                    if (title != e.title || subject != e.subject) {
+                        dirty = true
+                        out.add(e.copy(title = title, subject = subject, typeLabel = "사례"))
+                    } else {
+                        out.add(e)
+                    }
+                }
+                else -> out.add(e)
+            }
+        }
+        if (dirty) write(context, out)
+        return out
+    }
 
     fun today(context: Context): List<WrongEntry> {
         val start = startOfToday()

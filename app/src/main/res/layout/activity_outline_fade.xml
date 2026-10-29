@@ -22,61 +22,69 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <ScrollView
+        <LinearLayout
+            android:id="@+id/scrollFadeTree"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:fillViewport="true"
+            android:minHeight="220dp"
+            android:orientation="vertical"
             android:padding="16dp">
 
-            <LinearLayout
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                app:cardBackgroundColor="@color/tile_outline"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp">
 
-                <androidx.cardview.widget.CardView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@color/tile_outline"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="0dp">
+                    android:orientation="vertical"
+                    android:padding="20dp">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/tvFadeSubject"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="20dp">
+                        android:textColor="@color/text_on_tile"
+                        android:textSize="13sp"/>
 
-                        <TextView
-                            android:id="@+id/tvFadeSubject"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:textColor="@color/text_on_tile"
-                            android:textSize="13sp"/>
+                    <TextView
+                        android:id="@+id/tvFadeTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:lineSpacingExtra="4dp"
+                        android:textColor="@color/text_on_tile"
+                        android:textSize="22sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-                        <TextView
-                            android:id="@+id/tvFadeTitle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:lineSpacingExtra="4dp"
-                            android:textColor="@color/text_on_tile"
-                            android:textSize="22sp"
-                            android:textStyle="bold"/>
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
+            <include
+                android:id="@+id/tvFadeCoach"
+                layout="@layout/view_coach_pill"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"/>
 
-                <include
-                    android:id="@+id/tvFadeCoach"
-                    layout="@layout/view_coach_pill"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"/>
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/scrollFadeTreeInner"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="12dp"
+                android:clipToPadding="false"
+                android:fillViewport="false"
+                android:minHeight="180dp"
+                android:overScrollMode="ifContentScrolls">
 
                 <HorizontalScrollView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:overScrollMode="ifContentScrolls"
                     android:scrollbars="horizontal">
 
                     <com.example.adminmemo.OutlineTreeView
@@ -84,15 +92,17 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"/>
                 </HorizontalScrollView>
-            </LinearLayout>
-        </ScrollView>
+            </androidx.core.widget.NestedScrollView>
+        </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/layoutFadeRightPage"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="12dp">
 
             <TextView
                 android:id="@+id/tvFadeStep"
@@ -101,56 +111,78 @@
                 android:textColor="@color/text_sub"
                 android:textSize="14sp"/>
 
-            <EditText
-                android:id="@+id/etFadeSentence"
+            <ScrollView
+                android:id="@+id/scrollFadeAnswer"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="8dp"
                 android:layout_weight="1"
                 android:background="@color/bg_card"
-                android:gravity="top"
-                android:hint="제목만 보고 목차와 문장"
-                android:inputType="textMultiLine"
-                android:padding="12dp"
-                android:textColor="@color/text_main"
-                android:textColorHint="@color/text_sub"
-                android:textSize="16sp"
+                android:fillViewport="true"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/tvFadeAnswer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lineSpacingExtra="4dp"
+                    android:padding="12dp"
+                    android:textColor="@color/text_main"
+                    android:textSize="15sp"/>
+            </ScrollView>
+
+            <View
+                android:id="@+id/fadeRightSpacer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="0"
                 android:visibility="gone"/>
 
             <TextView
-                android:id="@+id/tvFadeAnswer"
-                android:layout_width="match_parent"
+                android:id="@+id/tvFadeShowTree"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:lineSpacingExtra="4dp"
-                android:textColor="@color/text_main"
-                android:textSize="15sp"
+                android:layout_marginTop="6dp"
+                android:padding="4dp"
+                android:text="목차 다시"
+                android:textColor="@color/primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
                 android:visibility="gone"/>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnFadeReveal"
-                style="@style/Widget.AdminMemo.Button"
+            <LinearLayout
+                android:id="@+id/layoutFadeButtons"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="한 단계 열기"/>
+                android:orientation="horizontal">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnFadeCheck"
-                style="@style/Widget.AdminMemo.Button.Outlined"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="대조"
-                android:visibility="gone"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnFadeReveal"
+                    style="@style/Widget.AdminMemo.Button.Row"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="한 단계 열기"/>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnFadeNext"
-                style="@style/Widget.AdminMemo.Button.Outlined"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="다음 장"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnFadeCheck"
+                    style="@style/Widget.AdminMemo.Button.Outlined"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="대조"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnFadeNext"
+                    style="@style/Widget.AdminMemo.Button.Outlined"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="다음 장"/>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

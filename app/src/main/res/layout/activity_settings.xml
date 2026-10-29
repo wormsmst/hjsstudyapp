@@ -31,57 +31,97 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="☁️ Google 계정 · Firebase 동기화"
-        android:textColor="@color/text_main"
-        android:textStyle="bold"
-        android:textSize="15sp"
-        android:layout_marginBottom="6dp"/>
-
-    <TextView
-        android:id="@+id/tvAccountStatus"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="로그인되어 있지 않아요"
-        android:textColor="@color/text_sub"
-        android:textSize="13sp"
-        android:layout_marginBottom="10dp"/>
+        android:layout_marginBottom="10dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-    <Button
-        android:id="@+id/btnGoogleLogin"
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="3"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="☁️ Google 계정 · Firebase 동기화"
+                android:textColor="@color/text_main"
+                android:textStyle="bold"
+                android:textSize="15sp"
+                android:layout_marginBottom="6dp"/>
+
+            <TextView
+                android:id="@+id/tvAccountStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="로그인되어 있지 않아요"
+                android:textColor="@color/text_sub"
+                android:textSize="13sp"/>
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/layoutAccountAuthBtn"
+            android:layout_width="0dp"
+            android:layout_height="156dp"
+            android:layout_weight="1">
+
+            <Button
+                android:id="@+id/btnGoogleLogin"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:maxLines="2"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:text="Google로 로그인"
+                android:textSize="13sp"/>
+
+            <Button
+                android:id="@+id/btnGoogleLogout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:maxLines="2"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:text="로그아웃"
+                android:textSize="13sp"
+                android:visibility="gone"/>
+        </FrameLayout>
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="@dimen/btn_min_height"
-        android:text="Google로 로그인"/>
-
-    <Button
-        android:id="@+id/btnGoogleLogout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="@dimen/btn_min_height"
         android:layout_marginTop="6dp"
-        android:visibility="gone"
-        android:text="로그아웃"/>
+        android:orientation="horizontal">
 
-    <Button
-        android:id="@+id/btnContentPush"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="@dimen/btn_min_height"
-        android:layout_marginTop="6dp"
-        android:visibility="gone"
-        android:text="본문 클라우드에 올리기"/>
+        <Button
+            android:id="@+id/btnContentPush"
+            android:layout_width="0dp"
+            android:layout_height="156dp"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:maxLines="2"
+            android:text="본문 클라우드에 올리기"
+            android:visibility="gone"/>
 
-    <Button
-        android:id="@+id/btnContentPull"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="@dimen/btn_min_height"
-        android:layout_marginTop="6dp"
-        android:visibility="gone"
-        android:text="본문 클라우드에서 받기"/>
+        <Button
+            android:id="@+id/btnContentPull"
+            android:layout_width="0dp"
+            android:layout_height="156dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:maxLines="2"
+            android:text="본문 클라우드에서 받기"
+            android:visibility="gone"/>
+    </LinearLayout>
 
     <ProgressBar
         android:id="@+id/progressAccount"
@@ -204,7 +244,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="둘 다 켜도 됩니다. 달성도는 모든 장의 암기정도를 5칸까지 채운 비율이고, 아직 인출하지 않은 장은 0입니다. 안정권은 암기정도 4칸 이상인 장의 비율입니다."
+        android:text="둘 다 켜도 됩니다. 달성도는 인출학습으로 5회 이상 풀어 본 장의 비율입니다. 안정권은 암기정도 4칸 이상인 장의 비율입니다."
         android:textColor="@color/text_sub"
         android:textSize="11sp"
         android:layout_marginBottom="8dp"/>
@@ -214,7 +254,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:minHeight="@dimen/btn_min_height"
-        android:text="달성도"/>
+        android:text="달성"/>
 
     <CheckBox
         android:id="@+id/cbShowStable"
@@ -222,7 +262,7 @@
         android:layout_height="wrap_content"
         android:minHeight="@dimen/btn_min_height"
         android:layout_marginBottom="20dp"
-        android:text="안정권"/>
+        android:text="안정"/>
 
     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22808080" android:layout_marginBottom="20dp"/>
 
@@ -238,15 +278,15 @@
         android:id="@+id/rgTheme"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:layout_marginBottom="28dp">
 
-        <RadioButton android:id="@+id/rbThemeSystem" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:text="🌓 시스템"/>
-        <RadioButton android:id="@+id/rbThemeLight" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:text="☀️ 라이트"/>
-        <RadioButton android:id="@+id/rbThemeDark" android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:text="🌙 다크"/>
+        <RadioButton android:id="@+id/rbThemeSystem" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:minHeight="@dimen/btn_min_height" android:text="🌓 시스템"/>
+        <RadioButton android:id="@+id/rbThemeLight" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:minHeight="@dimen/btn_min_height" android:text="☀️ 라이트"/>
+        <RadioButton android:id="@+id/rbThemeDark" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:minHeight="@dimen/btn_min_height" android:text="🌙 다크"/>
     </RadioGroup>
 
     <TextView
@@ -378,7 +418,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:text="미리보기"
-                android:textColor="#1A1C1E"
+                android:textColor="#1C1C1E"
                 android:textSize="13sp"/>
         </FrameLayout>
     </androidx.cardview.widget.CardView>

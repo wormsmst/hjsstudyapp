@@ -1,19 +1,33 @@
 package com.example.adminmemo
 
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 
 class ProgressActivity : BaseActivity() {
 
+    private var weekShift = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_progress)
+        findViewById<TextView>(R.id.btnWeekOlder).setOnClickListener {
+            if (weekShift >= StudyWeekStore.MAX_SHIFT) return@setOnClickListener
+            weekShift = (weekShift + StudyWeekStore.STEP).coerceAtMost(StudyWeekStore.MAX_SHIFT)
+            bindWeeks()
+        }
+        findViewById<TextView>(R.id.btnWeekNewer).setOnClickListener {
+            if (weekShift <= 0) return@setOnClickListener
+            weekShift = (weekShift - StudyWeekStore.STEP).coerceAtLeast(0)
+            bindWeeks()
+        }
         bind()
     }
 
@@ -29,120 +43,72 @@ class ProgressActivity : BaseActivity() {
     }
 
     private fun bind() {
-        val today = DailyQuestStore.gradedToday(this)
-        val goal = StudyProgressStore.dailyGoal(this)
-        val openQ = DailyQuestStore.openQuests(this).size
-        findViewById<TextView>(R.id.tvProgressToday).text =
-            if (openQ > 0) "오늘 인출 ${today}장  /  목표 ${goal}장  ·  퀘스트 ${openQ}개 남음"
-            else "오늘 인출 ${today}장  /  목표 ${goal}장"
-        val pb = findViewById<ProgressBar>(R.id.pbTodayGoal)
-        pb.max = 100
-        pb.progress = if (goal <= 0) 0 else (today * 100 / goal).coerceAtMost(100)
-
-        val last = StudyProgressStore.lastAt(this)
-        val topicN = StudyProgressStore.todayTopicCount(this)
-        findViewById<TextView>(R.id.tvProgressLast).text = when {
-            last > 0L -> "마지막 학습  ${DateFormatters.dateTime(last)}"
-            today > 0 || topicN > 0 -> "오늘 학습 기록이 있어요"
-            else -> "아직 학습 기록이 없어요"
-        }
-        findViewById<TextView>(R.id.tvProgressPace).text = StudyProgressStore.paceLine(this)
-        val masteryLine = StudyProgressStore.masteryLine(this)
-        val tvMastery = findViewById<TextView>(R.id.tvProgressMastery)
-        val tvHint = findViewById<TextView>(R.id.tvProgressMasteryHint)
-        if (masteryLine.isBlank()) {
-            tvMastery.visibility = View.GONE
-            tvHint.visibility = View.GONE
-        } else {
-            tvMastery.visibility = View.VISIBLE
-            tvMastery.text = masteryLine
-            val hint = StudyProgressStore.masteryHint(this)
-            tvHint.visibility = if (hint.isBlank()) View.GONE else View.VISIBLE
-            tvHint.text = hint
-        }
-        bindWeek()
-
-        val exams = StudyProgressStore.examLogs(this).takeLast(3).reversed()
-        findViewById<TextView>(R.id.tvRecentExams).text =
-            if (exams.isEmpty()) "모의고사 기록이 아직 없어요"
-            else "최근 모의고사  " + exams.joinToString("  ·  ") {
-                "${it.subject} ${DateFormatters.dateTime(it.at)}"
-            }
-
+        findViewById<TextView>(R.id.tvProgressUnseenPace).text =
+            StudyProgressStore.unseenLoadLine(this)
+        bindShareLegend()
         val box = findViewById<LinearLayout>(R.id.layoutSubjectBars)
         box.removeAllViews()
         StudyProgressStore.subjectBars(this).forEach { bar ->
             box.addView(makeBar(bar))
         }
-
-        val weakBox = findViewById<LinearLayout>(R.id.layoutWeakTopics)
-        weakBox.removeAllViews()
-        val weak = StudyProgressStore.weakTopics(this)
-        val empty = findViewById<TextView>(R.id.tvWeakEmpty)
-        if (weak.isEmpty()) {
-            empty.visibility = View.VISIBLE
-            empty.text = "인출에서 막힌 약점 주제가 없어요"
-        } else {
-            empty.visibility = View.GONE
-            weak.forEach { topic ->
-                weakBox.addView(makeWeakRow(topic))
-            }
-        }
+        bindWeeks()
     }
 
-    private fun bindWeek() {
-        val box = findViewById<LinearLayout>(R.id.layoutWeekCal)
+    private fun bindWeeks() {
+        val box = findViewById<LinearLayout>(R.id.layoutWeekStats)
         box.removeAllViews()
-        val d = resources.displayMetrics.density
-        val flags = StudyProgressStore.last7Flags(this)
-        val labels = StudyProgressStore.weekDayLabels()
-        val todayIdx = flags.lastIndex
-        flags.forEachIndexed { i, day ->
-            val cell = LinearLayout(this)
-            cell.orientation = LinearLayout.VERTICAL
-            cell.gravity = android.view.Gravity.CENTER_HORIZONTAL
-            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            cell.layoutParams = lp
-            val pad = (4 * d).toInt()
-            cell.setPadding(pad / 2, pad, pad / 2, pad)
-
-            val wd = TextView(this)
-            wd.text = labels.getOrNull(i) ?: ""
-            wd.textSize = 12f
-            wd.gravity = android.view.Gravity.CENTER
-            wd.setTextColor(
-                ContextCompat.getColor(
-                    this,
-                    if (i == todayIdx) R.color.primary else R.color.text_sub
-                )
-            )
-            wd.setTypeface(wd.typeface, android.graphics.Typeface.BOLD)
-
-            val marks = TextView(this)
-            val bits = buildList {
-                if (day.study) add("본")
-                if (day.quiz) add("인")
-                if (day.exam) add("모")
-            }
-            marks.text = bits.joinToString(" ").ifBlank { "·" }
-            marks.textSize = 11f
-            marks.gravity = android.view.Gravity.CENTER
-            marks.setTextColor(
-                ContextCompat.getColor(
-                    this,
-                    if (bits.isEmpty()) R.color.text_sub else R.color.text_main
-                )
-            )
-            val mlp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            mlp.topMargin = (4 * d).toInt()
-            marks.layoutParams = mlp
-            cell.addView(wd)
-            cell.addView(marks)
-            box.addView(cell)
+        StudyWeekStore.window(this, weekShift).forEach { stat ->
+            box.addView(makeWeekRow(stat))
         }
+        val newer = findViewById<TextView>(R.id.btnWeekNewer)
+        val older = findViewById<TextView>(R.id.btnWeekOlder)
+        val canNewer = weekShift > 0
+        val canOlder = weekShift < StudyWeekStore.MAX_SHIFT
+        newer.isEnabled = canNewer
+        newer.alpha = if (canNewer) 1f else 0.35f
+        older.isEnabled = canOlder
+        older.alpha = if (canOlder) 1f else 0.35f
+    }
+
+    private fun makeWeekRow(stat: WeekStudyStat): CardView {
+        val d = resources.displayMetrics.density
+        val cv = CardView(this)
+        val lp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        lp.bottomMargin = (8 * d).toInt()
+        cv.layoutParams = lp
+        cv.radius = 14 * d
+        cv.cardElevation = 1 * d
+        cv.setCardBackgroundColor(ContextCompat.getColor(this, R.color.bg_card))
+
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+        val pad = (14 * d).toInt()
+        col.setPadding(pad, pad, pad, pad)
+
+        val title = TextView(this)
+        title.text = if (stat.isCurrent) "${stat.rangeLabel}  이번 주" else stat.rangeLabel
+        title.setTextColor(ContextCompat.getColor(this, R.color.text_main))
+        title.textSize = 14f
+        title.setTypeface(title.typeface, android.graphics.Typeface.BOLD)
+
+        val meta = TextView(this)
+        meta.text = "인출 ${stat.recalled}장  ·  신규 ${stat.news}장  ·  사례 ${stat.cases}회  ·  모의 ${stat.exams}회"
+        meta.setTextColor(ContextCompat.getColor(this, R.color.text_sub))
+        meta.textSize = 13f
+        val mlp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        mlp.topMargin = (4 * d).toInt()
+        meta.layoutParams = mlp
+
+        col.addView(title)
+        col.addView(meta)
+        cv.addView(col)
+        return cv
     }
 
     private fun makeBar(bar: StudyProgressStore.SubjectBar): CardView {
@@ -175,40 +141,37 @@ class ProgressActivity : BaseActivity() {
         title.textSize = 16f
         title.setTypeface(title.typeface, android.graphics.Typeface.BOLD)
 
-        val sub = TextView(this)
-        val subjectCards = CardStore.getAllCards(this).filter {
-            it.type == "concept" &&
-                canonicalizeSubject(it.subject) == bar.subject &&
-                it.topicTitle.isNotBlank()
-        }
-        sub.text = "아직 안 함 ${bar.unseen} · 약함 ${bar.weak} · 보통 ${bar.mid} · 잘 됨 ${bar.master}" +
-            StudyProgressStore.subjectMasterySuffix(this, bar) +
-            "  ·  " + ReadPassStore.averageLabel(this, subjectCards)
-        sub.setTextColor(ContextCompat.getColor(this, R.color.text_sub))
-        sub.textSize = 13f
-        val slp = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        slp.topMargin = (4 * d).toInt()
-        slp.bottomMargin = (8 * d).toInt()
-        sub.layoutParams = slp
-
         val stack = LinearLayout(this)
         stack.orientation = LinearLayout.HORIZONTAL
-        val h = (10 * d).toInt()
-        stack.layoutParams = LinearLayout.LayoutParams(
+        val h = (32 * d).toInt()
+        val slp = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             h
         )
+        slp.topMargin = (10 * d).toInt()
+        stack.layoutParams = slp
         stack.weightSum = bar.total.coerceAtLeast(1).toFloat()
         fun seg(n: Int, color: Int) {
             if (n <= 0) return
-            val v = View(this)
-            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, n.toFloat())
-            v.layoutParams = lp
-            v.setBackgroundColor(ContextCompat.getColor(this, color))
-            stack.addView(v)
+            val cell = FrameLayout(this)
+            cell.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, n.toFloat())
+            cell.setBackgroundColor(ContextCompat.getColor(this, color))
+            val pct = bar.share(n)
+            if (pct > 0) {
+                val tv = TextView(this)
+                tv.layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                tv.gravity = Gravity.CENTER
+                tv.includeFontPadding = false
+                tv.maxLines = 1
+                tv.text = "$pct%"
+                tv.textSize = 11f
+                tv.setTextColor(0xFFFFFFFF.toInt())
+                cell.addView(tv)
+            }
+            stack.addView(cell)
         }
         if (bar.total == 0) {
             val v = View(this)
@@ -219,54 +182,61 @@ class ProgressActivity : BaseActivity() {
             v.setBackgroundColor(ContextCompat.getColor(this, R.color.mem_unseen))
             stack.addView(v)
         } else {
-            seg(bar.unseen, R.color.mem_unseen)
-            seg(bar.weak, R.color.mem_weak)
-            seg(bar.mid, R.color.mem_mid)
             seg(bar.master, R.color.mem_master)
+            seg(bar.mid, R.color.mem_mid)
+            seg(bar.weak, R.color.mem_weak)
+            seg(bar.unseen, R.color.mem_unseen)
         }
         col.addView(title)
-        col.addView(sub)
         col.addView(stack)
         cv.addView(col)
         return cv
     }
 
-    private fun makeWeakRow(topic: WeakTopic): CardView {
+    private fun colorChip(color: Int, d: Float): View {
+        val v = View(this)
+        val size = (12 * d).toInt()
+        v.layoutParams = LinearLayout.LayoutParams(size, size)
+        val g = GradientDrawable()
+        g.shape = GradientDrawable.RECTANGLE
+        g.cornerRadius = 3 * d
+        g.setColor(ContextCompat.getColor(this, color))
+        v.background = g
+        return v
+    }
+
+    private fun bindShareLegend() {
+        val host = findViewById<LinearLayout>(R.id.layoutShareLegend)
+        if (host.childCount > 0) return
+        host.orientation = LinearLayout.VERTICAL
         val d = resources.displayMetrics.density
-        val cv = CardView(this)
-        val lp = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
+        val items = listOf(
+            R.color.mem_master to "잘 됨",
+            R.color.mem_mid to "보통",
+            R.color.mem_weak to "약함",
+            R.color.mem_unseen to "아직 안 함"
         )
-        lp.bottomMargin = (8 * d).toInt()
-        cv.layoutParams = lp
-        cv.radius = 14 * d
-        cv.cardElevation = 1 * d
-        cv.setCardBackgroundColor(ContextCompat.getColor(this, R.color.bg_card))
-        cv.setOnClickListener {
-            val card = CardStore.getAllCards(this).firstOrNull { it.id == topic.cardId } ?: return@setOnClickListener
-            launchConceptDetail(this, card)
+        items.chunked(2).forEach { pair ->
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.gravity = Gravity.CENTER_VERTICAL
+            pair.forEach { (color, label) ->
+                val chip = colorChip(color, d)
+                (chip.layoutParams as LinearLayout.LayoutParams).marginEnd = (6 * d).toInt()
+                val tv = TextView(this)
+                tv.text = label
+                tv.textSize = 12f
+                tv.setTextColor(ContextCompat.getColor(this, R.color.text_sub))
+                val tlp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                tlp.marginEnd = (16 * d).toInt()
+                tv.layoutParams = tlp
+                row.addView(chip)
+                row.addView(tv)
+            }
+            host.addView(row)
         }
-
-        val row = LinearLayout(this)
-        row.orientation = LinearLayout.HORIZONTAL
-        row.gravity = android.view.Gravity.CENTER_VERTICAL
-        val pad = (14 * d).toInt()
-        row.setPadding(pad, pad, pad, pad)
-
-        val title = TextView(this)
-        title.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        title.text = topic.topicTitle
-        title.setTextColor(ContextCompat.getColor(this, R.color.text_main))
-        title.textSize = 15f
-
-        val meta = TextView(this)
-        meta.text = "${topic.subject}  ${CardStore.memoryStarsLabel(topic.memory)}  ${topic.recallCount}/${topic.target}"
-        meta.setTextColor(ContextCompat.getColor(this, R.color.accent))
-        meta.textSize = 13f
-        row.addView(title)
-        row.addView(meta)
-        cv.addView(row)
-        return cv
     }
 }

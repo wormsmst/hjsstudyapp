@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom|end"
+    android:layout_margin="10dp"
+    android:background="@drawable/bg_recommend_badge"
+    android:includeFontPadding="false"
+    android:paddingStart="8dp"
+    android:paddingTop="3dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="3dp"
+    android:text="계속하기"
+    android:textColor="#5A3E08"
+    android:textSize="@dimen/text_aux"
+    android:textStyle="bold"
+    android:visibility="gone"/>

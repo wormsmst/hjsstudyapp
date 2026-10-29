@@ -35,6 +35,8 @@ fun outlineMarkerOf(line: String): String {
     return "□"
 }
 
+fun outlineDepthOf(line: String): Int = outlineLevelOf(line.trim()) ?: 0
+
 private fun outlineLevelOf(line: String): Int? = when {
     OUTLINE_MAJOR_RE.containsMatchIn(line) || OUTLINE_ROMAN_RE.containsMatchIn(line) -> 0
     OUTLINE_SUB1_RE.containsMatchIn(line) -> 1
@@ -191,7 +193,9 @@ data class RecallCheckItem(
     val heading: String,
     val keys: List<String>,
     val peekText: String = "",
-    val allowGap: Boolean = true
+    val allowGap: Boolean = true,
+    val level: Int = 0,
+    val descendantCount: Int = 0
 )
 
 private val KEY_STOP = setOf(
@@ -400,6 +404,9 @@ private fun spacedGenericHead(word: String): String {
     return word.dropLast(head.length) + " " + head
 }
 
+fun hasOutlineTree(text: String): Boolean =
+    parseOutline(text).any { it.level >= 0 }
+
 fun outlineDepth(roots: List<OutlineNode>): Int {
     var depth = -1
     fun walk(node: OutlineNode) {
@@ -497,18 +504,32 @@ fun outlineRecallItems(card: Card): List<RecallCheckItem> {
                 heading,
                 listOf(hint),
                 clipPeek(nodePeekText(node)),
-                allowGap = hasBody
+                allowGap = hasBody,
+                level = node.level
             )
         )
-        kids.take(8).forEach(::add)
+        kids.forEach(::add)
     }
     roots.forEach(::add)
     if (out.isEmpty() && card.mnemonic.isNotBlank()) {
         val mnemo = card.mnemonic.trim()
         out.add(RecallCheckItem("두문자  $mnemo", listOf(mnemo), clipPeek(mnemo)))
     }
-    return out.distinctBy { it.heading }.take(18)
+    return attachDescendantCounts(
+        out.distinctBy { "${it.level}\u0000${it.heading}" }.take(30)
+    )
 }
+
+private fun attachDescendantCounts(items: List<RecallCheckItem>): List<RecallCheckItem> =
+    items.mapIndexed { i, item ->
+        var n = 0
+        var j = i + 1
+        while (j < items.size && items[j].level > item.level) {
+            n++
+            j++
+        }
+        item.copy(descendantCount = n)
+    }
 
 fun caseRecallItemChunks(card: Card): List<List<RecallCheckItem>> {
     return caseRecallStages(card).map { stage ->

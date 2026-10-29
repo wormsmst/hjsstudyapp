@@ -19,130 +19,96 @@
             android:textSize="22sp"
             android:textStyle="bold"/>
 
-        <TextView
-            android:id="@+id/tvProgressToday"
+        <LinearLayout
+            android:id="@+id/rowWeekNav"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:textColor="@color/text_main"
-            android:textSize="16sp"/>
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <ProgressBar
-            android:id="@+id/pbTodayGoal"
-            style="@android:style/Widget.ProgressBar.Horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="12dp"
-            android:layout_marginTop="8dp"
-            android:max="100"/>
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="주간 학습량"
+                android:textColor="@color/text_main"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
 
-        <TextView
-            android:id="@+id/tvProgressLast"
+            <TextView
+                android:id="@+id/btnWeekOlder"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="18dp"
+                android:background="@drawable/bg_week_nav_btn"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:minHeight="@dimen/btn_min_height"
+                android:minWidth="76dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="이전"
+                android:textColor="@color/text_on_header"
+                android:textSize="15sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/btnWeekNewer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_week_nav_btn"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:minHeight="@dimen/btn_min_height"
+                android:minWidth="76dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="다음"
+                android:textColor="@color/text_on_header"
+                android:textSize="15sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layoutWeekStats"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:textColor="@color/text_sub"
-            android:textSize="14sp"/>
-
-        <TextView
-            android:id="@+id/tvProgressPace"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:lineSpacingExtra="4dp"
-            android:textColor="@color/text_main"
-            android:textSize="15sp"/>
+            android:layout_marginTop="10dp"
+            android:orientation="vertical"/>
 
         <TextView
             android:id="@+id/tvProgressMastery"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="16dp"
+            android:text="과목별 암기 비중"
             android:textColor="@color/text_main"
             android:textSize="16sp"
-            android:textStyle="bold"
-            android:visibility="gone"/>
-
-        <TextView
-            android:id="@+id/tvProgressMasteryHint"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:lineSpacingExtra="3dp"
-            android:textColor="@color/text_sub"
-            android:textSize="12sp"
-            android:visibility="gone"/>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="최근 7일"
-            android:textColor="@color/text_main"
-            android:textSize="17sp"
             android:textStyle="bold"/>
 
-        <LinearLayout
-            android:id="@+id/layoutWeekCal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal"/>
-
         <TextView
-            android:id="@+id/tvWeekHint"
+            android:id="@+id/tvProgressUnseenPace"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="본=본문·목차  인=인출  모=모의고사"/>
+            android:layout_marginTop="6dp"
+            android:lineSpacingExtra="3dp"
             android:textColor="@color/text_sub"
-            android:textSize="12sp"/>
-
-        <TextView
-            android:id="@+id/tvRecentExams"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:textColor="@color/text_sub"
-            android:textSize="14sp"/>
+            android:textSize="13sp"/>
 
         <LinearLayout
             android:id="@+id/layoutSubjectBars"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="12dp"
             android:orientation="vertical"/>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="회색 아직 안 함 · 주황 약함 · 파랑 보통 · 초록 잘 됨"
-            android:textColor="@color/text_sub"
-            android:textSize="12sp"/>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="약점 주제"
-            android:textColor="@color/text_main"
-            android:textSize="17sp"
-            android:textStyle="bold"/>
-
-        <TextView
-            android:id="@+id/tvWeakEmpty"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:textColor="@color/text_sub"
-            android:textSize="14sp"
-            android:visibility="gone"/>
-
         <LinearLayout
-            android:id="@+id/layoutWeakTopics"
+            android:id="@+id/layoutShareLegend"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
             android:orientation="vertical"/>
     </LinearLayout>
 </ScrollView>

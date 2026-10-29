@@ -32,13 +32,7 @@ open class BaseActivity : AppCompatActivity() {
         private const val KEEP_SCREEN_MS = 15 * 60 * 1000L
     }
 
-    protected open val showScratchPad = false
-    protected open val scratchPadInToolbar = false
     protected open val showGeminiFab = false
-    private var scratchHost: View? = null
-    private var scratchExpanded = false
-    private var scratchW = 0
-    private var scratchH = 0
     private val keepScreenHandler = Handler(Looper.getMainLooper())
     private val releaseKeepScreen = Runnable {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -145,19 +139,16 @@ open class BaseActivity : AppCompatActivity() {
 
     override fun setContentView(layoutResID: Int) {
         super.setContentView(layoutResID)
-        attachScratchPad()
         attachGeminiFab()
     }
 
     override fun setContentView(view: View?) {
         super.setContentView(view)
-        attachScratchPad()
         attachGeminiFab()
     }
 
     override fun setContentView(view: View?, params: ViewGroup.LayoutParams?) {
         super.setContentView(view, params)
-        attachScratchPad()
         attachGeminiFab()
     }
 
@@ -200,7 +191,8 @@ open class BaseActivity : AppCompatActivity() {
         val maxX = (parent.width - fab.width).toFloat().coerceAtLeast(0f)
         val maxY = (parent.height - fab.height).toFloat().coerceAtLeast(0f)
         fab.translationX = if (savedX >= 0f) savedX.coerceIn(0f, maxX) else (maxX - m).coerceAtLeast(0f)
-        fab.translationY = if (savedY >= 0f) savedY.coerceIn(0f, maxY) else (maxY - m).coerceAtLeast(0f)
+        val defaultY = (maxY - 96 * d).coerceAtLeast(0f)
+        fab.translationY = if (savedY >= 0f) savedY.coerceIn(0f, maxY) else defaultY
     }
 
     private fun bindGeminiArmed() {
@@ -237,7 +229,7 @@ open class BaseActivity : AppCompatActivity() {
             clearFocus()
         }
         panel.findViewById<EditText>(R.id.etGeminiQuestion).apply {
-            setText(if (selected.trim().isEmpty()) "" else "이게 무슨 뜻이야?")
+            setText(if (selected.trim().isEmpty()) "" else "의의, 상세설명, 예시를 알려 주세요.")
             clearFocus()
         }
         panel.findViewById<TextView>(R.id.tvGeminiAnswer).text = ""
@@ -350,6 +342,16 @@ open class BaseActivity : AppCompatActivity() {
     private fun bindGeminiPanel(panel: View) {
         panel.findViewById<View>(R.id.tvGeminiDragHandle).setOnTouchListener(geminiPanelDragListener(panel))
         panel.findViewById<View>(R.id.btnGeminiClose).setOnClickListener { hideGeminiPanel() }
+        val etQuestion = panel.findViewById<EditText>(R.id.etGeminiQuestion)
+        panel.findViewById<View>(R.id.btnGeminiQMeaning).setOnClickListener {
+            etQuestion.setText("의의를 알려 주세요.")
+        }
+        panel.findViewById<View>(R.id.btnGeminiQDetail).setOnClickListener {
+            etQuestion.setText("상세설명을 알려 주세요.")
+        }
+        panel.findViewById<View>(R.id.btnGeminiQExample).setOnClickListener {
+            etQuestion.setText("예시를 알려 주세요.")
+        }
         panel.findViewById<View>(R.id.btnGeminiAsk).setOnClickListener {
             val etSelected = panel.findViewById<EditText>(R.id.etGeminiSelected)
             val etQuestion = panel.findViewById<EditText>(R.id.etGeminiQuestion)
@@ -443,17 +445,24 @@ open class BaseActivity : AppCompatActivity() {
         walk(root)
     }
 
+    protected fun bindCoach(viewId: Int, key: String, text: String) {
+        val tv = findViewById<android.widget.TextView>(viewId) ?: return
+        if (text.isBlank() || AppPrefs.coachSeen(this, key)) {
+            tv.visibility = android.view.View.GONE
+            return
+        }
+        tv.visibility = android.view.View.VISIBLE
+        tv.text = text
+        tv.setOnClickListener {
+            tv.visibility = android.view.View.GONE
+            AppPrefs.markCoachSeen(this, key)
+        }
+    }
+
     protected fun isLandscape(): Boolean =
         resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
-    protected fun toggleScratchPad() {
-        if (!showScratchPad) return
-        scratchExpanded = !scratchExpanded
-        ensureScratchSize()
-        scratchHost?.let { applyScratchFold(it, scratchExpanded) } ?: attachScratchPad()
-    }
-
-    protected fun bindLandscapeSplit(splitId: Int) {
+    protected fun bindLandscapeSplit(splitId: Int, stackPortrait: Boolean = false) {
         val split = findViewById<android.widget.LinearLayout>(splitId) ?: return
         val land = isLandscape()
         split.orientation = if (land) {
@@ -476,159 +485,16 @@ open class BaseActivity : AppCompatActivity() {
                 lp.marginStart = if (i > 0) gutter else 0
             } else {
                 lp.width = android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                lp.weight = if (splitFills) 1f else 0f
-                lp.height = if (splitFills) 0 else android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                 lp.marginStart = 0
+                if (stackPortrait) {
+                    lp.weight = 0f
+                    lp.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                } else {
+                    lp.weight = if (splitFills) 1f else 0f
+                    lp.height = if (splitFills) 0 else android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                }
             }
             child.layoutParams = lp
-        }
-    }
-
-    private fun ensureScratchSize() {
-        if (scratchW > 0 && scratchH > 0) return
-        val dm = resources.displayMetrics
-        scratchW = (dm.widthPixels * 0.5f).toInt()
-        scratchH = (dm.heightPixels * 0.5f).toInt()
-    }
-
-    private fun attachScratchPad() {
-        if (!showScratchPad) return
-        val content = findViewById<ViewGroup>(android.R.id.content) ?: return
-        val host = scratchHost ?: LayoutInflater.from(this)
-            .inflate(R.layout.view_scratch_pad, content, false)
-            .also { scratchHost = it; bindScratchPad(it) }
-        (host.parent as? ViewGroup)?.removeView(host)
-        content.addView(host, scratchLayoutParams())
-        applyScratchFold(host, scratchExpanded)
-    }
-
-    private fun scratchLayoutParams(): FrameLayout.LayoutParams {
-        val d = resources.displayMetrics.density
-        val expanded = scratchExpanded
-        return FrameLayout.LayoutParams(
-            if (expanded) scratchW.coerceAtLeast(1) else ViewGroup.LayoutParams.WRAP_CONTENT,
-            if (expanded) scratchH.coerceAtLeast(1) else ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            setMargins((12 * d).toInt(), (8 * d).toInt(), (12 * d).toInt(), (12 * d).toInt())
-        }
-    }
-
-    private fun bindScratchPad(host: View) {
-        val canvas = host.findViewById<ScratchPadView>(R.id.scratchPadCanvas)
-        host.findViewById<View>(R.id.tvScratchTitle).setOnTouchListener(scratchDragListener(host))
-        host.findViewById<TextView>(R.id.btnScratchClear).setOnClickListener { canvas.clearPad() }
-        host.findViewById<TextView>(R.id.btnScratchFold).setOnClickListener {
-            scratchExpanded = false
-            applyScratchFold(host, false)
-        }
-        bindResize(host, R.id.scratchResizeTl, -1, -1)
-        bindResize(host, R.id.scratchResizeTr, 1, -1)
-        bindResize(host, R.id.scratchResizeBl, -1, 1)
-        bindResize(host, R.id.scratchResizeBr, 1, 1)
-        applyScratchFold(host, scratchExpanded)
-    }
-
-    private fun bindResize(host: View, id: Int, dirX: Int, dirY: Int) {
-        host.findViewById<View>(id).setOnTouchListener { v, ev ->
-            val d = resources.displayMetrics.density
-            val min = (180 * d).toInt()
-            val dm = resources.displayMetrics
-            when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    v.parent?.requestDisallowInterceptTouchEvent(true)
-                    v.setTag(
-                        floatArrayOf(
-                            ev.rawX, ev.rawY,
-                            scratchW.toFloat(), scratchH.toFloat(),
-                            host.translationX, host.translationY
-                        )
-                    )
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val s = v.tag as? FloatArray ?: return@setOnTouchListener true
-                    val dx = ev.rawX - s[0]
-                    val dy = ev.rawY - s[1]
-                    var w = s[2] + dirX * dx
-                    var h = s[3] + dirY * dy
-                    var tx = s[4]
-                    var ty = s[5]
-                    if (dirX < 0) tx = s[4] + dx
-                    if (dirY < 0) ty = s[5] + dy
-                    w = w.coerceIn(min.toFloat(), dm.widthPixels.toFloat())
-                    h = h.coerceIn(min.toFloat(), dm.heightPixels.toFloat())
-                    scratchW = w.toInt()
-                    scratchH = h.toInt()
-                    host.translationX = tx
-                    host.translationY = ty
-                    host.layoutParams = scratchLayoutParams()
-                    host.requestLayout()
-                    true
-                }
-                else -> true
-            }
-        }
-    }
-
-    private fun applyScratchFold(host: View, expanded: Boolean) {
-        ensureScratchSize()
-        val opening = expanded &&
-            host.findViewById<View>(R.id.scratchCanvasBox).visibility != View.VISIBLE
-        host.findViewById<View>(R.id.scratchCanvasBox).visibility =
-            if (expanded) View.VISIBLE else View.GONE
-        host.findViewById<View>(R.id.btnScratchClear).visibility =
-            if (expanded) View.VISIBLE else View.GONE
-        host.findViewById<TextView>(R.id.btnScratchFold).text = if (expanded) "접기" else "열기"
-        if (!expanded && scratchPadInToolbar) {
-            host.visibility = View.GONE
-        } else {
-            host.visibility = View.VISIBLE
-        }
-        host.layoutParams = scratchLayoutParams()
-        if (opening) {
-            pinScratchTopEnd(host)
-        } else if (!expanded) {
-            host.translationX = 0f
-            host.translationY = 0f
-        }
-        host.requestLayout()
-    }
-
-    private fun pinScratchTopEnd(host: View) {
-        host.post {
-            val parent = host.parent as? View ?: return@post
-            val d = resources.displayMetrics.density
-            val m = 12 * d
-            host.translationX = (parent.width - scratchW - m).coerceAtLeast(0f)
-            host.translationY = m
-        }
-    }
-
-    private fun scratchDragListener(host: View) = View.OnTouchListener { v, ev ->
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                v.setTag(R.id.scratchPadHost, floatArrayOf(ev.rawX, ev.rawY, host.translationX, host.translationY))
-                v.parent?.requestDisallowInterceptTouchEvent(true)
-                true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val start = v.getTag(R.id.scratchPadHost) as? FloatArray ?: return@OnTouchListener true
-                host.translationX = start[2] + (ev.rawX - start[0])
-                host.translationY = start[3] + (ev.rawY - start[1])
-                true
-            }
-            MotionEvent.ACTION_UP -> {
-                val start = v.getTag(R.id.scratchPadHost) as? FloatArray
-                val dx = if (start != null) abs(ev.rawX - start[0]) else 0f
-                val dy = if (start != null) abs(ev.rawY - start[1]) else 0f
-                if (dx < 12 && dy < 12 && !scratchExpanded && !scratchPadInToolbar) {
-                    scratchExpanded = true
-                    applyScratchFold(host, true)
-                }
-                true
-            }
-            else -> false
         }
     }
 }

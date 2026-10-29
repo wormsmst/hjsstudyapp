@@ -3,13 +3,14 @@ package com.example.adminmemo
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.View
 import androidx.core.content.ContextCompat
 
-/** 세로: 위→아래, 가로: 왼→오른쪽 목차 트리. */
+/** 왼쪽 상위, 오른쪽으로 하위 목차 트리. */
 class OutlineTreeView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
@@ -18,11 +19,11 @@ class OutlineTreeView @JvmOverloads constructor(
     private var root: Laid? = null
     private var sideways = false
     private val d = resources.displayMetrics.density
-    private val gap = 10 * d
-    private val stem = 28 * d
+    private val gap = 15 * d
+    private val stem = 52 * d
     private val padH = 12 * d
     private val padV = 10 * d
-    private val maxBox = 260 * d
+    private val maxBox = 390 * d
     private val minBox = 96 * d
     private val radius = 12 * d
 
@@ -37,9 +38,10 @@ class OutlineTreeView @JvmOverloads constructor(
     }
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 2f * d
+        strokeWidth = 4f * d
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
         color = ContextCompat.getColor(context, R.color.primary)
-        alpha = 140
     }
     private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = ContextCompat.getColor(context, R.color.text_main)
@@ -50,23 +52,32 @@ class OutlineTreeView @JvmOverloads constructor(
         textSize = 13.5f * resources.displayMetrics.scaledDensity
     }
 
+    private val linkPath = Path()
+
     fun setOutline(title: String, roots: List<OutlineNode>, sideways: Boolean) {
         this.sideways = sideways
         val laid = layoutNode(title.ifBlank { "주제" }, roots, isRoot = true)
         place(laid, padH, padV)
+        val box = extrema(laid)
+        if (box.top < padV) shiftY(laid, padV - box.top)
         root = laid
         requestLayout()
+        (parent as? View)?.requestLayout()
         invalidate()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val r = root
         if (r == null) {
-            setMeasuredDimension(0, 0)
+            setMeasuredDimension(
+                suggestedMinimumWidth.coerceAtLeast(1),
+                suggestedMinimumHeight.coerceAtLeast(1)
+            )
             return
         }
-        val w = (r.subW + padH * 2).toInt().coerceAtLeast(suggestedMinimumWidth)
-        val h = (r.subH + padV * 2).toInt().coerceAtLeast(suggestedMinimumHeight)
+        val box = extrema(r)
+        val w = (box.right + padH).toInt().coerceAtLeast(suggestedMinimumWidth.coerceAtLeast(1))
+        val h = (box.bottom + padV).toInt().coerceAtLeast(suggestedMinimumHeight.coerceAtLeast(1))
         setMeasuredDimension(w, h)
     }
 
@@ -92,14 +103,19 @@ class OutlineTreeView @JvmOverloads constructor(
             ty += lineH * 1.12f
         }
         if (sideways) {
-            val px = node.x + node.boxW
-            val py = node.y + node.boxH / 2f
+            val edge = strokePaint.strokeWidth / 2f
+            val px = snap(node.x + node.boxW + edge)
+            val py = snap(node.y + node.boxH / 2f)
+            val busX = snap(node.x + node.boxW + stem * 0.45f)
             node.kids.forEach { kid ->
-                val cx = kid.x
-                val cy = kid.y + kid.boxH / 2f
-                canvas.drawLine(px, py, px + stem * 0.4f, py, linePaint)
-                canvas.drawLine(px + stem * 0.4f, py, px + stem * 0.4f, cy, linePaint)
-                canvas.drawLine(px + stem * 0.4f, cy, cx, cy, linePaint)
+                val cx = snap(kid.x - edge)
+                val cy = snap(kid.y + kid.boxH / 2f)
+                linkPath.reset()
+                linkPath.moveTo(px, py)
+                linkPath.lineTo(busX, py)
+                linkPath.lineTo(busX, cy)
+                linkPath.lineTo(cx, cy)
+                canvas.drawPath(linkPath, linePaint)
                 drawNode(canvas, kid)
             }
         } else {
@@ -144,7 +160,8 @@ class OutlineTreeView @JvmOverloads constructor(
             node.x = left
             node.y = top
             if (node.kids.isEmpty()) return
-            var y = top
+            val first = node.kids.first()
+            var y = top + (node.boxH - first.boxH) / 2f
             val x = left + node.boxW + stem
             node.kids.forEach { kid ->
                 place(kid, x, y)
@@ -162,6 +179,19 @@ class OutlineTreeView @JvmOverloads constructor(
             place(kid, x, y)
             x += kid.subW + gap
         }
+    }
+
+    private fun snap(v: Float): Float = Math.round(v).toFloat()
+
+    private fun extrema(node: Laid): RectF {
+        val out = RectF(node.x, node.y, node.x + node.boxW, node.y + node.boxH)
+        node.kids.forEach { out.union(extrema(it)) }
+        return out
+    }
+
+    private fun shiftY(node: Laid, dy: Float) {
+        node.y += dy
+        node.kids.forEach { shiftY(it, dy) }
     }
 
     private fun wrap(text: String, paint: TextPaint, inner: Float): List<String> {

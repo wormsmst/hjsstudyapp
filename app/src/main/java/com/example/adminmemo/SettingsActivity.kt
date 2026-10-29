@@ -3,9 +3,11 @@ package com.example.adminmemo
 import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -44,7 +46,6 @@ class SettingsActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
-        bindLandscapeSplit(R.id.layoutSettingsSplit)
 
         setupThemeSection()
         setupFontSection()
@@ -187,7 +188,7 @@ class SettingsActivity : BaseActivity() {
         val g = selectedWidgetColor shr 8 and 0xFF
         val b = selectedWidgetColor and 0xFF
         widgetPreviewBg.setBackgroundColor(Color.argb(alpha, r, g, b))
-        widgetPreviewText.setTextColor(if ((r + g + b) / 3 < 128) Color.WHITE else Color.parseColor("#1A1C1E"))
+        widgetPreviewText.setTextColor(if ((r + g + b) / 3 < 128) Color.WHITE else Color.parseColor("#1C1C1E"))
     }
 
     private fun setupGeminiSection() {
@@ -196,10 +197,22 @@ class SettingsActivity : BaseActivity() {
 
     private fun setupAccountSection() {
         refreshAccountUi()
+        applyPortraitAccountBtnHeights()
         findViewById<Button>(R.id.btnGoogleLogin).setOnClickListener { startGoogleLogin() }
-        findViewById<Button>(R.id.btnGoogleLogout).setOnClickListener { startGoogleLogout() }
+        findViewById<Button>(R.id.btnGoogleLogout).setOnClickListener {
+            confirmChoice("이 기기에서 로그아웃할까요? 공부는 기기에 남아 있고, 클라우드 합치기는 멈춥니다.", "로그아웃") {
+                startGoogleLogout()
+            }
+        }
         findViewById<Button>(R.id.btnContentPush).setOnClickListener { confirmContentPush() }
         findViewById<Button>(R.id.btnContentPull).setOnClickListener { confirmContentPull() }
+    }
+
+    private fun applyPortraitAccountBtnHeights() {
+        val min = resources.getDimensionPixelSize(R.dimen.btn_min_height)
+        listOf(R.id.btnPickExamDate2, R.id.btnTtsSettings).forEach { id ->
+            findViewById<Button>(id).minHeight = min
+        }
     }
 
     private fun setupDdaySection() {

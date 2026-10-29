@@ -13,6 +13,7 @@ class ContentAdapter(
     private val titleFn: (Card) -> String,
     private val subtitleFn: (Card) -> String,
     private val memoryFn: ((Card) -> String)? = null,
+    private val readsFn: ((Card) -> String)? = null,
     private val onClick: (Card) -> Unit
 ) : RecyclerView.Adapter<ContentAdapter.VH>() {
 
@@ -20,6 +21,7 @@ class ContentAdapter(
         val tvTitle: TextView = view.findViewById(R.id.tvRowTitle)
         val tvSubtitle: TextView = view.findViewById(R.id.tvRowSubtitle)
         val tvChance: TextView = view.findViewById(R.id.tvRowChance)
+        val tvReads: TextView = view.findViewById(R.id.tvRowReads)
         val tvMemory: TextView = view.findViewById(R.id.tvRowMemory)
     }
 
@@ -35,6 +37,13 @@ class ContentAdapter(
         holder.tvSubtitle.text = sub
         holder.tvSubtitle.visibility = if (sub.isBlank()) View.GONE else View.VISIBLE
         bindChance(holder.tvChance, card.grade)
+        val reads = readsFn?.invoke(card).orEmpty()
+        if (reads.isBlank()) {
+            holder.tvReads.visibility = View.GONE
+        } else {
+            holder.tvReads.visibility = View.VISIBLE
+            holder.tvReads.text = reads
+        }
         val mem = memoryFn?.invoke(card).orEmpty()
         if (mem.isBlank()) {
             holder.tvMemory.visibility = View.GONE

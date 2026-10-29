@@ -20,6 +20,12 @@ object ExamChanceStore {
 
     private const val FILE = "exam_chance.json"
     private val gson = Gson()
+    @Volatile private var cached: ExamChanceBook? = null
+
+    fun invalidateCache() {
+        cached = null
+        CardStore.invalidateMergedCache()
+    }
 
     private fun file(context: Context) = File(context.filesDir, FILE)
 
@@ -35,13 +41,17 @@ object ExamChanceStore {
     }
 
     private fun read(context: Context): ExamChanceBook {
+        cached?.let { return it }
         val f = file(context)
-        if (!f.exists()) return ExamChanceBook()
-        return parse(f.readText(Charsets.UTF_8))
+        val book = if (!f.exists()) ExamChanceBook() else parse(f.readText(Charsets.UTF_8))
+        cached = book
+        return book
     }
 
     private fun write(context: Context, book: ExamChanceBook) {
         book.updatedAt = System.currentTimeMillis()
+        cached = book
+        CardStore.invalidateMergedCache()
         file(context).writeText(gson.toJson(book), Charsets.UTF_8)
         AppPrefs.setLocalSyncTimestamp(context, System.currentTimeMillis())
         FirebaseSyncManager.notifyProgressChanged(context)

@@ -30,84 +30,179 @@
             android:textColor="@color/text_sub"
             android:textSize="14sp"/>
 
-        <androidx.cardview.widget.CardView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="@color/bg_card"
-            app:cardCornerRadius="20dp"
-            app:cardElevation="0dp">
+            android:gravity="fill"
+            android:orientation="horizontal">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_horizontal"
-                android:orientation="vertical"
-                android:padding="18dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="30분당 인출"
-                    android:textColor="@color/text_main"
-                    android:textSize="17sp"
-                    android:textStyle="bold"/>
+            <androidx.cardview.widget.CardView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                app:cardBackgroundColor="@color/bg_card"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp">
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:background="@drawable/bg_stepper_cluster"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="6dp">
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:padding="14dp">
 
                     <TextView
-                        android:id="@+id/btnHalfMinus"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:background="@drawable/bg_stepper_btn"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:gravity="center"
-                        android:text="−"
-                        android:textColor="@color/text_on_header"
-                        android:textSize="22sp"
-                        android:textStyle="bold"/>
-
-                    <TextView
-                        android:id="@+id/tvCardsPerHalf"
-                        android:layout_width="72dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center"
-                        android:text="3장"
+                        android:text="30분당 인출"
                         android:textColor="@color/text_main"
-                        android:textSize="20sp"
+                        android:textSize="16sp"
                         android:textStyle="bold"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_stepper_cluster"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="4dp">
+
+                        <TextView
+                            android:id="@+id/btnHalfMinus"
+                            android:layout_width="40dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_stepper_btn"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:text="−"
+                            android:textColor="@color/text_on_header"
+                            android:textSize="22sp"
+                            android:textStyle="bold"/>
+
+                        <TextView
+                            android:id="@+id/tvCardsPerHalf"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="3장"
+                            android:textColor="@color/text_main"
+                            android:textSize="20sp"
+                            android:textStyle="bold"/>
+
+                        <TextView
+                            android:id="@+id/btnHalfPlus"
+                            android:layout_width="40dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_stepper_btn"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:text="+"
+                            android:textColor="@color/text_on_header"
+                            android:textSize="22sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
 
                     <TextView
-                        android:id="@+id/btnHalfPlus"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:background="@drawable/bg_stepper_btn"
-                        android:clickable="true"
-                        android:focusable="true"
+                        android:id="@+id/tvHalfHint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
                         android:gravity="center"
-                        android:text="+"
-                        android:textColor="@color/text_on_header"
-                        android:textSize="22sp"
-                        android:textStyle="bold"/>
+                        android:textColor="@color/text_sub"
+                        android:textSize="12sp"/>
                 </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-                <TextView
-                    android:id="@+id/tvHalfHint"
+            <androidx.cardview.widget.CardView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                app:cardBackgroundColor="@color/bg_card"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
-                    android:gravity="center"
-                    android:textColor="@color/text_sub"
-                    android:textSize="13sp"/>
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
+                    android:layout_height="match_parent"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="하루 신규 인출"
+                        android:textColor="@color/text_main"
+                        android:textSize="16sp"
+                        android:textStyle="bold"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/bg_stepper_cluster"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="4dp">
+
+                        <TextView
+                            android:id="@+id/btnNewMinus"
+                            android:layout_width="40dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_stepper_btn"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:text="−"
+                            android:textColor="@color/text_on_header"
+                            android:textSize="22sp"
+                            android:textStyle="bold"/>
+
+                        <TextView
+                            android:id="@+id/tvNewPerDay"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:text="3장"
+                            android:textColor="@color/text_main"
+                            android:textSize="20sp"
+                            android:textStyle="bold"/>
+
+                        <TextView
+                            android:id="@+id/btnNewPlus"
+                            android:layout_width="40dp"
+                            android:layout_height="44dp"
+                            android:background="@drawable/bg_stepper_btn"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:text="+"
+                            android:textColor="@color/text_on_header"
+                            android:textSize="22sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvNewHint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center"
+                        android:text="복습 사이에 하루에 새로 넣는 장 수입니다. 0이면 이미 본 장만 나옵니다."
+                        android:textColor="@color/text_sub"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+        </LinearLayout>
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
@@ -151,14 +246,188 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <TextView
-            android:id="@+id/tvLoadToday"
+        <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:gravity="center"
-            android:textColor="@color/primary"
-            android:textSize="16sp"
-            android:textStyle="bold"/>
+            app:cardBackgroundColor="@color/bg_card"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="목표 도달 예상"
+                    android:textColor="@color/text_main"
+                    android:textSize="17sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:lineSpacingExtra="3dp"
+                    android:text="휴식일은 빼고, 같은 장은 하루에 한 번만 셉니다. 퀘스트는 넣지 않습니다. 이미 푼 횟수는 빼고 계산합니다."
+                    android:textColor="@color/text_sub"
+                    android:textSize="13sp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingEnd="6dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:minLines="2"
+                            android:text="학습 이행률"
+                            android:textColor="@color/text_main"
+                            android:textSize="15sp"
+                            android:textStyle="bold"/>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_stepper_cluster"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="4dp">
+
+                            <TextView
+                                android:id="@+id/btnComplyMinus"
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                android:background="@drawable/bg_stepper_btn"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:gravity="center"
+                                android:text="−"
+                                android:textColor="@color/text_on_header"
+                                android:textSize="22sp"
+                                android:textStyle="bold"/>
+
+                            <TextView
+                                android:id="@+id/tvLoadComply"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:minWidth="87dp"
+                                android:text="100%"
+                                android:textColor="@color/text_main"
+                                android:textSize="20sp"
+                                android:textStyle="bold"/>
+
+                            <TextView
+                                android:id="@+id/btnComplyPlus"
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                android:background="@drawable/bg_stepper_btn"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:gravity="center"
+                                android:text="+"
+                                android:textColor="@color/text_on_header"
+                                android:textSize="22sp"
+                                android:textStyle="bold"/>
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingStart="6dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:minLines="2"
+                            android:text="목표 인출학습 횟수"
+                            android:textColor="@color/text_main"
+                            android:textSize="15sp"
+                            android:textStyle="bold"/>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:background="@drawable/bg_stepper_cluster"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="4dp">
+
+                            <TextView
+                                android:id="@+id/btnTargetMinus"
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                android:background="@drawable/bg_stepper_btn"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:gravity="center"
+                                android:text="−"
+                                android:textColor="@color/text_on_header"
+                                android:textSize="22sp"
+                                android:textStyle="bold"/>
+
+                            <TextView
+                                android:id="@+id/tvLoadTarget"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:minWidth="87dp"
+                                android:text="5회"
+                                android:textColor="@color/text_main"
+                                android:textSize="20sp"
+                                android:textStyle="bold"/>
+
+                            <TextView
+                                android:id="@+id/btnTargetPlus"
+                                android:layout_width="44dp"
+                                android:layout_height="44dp"
+                                android:background="@drawable/bg_stepper_btn"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:gravity="center"
+                                android:text="+"
+                                android:textColor="@color/text_on_header"
+                                android:textSize="22sp"
+                                android:textStyle="bold"/>
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvLoadForecast"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/text_main"
+                    android:textSize="15sp"
+                    android:textStyle="bold"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
     </LinearLayout>
 </ScrollView>

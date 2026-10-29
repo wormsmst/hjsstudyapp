@@ -47,6 +47,33 @@ object ReadPassStore {
     fun count(context: Context, cardId: String): Int =
         read(context).items[cardId]?.count?.coerceAtLeast(0) ?: 0
 
+    fun daysWithPass(context: Context): Set<String> =
+        read(context).items.values.mapNotNull { it.lastDay.takeIf { d -> d.isNotBlank() } }.toSet()
+
+    fun idsOnDay(context: Context, date: String): List<String> =
+        read(context).items.filter { it.value.lastDay == date && it.value.count > 0 }.map { it.key }
+
+    fun overlayDay(context: Context, date: String, ids: Collection<String>) {
+        if (date.isBlank() || ids.isEmpty()) return
+        val book = read(context)
+        var changed = false
+        ids.forEach { id ->
+            if (id.isBlank()) return@forEach
+            val item = book.items.getOrPut(id) { ReadPassItem() }
+            if (item.lastDay == date) return@forEach
+            val incoming = dayRank(date)
+            val have = if (item.lastDay.isBlank()) -1 else dayRank(item.lastDay)
+            if (incoming >= have) {
+                item.count = (item.count + 1).coerceAtLeast(1)
+                item.lastDay = date
+                changed = true
+            }
+        }
+        if (!changed) return
+        book.updatedAt = System.currentTimeMillis()
+        file(context).writeText(gson.toJson(book), Charsets.UTF_8)
+    }
+
     fun countedToday(context: Context, cardId: String): Boolean {
         val item = read(context).items[cardId] ?: return false
         return item.lastDay == TodayTtsStore.todayKey() && item.count > 0
@@ -89,6 +116,12 @@ object ReadPassStore {
         } else {
             "평균 ${"%.1f".format(avg)}회"
         }
+    }
+
+    fun todayVolume(json: String): Int {
+        if (json.isBlank()) return 0
+        val today = TodayTtsStore.todayKey()
+        return parse(json).items.values.count { it.lastDay == today && it.count > 0 }
     }
 
     fun isHollowJson(json: String): Boolean {

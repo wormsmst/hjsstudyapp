@@ -8,6 +8,10 @@ class ExamPickActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_exam_pick)
+        findViewById<android.widget.TextView>(R.id.tvExamP1Sub).text =
+            "${StudyProgressStore.periodLabel(this, 1)}  ·  100분"
+        findViewById<android.widget.TextView>(R.id.tvExamP2Sub).text =
+            "${StudyProgressStore.periodLabel(this, 2)}  ·  100분"
         findViewById<CardView>(R.id.tileExamPeriod1).setOnClickListener { startPeriod(1) }
         findViewById<CardView>(R.id.tileExamPeriod2).setOnClickListener { startPeriod(2) }
         findViewById<CardView>(R.id.tileExamDrill).setOnClickListener {

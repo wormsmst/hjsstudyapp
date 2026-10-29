@@ -9,12 +9,16 @@ import java.util.Locale
 object DateFormatters {
     private val full = SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.KOREA)
     private val day = SimpleDateFormat("yyyy.MM.dd (E)", Locale.KOREA)
+    private val examPeek = SimpleDateFormat("yy.MM.dd E", Locale.KOREA)
 
     fun dateTime(millis: Long): String =
         if (millis <= 0L) "없음" else full.format(Date(millis))
 
     fun dateOnly(millis: Long): String =
         if (millis <= 0L) "미설정" else day.format(Date(millis))
+
+    fun examPeekLine(millis: Long): String =
+        if (millis <= 0L) "시험일을 설정해주세요" else "시험일  ${examPeek.format(Date(millis))}"
 }
 
 object DdayCalculator {

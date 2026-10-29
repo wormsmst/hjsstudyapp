@@ -35,20 +35,29 @@
             android:layout_marginTop="16dp"
             android:orientation="vertical"/>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnWarmupStart"
-            style="@style/Widget.AdminMemo.Button"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="말 끝났으면 인출 시작"/>
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnWarmupSkip"
-            style="@style/Widget.AdminMemo.Button.Outlined"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="건너뛰고 인출"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnWarmupStart"
+                style="@style/Widget.AdminMemo.Button.Row"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:text="말 끝났으면 인출 시작"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnWarmupSkip"
+                style="@style/Widget.AdminMemo.Button.Outlined.Row"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="건너뛰고 인출"/>
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>
