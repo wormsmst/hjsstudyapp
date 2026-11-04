@@ -8,7 +8,11 @@ import kotlin.math.ceil
 
 data class ExamLog(val at: Long = 0L, val subject: String = "")
 
-data class DayCount(val key: String = "", val count: Int = 0)
+data class DayCount(
+    val key: String = "",
+    val count: Int = 0,
+    val topics: List<String>? = emptyList()
+)
 
 data class DayFlags(
     val key: String = "",
@@ -90,16 +94,41 @@ object StudyProgressStore {
     private fun dayKey(c: Calendar): String =
         "${c.get(Calendar.YEAR)}-${c.get(Calendar.MONTH) + 1}-${c.get(Calendar.DAY_OF_MONTH)}"
 
+    private fun dayTopics(d: DayCount?): List<String> =
+        d?.topics.orEmpty().filter { it.isNotBlank() }
+
+    private fun foldTopicsIntoHistory(log: StudyLog, day: String, extra: Collection<String>) {
+        if (day.isBlank()) return
+        val canon = TodayTtsStore.canonKey(day)
+        val old = log.dayHistory.find { TodayTtsStore.canonKey(it.key) == canon }
+        val keys = linkedSetOf<String>()
+        dayTopics(old).forEach { keys.add(it) }
+        extra.forEach { if (it.isNotBlank()) keys.add(it) }
+        val n = maxOf(old?.count ?: 0, keys.size)
+        log.dayHistory.removeAll { TodayTtsStore.canonKey(it.key) == canon }
+        log.dayHistory.add(DayCount(canon, n, keys.toList()))
+    }
+
+    private fun normalize(log: StudyLog): StudyLog {
+        log.todayTopics = log.todayTopics?.filter { it.isNotBlank() }?.toMutableList() ?: mutableListOf()
+        log.examLogs = log.examLogs ?: mutableListOf()
+        log.dayFlags = log.dayFlags ?: mutableListOf()
+        log.dayHistory = (log.dayHistory ?: mutableListOf()).map { d ->
+            val keys = dayTopics(d)
+            DayCount(
+                TodayTtsStore.canonKey(d.key).ifBlank { d.key },
+                maxOf(d.count, keys.size),
+                keys
+            )
+        }.toMutableList()
+        return log
+    }
+
     private fun read(context: Context): StudyLog {
         val f = file(context)
         if (!f.exists()) return StudyLog()
         return try {
-            val log = gson.fromJson(f.readText(Charsets.UTF_8), StudyLog::class.java) ?: StudyLog()
-            log.todayTopics = log.todayTopics ?: mutableListOf()
-            log.examLogs = log.examLogs ?: mutableListOf()
-            log.dayHistory = log.dayHistory ?: mutableListOf()
-            log.dayFlags = log.dayFlags ?: mutableListOf()
-            log
+            normalize(gson.fromJson(f.readText(Charsets.UTF_8), StudyLog::class.java) ?: StudyLog())
         } catch (_: Exception) {
             StudyLog()
         }
@@ -116,8 +145,7 @@ object StudyProgressStore {
         val key = todayKey()
         if (log.todayKey != key) {
             if (log.todayKey.isNotBlank()) {
-                log.dayHistory.removeAll { it.key == log.todayKey }
-                log.dayHistory.add(DayCount(log.todayKey, log.todayTopics.size))
+                foldTopicsIntoHistory(log, log.todayKey, log.todayTopics)
                 if (log.dayHistory.size > 30) {
                     log.dayHistory = log.dayHistory.takeLast(30).toMutableList()
                 }
@@ -140,6 +168,29 @@ object StudyProgressStore {
     }
 
     fun todayTopicKeys(context: Context): Set<String> = rolled(context).todayTopics.toSet()
+
+    fun topicKeysForDay(context: Context, date: String): Set<String> {
+        val day = TodayTtsStore.canonKey(date)
+        if (day.isBlank()) return emptySet()
+        val log = rolled(context)
+        if (TodayTtsStore.canonKey(log.todayKey) == day) {
+            return log.todayTopics.filter { it.isNotBlank() }.toSet()
+        }
+        return dayTopics(
+            log.dayHistory.find { TodayTtsStore.canonKey(it.key) == day }
+        ).toSet()
+    }
+
+    fun topicStudyLabel(context: Context, subject: String, topicTitle: String): String {
+        val want = "${canonicalizeSubject(subject)}|$topicTitle"
+        if (topicTitle.isBlank()) return ""
+        val log = rolled(context)
+        if (want in log.todayTopics) return "오늘"
+        val y = TodayTtsStore.studyCalendar().also { it.add(Calendar.DAY_OF_YEAR, -1) }
+        val yKey = TodayTtsStore.keyOf(y)
+        val yesterday = log.dayHistory.find { TodayTtsStore.canonKey(it.key) == yKey }
+        return if (want in dayTopics(yesterday)) "어제" else ""
+    }
 
     fun todayFlags(context: Context): Triple<Boolean, Boolean, Boolean> {
         val log = rolled(context)
@@ -177,9 +228,7 @@ object StudyProgressStore {
         }
         val log = read(context)
         val day = TodayTtsStore.canonKey(date)
-        val n = maxOf(log.dayHistory.find { TodayTtsStore.canonKey(it.key) == day }?.count ?: 0, topics.size)
-        log.dayHistory.removeAll { TodayTtsStore.canonKey(it.key) == day }
-        log.dayHistory.add(DayCount(day, n))
+        foldTopicsIntoHistory(log, day, topics)
         val old = log.dayFlags.find { TodayTtsStore.canonKey(it.key) == day }
         log.dayFlags.removeAll { TodayTtsStore.canonKey(it.key) == day }
         log.dayFlags.add(
@@ -580,23 +629,33 @@ object StudyProgressStore {
         val b = parse(cloudJson)
         val today = todayKey()
         val hist = mutableMapOf<String, Int>()
+        val histTopics = mutableMapOf<String, LinkedHashSet<String>>()
         val flags = mutableMapOf<String, DayFlags>()
         fun absorb(log: StudyLog) {
-            log.dayHistory.forEach { hist[it.key] = maxOf(hist[it.key] ?: 0, it.count) }
+            log.dayHistory.forEach { day ->
+                val key = TodayTtsStore.canonKey(day.key).ifBlank { day.key }
+                val keys = dayTopics(day)
+                hist[key] = maxOf(hist[key] ?: 0, day.count, keys.size)
+                histTopics.getOrPut(key) { linkedSetOf() }.addAll(keys)
+            }
             log.dayFlags.forEach { old ->
-                val cur = flags[old.key]
-                flags[old.key] = DayFlags(
-                    old.key,
+                val key = TodayTtsStore.canonKey(old.key).ifBlank { old.key }
+                val cur = flags[key]
+                flags[key] = DayFlags(
+                    key,
                     (cur?.study == true) || old.study,
                     (cur?.quiz == true) || old.quiz,
                     (cur?.exam == true) || old.exam
                 )
             }
             if (log.todayKey.isNotBlank()) {
-                hist[log.todayKey] = maxOf(hist[log.todayKey] ?: 0, log.todayTopics.size)
-                val cur = flags[log.todayKey]
-                flags[log.todayKey] = DayFlags(
-                    log.todayKey,
+                val key = TodayTtsStore.canonKey(log.todayKey).ifBlank { log.todayKey }
+                val keys = log.todayTopics.filter { it.isNotBlank() }
+                hist[key] = maxOf(hist[key] ?: 0, keys.size)
+                histTopics.getOrPut(key) { linkedSetOf() }.addAll(keys)
+                val cur = flags[key]
+                flags[key] = DayFlags(
+                    key,
                     (cur?.study == true) || log.todayStudy,
                     (cur?.quiz == true) || log.todayQuiz,
                     (cur?.exam == true) || log.todayExam
@@ -605,9 +664,7 @@ object StudyProgressStore {
         }
         absorb(a)
         absorb(b)
-        val topics = linkedSetOf<String>()
-        if (a.todayKey == today) topics.addAll(a.todayTopics)
-        if (b.todayKey == today) topics.addAll(b.todayTopics)
+        val topics = histTopics[today]?.toMutableList() ?: mutableListOf()
         val todayFlag = flags[today]
         val examAt = maxOf(
             a.examLogs.maxOfOrNull { it.at } ?: 0L,
@@ -616,14 +673,17 @@ object StudyProgressStore {
         val out = StudyLog(
             lastAt = maxOf(a.lastAt, b.lastAt, examAt),
             todayKey = today,
-            todayTopics = topics.toMutableList(),
+            todayTopics = topics,
             examLogs = (a.examLogs + b.examLogs)
                 .distinctBy { "${it.at}|${it.subject}" }
                 .sortedBy { it.at }
                 .takeLast(80)
                 .toMutableList(),
             dayHistory = hist.filter { it.key != today }
-                .map { DayCount(it.key, it.value) }
+                .map { (key, count) ->
+                    val keys = histTopics[key]?.toList().orEmpty()
+                    DayCount(key, maxOf(count, keys.size), keys)
+                }
                 .sortedBy { it.key }
                 .takeLast(30)
                 .toMutableList(),
@@ -648,12 +708,7 @@ object StudyProgressStore {
     private fun parse(json: String): StudyLog {
         if (json.isBlank()) return StudyLog()
         return try {
-            val log = gson.fromJson(json, StudyLog::class.java) ?: StudyLog()
-            log.todayTopics = log.todayTopics ?: mutableListOf()
-            log.examLogs = log.examLogs ?: mutableListOf()
-            log.dayHistory = log.dayHistory ?: mutableListOf()
-            log.dayFlags = log.dayFlags ?: mutableListOf()
-            log
+            normalize(gson.fromJson(json, StudyLog::class.java) ?: StudyLog())
         } catch (_: Exception) {
             StudyLog()
         }

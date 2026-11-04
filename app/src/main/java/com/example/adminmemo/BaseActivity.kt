@@ -28,10 +28,6 @@ import kotlin.math.abs
 /** 모든 화면이 상속받는 기본 Activity. 다크 테마 / 글자 크기 설정을 일괄 적용한다. */
 open class BaseActivity : AppCompatActivity() {
 
-    companion object {
-        private const val KEEP_SCREEN_MS = 15 * 60 * 1000L
-    }
-
     protected open val showGeminiFab = false
     private val keepScreenHandler = Handler(Looper.getMainLooper())
     private val releaseKeepScreen = Runnable {
@@ -130,11 +126,16 @@ open class BaseActivity : AppCompatActivity() {
         eatBackUntil = SystemClock.uptimeMillis() + 1200L
     }
 
-    /** 앱이 앞에 있는 동안 시스템 절전 시간과 상관없이 15분 화면을 켠다. 만지면 다시 15분. */
+    /** 앱이 앞에 있는 동안 설정한 분만큼 화면을 켠다. 0분이면 휴대폰 절전을 따른다. 만지면 다시 센다. */
     protected fun bumpKeepScreen() {
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         keepScreenHandler.removeCallbacks(releaseKeepScreen)
-        keepScreenHandler.postDelayed(releaseKeepScreen, KEEP_SCREEN_MS)
+        val ms = AppPrefs.getKeepScreenMs(this)
+        if (ms <= 0L) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            return
+        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        keepScreenHandler.postDelayed(releaseKeepScreen, ms)
     }
 
     override fun setContentView(layoutResID: Int) {
@@ -150,11 +151,6 @@ open class BaseActivity : AppCompatActivity() {
     override fun setContentView(view: View?, params: ViewGroup.LayoutParams?) {
         super.setContentView(view, params)
         attachGeminiFab()
-    }
-
-    override fun onStop() {
-        FirebaseSyncManager.flushPendingProgressSync(this)
-        super.onStop()
     }
 
     protected open fun geminiStudyContext(): String = ""

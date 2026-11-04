@@ -449,7 +449,7 @@ fun fadePromptBody(roots: List<OutlineNode>): String {
 private fun nodePeekText(node: OutlineNode): String {
     fun block(n: OutlineNode, depth: Int): String {
         if (depth > 3) return ""
-        val title = outlineHeadingText(n.label).ifBlank { n.label.trim() }
+        val title = n.label.trim().ifBlank { outlineHeadingText(n.label) }
         val body = n.bodyText.trim()
         val kids = n.children
             .filter { it.level >= 0 && it.label.isNotBlank() }

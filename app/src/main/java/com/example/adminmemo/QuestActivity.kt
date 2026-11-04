@@ -77,7 +77,7 @@ class QuestActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (FirebaseSyncManager.isSignedIn()) {
+        if (FirebaseSyncManager.isSignedIn() && !FirebaseSyncManager.progressIsFresh()) {
             FirebaseSyncManager.syncProgressNow(this) { _, _ ->
                 runOnUiThread { bindAll() }
             }
@@ -97,7 +97,9 @@ class QuestActivity : BaseActivity() {
         val list = findViewById<LinearLayout>(R.id.layoutQuestToday)
         list.removeAllViews()
         val quests = DailyQuestStore.todayQuests(this)
-        if (!DailyQuestStore.recallDoneToday(this) && quests.isEmpty()) {
+        if (RecallSessionStore.openToday(this) ||
+            (!DailyQuestStore.recallDoneToday(this) && quests.isEmpty())
+        ) {
             empty.visibility = View.VISIBLE
             list.visibility = View.GONE
             bindRetrainButton()

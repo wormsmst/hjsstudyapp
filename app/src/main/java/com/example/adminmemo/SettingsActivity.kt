@@ -54,6 +54,7 @@ class SettingsActivity : BaseActivity() {
         setupAccountSection()
         setupDdaySection()
         setupMasterySection()
+        setupKeepScreenSection()
         findViewById<Button>(R.id.btnTtsSettings).setOnClickListener { TtsVoiceUi.open(this) }
 
         findViewById<Button>(R.id.btnApplySettings).setOnClickListener {
@@ -62,6 +63,7 @@ class SettingsActivity : BaseActivity() {
             AppPrefs.setWidgetOpacity(this, 100 - findViewById<SeekBar>(R.id.seekWidgetOpacity).progress)
             AppPrefs.setWidgetFontScale(this, widgetFontScales[findViewById<SeekBar>(R.id.seekWidgetFont).progress])
             AppPrefs.setGeminiApiKey(this, findViewById<EditText>(R.id.etGeminiKey).text.toString().trim())
+            AppPrefs.setKeepScreenMinutes(this, findViewById<SeekBar>(R.id.seekKeepScreen).progress)
             android.appwidget.AppWidgetManager.getInstance(this).let { mgr ->
                 val ids = mgr.getAppWidgetIds(android.content.ComponentName(this, CardWidgetProvider::class.java))
                 ids.forEach { CardWidgetProvider.updateWidget(this, mgr, it) }
@@ -231,6 +233,28 @@ class SettingsActivity : BaseActivity() {
         stable.setOnCheckedChangeListener { _, on ->
             AppPrefs.setShowStablePct(this, on)
         }
+    }
+
+    private fun setupKeepScreenSection() {
+        val seek = findViewById<SeekBar>(R.id.seekKeepScreen)
+        val label = findViewById<TextView>(R.id.tvKeepScreenLabel)
+        seek.max = AppPrefs.KEEP_SCREEN_MIN_MAX
+        seek.progress = AppPrefs.getKeepScreenMinutes(this)
+        fun applyLabel(minutes: Int) {
+            label.text = if (minutes <= 0) "시스템 절전 따름" else "${minutes}분"
+        }
+        applyLabel(seek.progress)
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                applyLabel(progress)
+                if (fromUser) {
+                    AppPrefs.setKeepScreenMinutes(this@SettingsActivity, progress)
+                    bumpKeepScreen()
+                }
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
     }
 
     private fun refreshExamDateLabel() {

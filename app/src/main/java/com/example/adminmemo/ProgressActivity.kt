@@ -33,7 +33,7 @@ class ProgressActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (FirebaseSyncManager.isSignedIn()) {
+        if (FirebaseSyncManager.isSignedIn() && !FirebaseSyncManager.progressIsFresh()) {
             FirebaseSyncManager.syncProgressNow(this) { _, _ ->
                 runOnUiThread { bind() }
             }

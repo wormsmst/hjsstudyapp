@@ -64,15 +64,6 @@ class ExtraStudyActivity : BaseActivity() {
                     .putExtra(EXTRA_RECALL_BOOST, true)
             )
         }
-        if (FirebaseSyncManager.isSignedIn()) {
-            FirebaseSyncManager.syncProgressNow(this) { _, _ ->
-                runOnUiThread {
-                    if (isDestroyed) return@runOnUiThread
-                    go()
-                }
-            }
-        } else {
-            go()
-        }
+        go()
     }
 }

@@ -559,7 +559,10 @@ object RecallStore {
                 recallCount = countOf(item),
                 reps = item.reps,
                 lapses = item.lapses,
-                lastGradeAt = item.lastGradeAt
+                lastGradeAt = item.lastGradeAt,
+                dueAt = item.dueAt,
+                intervalDays = item.intervalDays,
+                goodStreak = item.goodStreak
             )
         }
     }
@@ -586,6 +589,13 @@ object RecallStore {
             }
             if (m.lastGradeAt > item.lastGradeAt) {
                 item.lastGradeAt = m.lastGradeAt
+                if (m.dueAt > 0L) item.dueAt = m.dueAt
+                if (m.intervalDays > 0) item.intervalDays = m.intervalDays
+                item.goodStreak = m.goodStreak
+                changed = true
+            } else if (m.lastGradeAt == item.lastGradeAt && m.dueAt > item.dueAt) {
+                item.dueAt = m.dueAt
+                if (m.intervalDays > 0) item.intervalDays = m.intervalDays
                 changed = true
             }
         }
@@ -616,6 +626,7 @@ object RecallStore {
                 else -> {
                     val newer = if (la.lastGradeAt >= lb.lastGradeAt) la else lb
                     val weakAt = maxOf(la.lastWeakAt, lb.lastWeakAt)
+                    val lastGradeAt = maxOf(la.lastGradeAt, lb.lastGradeAt)
                     RecallItem(
                         cardId = id,
                         dueAt = newer.dueAt,
@@ -624,12 +635,14 @@ object RecallStore {
                         lapses = maxOf(la.lapses, lb.lapses),
                         recallCount = maxOf(countOf(la), countOf(lb)),
                         goodStreak = newer.goodStreak,
-                        lastFailKind = when {
+                        lastFailKind = if (lastGradeAt >= weakAt) {
+                            newer.lastFailKind
+                        } else when {
                             la.lastWeakAt > lb.lastWeakAt -> la.lastFailKind
                             lb.lastWeakAt > la.lastWeakAt -> lb.lastFailKind
                             else -> newer.lastFailKind
                         },
-                        lastGradeAt = newer.lastGradeAt,
+                        lastGradeAt = lastGradeAt,
                         lastWeakAt = weakAt
                     )
                 }
@@ -681,7 +694,7 @@ object RecallStore {
         val book = read(context)
         return book.items.values
             .filter { it.lastWeakAt > 0L }
-            .filter { it.lastFailKind != FAIL_NONE || it.lastGradeAt <= it.lastWeakAt }
+            .filter { it.lastGradeAt <= it.lastWeakAt }
             .sortedByDescending { it.lapses }
             .mapNotNull { item ->
                 val days = calendarDaysBetween(item.lastWeakAt, now)

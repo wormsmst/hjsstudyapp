@@ -66,13 +66,13 @@
         <FrameLayout
             android:id="@+id/layoutAccountAuthBtn"
             android:layout_width="0dp"
-            android:layout_height="156dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1">
 
             <Button
                 android:id="@+id/btnGoogleLogin"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="@dimen/settings_account_btn_height"
                 android:gravity="center"
                 android:maxLines="2"
                 android:paddingStart="4dp"
@@ -83,7 +83,7 @@
             <Button
                 android:id="@+id/btnGoogleLogout"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="@dimen/settings_logout_btn_height"
                 android:gravity="center"
                 android:maxLines="2"
                 android:paddingStart="4dp"
@@ -103,7 +103,7 @@
         <Button
             android:id="@+id/btnContentPush"
             android:layout_width="0dp"
-            android:layout_height="156dp"
+            android:layout_height="@dimen/settings_account_btn_height"
             android:layout_marginEnd="6dp"
             android:layout_weight="1"
             android:gravity="center"
@@ -114,7 +114,7 @@
         <Button
             android:id="@+id/btnContentPull"
             android:layout_width="0dp"
-            android:layout_height="156dp"
+            android:layout_height="@dimen/settings_account_btn_height"
             android:layout_marginStart="6dp"
             android:layout_weight="1"
             android:gravity="center"
@@ -263,6 +263,55 @@
         android:minHeight="@dimen/btn_min_height"
         android:layout_marginBottom="20dp"
         android:text="안정"/>
+
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22808080" android:layout_marginBottom="20dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="화면 켜짐 유지"
+        android:textColor="@color/text_main"
+        android:textStyle="bold"
+        android:textSize="15sp"
+        android:layout_marginBottom="6dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="앱이 앞에 있는 동안, 만진 뒤 이 시간만큼 화면을 켜 둡니다. 0분이면 휴대폰 절전 시간을 따릅니다."
+        android:textColor="@color/text_sub"
+        android:textSize="11sp"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/tvKeepScreenLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textColor="@color/primary"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"
+        android:text="15분"/>
+
+    <SeekBar
+        android:id="@+id/seekKeepScreen"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="60"
+        android:layout_marginBottom="4dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="20dp">
+
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="0분" android:textColor="@color/text_sub" android:textSize="11sp" android:gravity="start"/>
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="60분" android:textColor="@color/text_sub" android:textSize="11sp" android:gravity="end"/>
+    </LinearLayout>
 
     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#22808080" android:layout_marginBottom="20dp"/>
 

@@ -59,6 +59,7 @@ class ContentDetailActivity : BaseActivity() {
     private var maxLeftScroll = 0f
     private var seenRightPage = false
     private var scrollWired = false
+    private var sessionReady = !FirebaseSyncManager.isSignedIn()
 
     private val ttsListener: (StudyTtsState) -> Unit = { st ->
         if (st.ids.isNotEmpty() && st.ids == ids && st.index in ids.indices && st.index != index) {
@@ -145,6 +146,19 @@ class ContentDetailActivity : BaseActivity() {
         StudyTtsHub.addListener(ttsListener)
         wireReadPassScroll()
         render()
+        if (FirebaseSyncManager.isSignedIn() && !FirebaseSyncManager.progressIsFresh()) {
+            FirebaseSyncManager.syncProgressNow(this) { _, _ ->
+                runOnUiThread {
+                    if (isDestroyed) return@runOnUiThread
+                    restoreContentSession()
+                    sessionReady = true
+                    render()
+                }
+            }
+        } else {
+            sessionReady = true
+            saveContentSession()
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -169,6 +183,35 @@ class ContentDetailActivity : BaseActivity() {
         if (st.ids == ids && st.index in ids.indices) {
             index = st.index
         }
+        restoreContentSession()
+    }
+
+    private fun restoreContentSession() {
+        val snap = ContentStudySessionStore.load(this) ?: return
+        if (!ContentStudySessionStore.unfinished(snap) || !ContentStudySessionStore.isToday(snap)) return
+        if (ids.isEmpty()) {
+            ids = snap.queueIds
+            index = snap.index.coerceIn(0, maxOf(0, ids.size - 1))
+            return
+        }
+        if (ids != snap.queueIds) return
+        val currentId = ids.getOrNull(index)
+        val snapId = snap.queueIds.getOrNull(snap.index)
+        if (currentId != null && currentId == snapId) {
+            index = snap.index.coerceIn(0, maxOf(0, ids.size - 1))
+        }
+    }
+
+    private fun saveContentSession() {
+        if (!sessionReady || ids.isEmpty()) return
+        ContentStudySessionStore.save(
+            this,
+            ContentStudySnap(
+                queueIds = ids,
+                index = index,
+                date = TodayTtsStore.todayKey()
+            )
+        )
     }
 
     private fun onSpeakClicked() {
@@ -357,6 +400,7 @@ class ContentDetailActivity : BaseActivity() {
         etMemo.setText(CardStore.getMemo(this, card.id))
         renderMemoryStars(CardStore.getMemoryLevel(this, card.subject, card.topicTitle))
         StudyProgressStore.markTopic(this, card.subject, card.topicTitle)
+        saveContentSession()
 
         findViewById<Button>(R.id.btnPrevDetail).isEnabled = index > 0
         findViewById<Button>(R.id.btnNextDetail).isEnabled = index < ids.size - 1

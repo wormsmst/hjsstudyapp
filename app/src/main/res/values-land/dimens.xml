@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="home_screen_tile_min">156dp</dimen>
+    <dimen name="settings_account_btn_height">70dp</dimen>
+    <dimen name="settings_logout_btn_height">70dp</dimen>
     <dimen name="home_dday_margin_top">20dp</dimen>
     <dimen name="home_dday_padding_v">24dp</dimen>
     <dimen name="subject_tile_min">224dp</dimen>

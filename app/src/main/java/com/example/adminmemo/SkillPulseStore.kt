@@ -70,7 +70,6 @@ object SkillPulseStore {
     private fun write(context: Context, book: SkillPulseBook) {
         cached = book
         file(context).writeText(gson.toJson(book), Charsets.UTF_8)
-        FirebaseSyncManager.notifyProgressChanged(context)
     }
 
     fun isHollowJson(json: String): Boolean {
@@ -128,17 +127,17 @@ object SkillPulseStore {
     }
 
     private fun liveSnap(context: Context): SkillDaySnap {
-        val cards = CardStore.getAllCards(context)
-            .filter { it.type == "concept" && it.topicTitle.isNotBlank() }
         val mastery = StudyProgressStore.mastery(context)
         val counts = RecallStore.allRecallCounts(context)
-        val unseen = cards.count { (counts[it.id] ?: 0) <= 0 }
+        val unseen = CardStore.getAllCards(context).count {
+            it.type == "concept" && it.topicTitle.isNotBlank() && (counts[it.id] ?: 0) <= 0
+        }
         return SkillDaySnap(
             key = todayKey(),
             stable = mastery.stable,
             starSum = mastery.starSum,
             unseen = unseen,
-            cards = cards.size,
+            cards = mastery.cards,
             fillPct = mastery.fillPct,
             stablePct = mastery.stablePct
         )

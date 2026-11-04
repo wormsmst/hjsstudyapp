@@ -147,10 +147,7 @@ object DailyQuestStore {
             else keepBacklog.add(q)
         }
         book.backlog = keepBacklog
-        if (book.quests.isNotEmpty()) {
-            book.recallDone = true
-            book.date = today
-        }
+        if (book.quests.isNotEmpty()) book.date = today
         return before != (book.quests.map { it.id } to book.backlog.map { it.id })
     }
 
@@ -225,16 +222,28 @@ object DailyQuestStore {
     fun recallDoneToday(context: Context): Boolean {
         if (RecallSessionStore.openToday(context)) return false
         val book = read(context)
-        if (book.quests.isNotEmpty()) return true
-        if (hasTodayRecallEvidence(context)) return true
         val today = TodayTtsStore.todayKey()
-        return book.recallDone || book.days[today]?.recallDone == true
+        if (book.recallDone || book.days[today]?.recallDone == true) return true
+        if (!RecallSessionStore.completedToday(context)) return false
+        book.recallDone = true
+        book.days[today]?.recallDone = true
+        writeFile(context, book, notify = false)
+        return true
     }
 
-    private fun hasTodayRecallEvidence(context: Context): Boolean {
-        if (todayGradedIds(context).isNotEmpty()) return true
-        if (RecallStore.exportTodayMarks(context).isNotEmpty()) return true
-        return StudyWeekStore.dayRecalled(context, TodayTtsStore.todayKey()).isNotEmpty()
+    fun forceRecallUndone(context: Context) {
+        val book = read(context)
+        val today = TodayTtsStore.todayKey()
+        val snap = book.days[today]
+        if (!book.recallDone && snap?.recallDone != true) return
+        book.recallDone = false
+        if (snap != null) snap.recallDone = false
+        writeFile(context, book, notify = false)
+    }
+
+    fun guardOpenRecallSession(context: Context) {
+        if (!RecallSessionStore.openToday(context)) return
+        forceRecallUndone(context)
     }
 
     fun everRecallDone(context: Context): Boolean {
@@ -276,16 +285,17 @@ object DailyQuestStore {
 
     fun overlayHitsFromWeek(context: Context) {
         val hits = StudyWeekStore.recentHitKeys(context, 14)
-        if (hits.isEmpty()) return
         val today = TodayTtsStore.todayKey()
         hits.forEach { key ->
-            overlayToday(context, key, recallDone = true, gradedIds = emptyList(), quests = emptyList())
+            overlayToday(
+                context,
+                key,
+                recallDone = key != today,
+                gradedIds = emptyList(),
+                quests = emptyList()
+            )
         }
-        val book = read(context)
-        if (today in hits && !RecallSessionStore.openToday(context) && !book.recallDone) {
-            book.recallDone = true
-            writeFile(context, book, notify = false)
-        }
+        guardOpenRecallSession(context)
     }
 
     private fun todaySnap(book: QuestBook) = QuestDaySnap(
@@ -448,8 +458,10 @@ object DailyQuestStore {
     }
 
     fun questsCompleteToday(context: Context): Boolean {
-        if (!recallDoneToday(context)) return false
-        return todayQuests(context).all { it.done }
+        if (RecallSessionStore.openToday(context)) return false
+        val qs = todayQuests(context)
+        if (qs.isNotEmpty()) return qs.all { it.done }
+        return recallDoneToday(context)
     }
 
     fun clearRetrain(context: Context) {
@@ -484,6 +496,7 @@ object DailyQuestStore {
     }
 
     fun addDueCurveQuests(context: Context) {
+        if (RecallSessionStore.openToday(context)) return
         val book = read(context)
         if (!book.recallDone) return
         if (book.quests.isNotEmpty() && book.quests.all { it.done }) return
@@ -498,6 +511,7 @@ object DailyQuestStore {
         var added = 0
         if (room > 0) {
             val have = (book.quests + book.backlog).map { it.cardId }.toMutableSet()
+            have.addAll(questDoneSinceWeakIds(book, context))
             val pairs = RecallStore.curveReviewCards(context)
             val labelBy = pairs.associate { it.first.id to it.second }
             for (card in pickByChance(context, pairs.map { it.first }.filter { it.id !in have }, room)) {
@@ -544,6 +558,23 @@ object DailyQuestStore {
                 )
             }
         }
+    }
+
+    /** 약점 이후에 퀘스트를 끝낸 장은 복습 기한으로 다시 넣지 않는다. */
+    private fun questDoneSinceWeakIds(book: QuestBook, context: Context): Set<String> {
+        val out = mutableSetOf<String>()
+        fun consider(dateKey: String, q: DailyQuest) {
+            if (!q.done || q.cardId.isBlank()) return
+            val weak = RecallStore.lastWeakAt(context, q.cardId)
+            val doneAt = TodayTtsStore.endMillisOfKey(dateKey)
+            if (doneAt >= weak) out.add(q.cardId)
+        }
+        val today = TodayTtsStore.todayKey()
+        book.quests.forEach { consider(it.date.ifBlank { today }, it) }
+        book.days.forEach { (key, snap) ->
+            snap.quests.forEach { consider(snap.date.ifBlank { key }, it) }
+        }
+        return out
     }
 
     private fun isCurveQuest(q: DailyQuest): Boolean = q.hint.contains("복습 기한")
@@ -692,6 +723,8 @@ object DailyQuestStore {
                 selfMiss = selfMissByCard[card.id] ?: 0
             )
         }
+        val lastGradeOf = lastByCard.associate { it.first.id to it.second }
+        val sessionIds = lastGradeOf.keys
         val seriousIds = rankedSerious.map { it.id }.toSet()
         val quests = mutableListOf<DailyQuest>()
         rankedSerious.forEach { card ->
@@ -700,6 +733,7 @@ object DailyQuestStore {
         val newIdSet = newCards.map { it.id }.toSet()
         newCards.forEach { card ->
             if (card.id in seriousIds) return@forEach
+            if (lastGradeOf[card.id] == RecallStore.GRADE_GOOD) return@forEach
             quests.add(writeQuest(book.date, card, target = 1, hint = "신규 · ${failHint(kindOf(card))}"))
         }
         miss.forEach { card ->
@@ -713,6 +747,13 @@ object DailyQuestStore {
         val budget = todayQuestBudget(context)
         val keepExam = book.quests.filter { !it.done && it.hint.contains("모의고사") }
         val keepBoost = book.quests.filter { !it.done && isBoostQuest(it) }
+        val keepOpen = book.quests.filter { q ->
+            !q.done &&
+                q.cardId.isNotBlank() &&
+                q.cardId !in sessionIds &&
+                !q.hint.contains("모의고사") &&
+                !isBoostQuest(q)
+        }
         val have = quests.map { it.cardId }.toMutableSet()
         keepExam.forEach { q ->
             if (q.cardId !in have) {
@@ -727,12 +768,19 @@ object DailyQuestStore {
             quests.add(q)
             have.add(q.cardId)
         }
+        keepOpen.forEach { q ->
+            if (q.cardId in have) return@forEach
+            if (quests.count { !it.done } >= budget) return@forEach
+            quests.add(q)
+            have.add(q.cardId)
+        }
         book.quests = quests
         val todayIds = quests.map { it.cardId }.toSet()
         book.backlog.removeAll { it.cardId in todayIds }
         book.retrainIds = (newCards + miss + half + rankedSerious).map { it.id }
             .plus(keepExam.map { it.cardId })
             .plus(keepBoost.map { it.cardId })
+            .plus(keepOpen.map { it.cardId })
             .distinct()
             .toMutableList()
         write(context, book)
@@ -812,7 +860,7 @@ object DailyQuestStore {
         }
     }
 
-    fun mergeCloudJson(localJson: String, cloudJson: String): String {
+    fun mergeCloudJson(localJson: String, cloudJson: String, sessionOpen: Boolean = false): String {
         val today = TodayTtsStore.todayKey()
         fun parse(json: String): QuestBook {
             if (json.isBlank()) return QuestBook(today)
@@ -834,34 +882,57 @@ object DailyQuestStore {
         }
         val graded = linkedSetOf<String>()
         val quests = linkedMapOf<String, DailyQuest>()
-        var recallDone = false
         fun takeQuest(q: DailyQuest) {
             val key = q.type + "|" + q.cardId
             val old = quests[key]
             quests[key] = if (old == null) q.copy() else pickQuest(old, q, preferFresh = true)
         }
-        fun absorbToday(book: QuestBook) {
-            if (TodayTtsStore.canonKey(book.date) == today) {
-                book.quests.forEach(::takeQuest)
-                graded.addAll(book.gradedIds)
-                if (book.recallDone) recallDone = true
-            }
-            book.days[today]?.let { snap ->
-                snap.quests.forEach(::takeQuest)
-                graded.addAll(snap.gradedIds)
-                if (snap.recallDone) recallDone = true
+        fun todayQuestsOf(book: QuestBook): List<DailyQuest> {
+            val out = mutableListOf<DailyQuest>()
+            if (TodayTtsStore.canonKey(book.date) == today) out.addAll(book.quests)
+            book.days[today]?.quests?.let { out.addAll(it) }
+            return out
+        }
+        fun todayGradedOf(book: QuestBook): Set<String> {
+            val out = linkedSetOf<String>()
+            if (TodayTtsStore.canonKey(book.date) == today) out.addAll(book.gradedIds)
+            book.days[today]?.gradedIds?.let { out.addAll(it) }
+            return out
+        }
+        fun todayDoneOf(book: QuestBook): Boolean {
+            if (TodayTtsStore.canonKey(book.date) == today && book.recallDone) return true
+            return book.days[today]?.recallDone == true
+        }
+        val gradedA = todayGradedOf(a)
+        val gradedB = todayGradedOf(b)
+        graded.addAll(gradedA)
+        graded.addAll(gradedB)
+        val questsA = todayQuestsOf(a)
+        val questsB = todayQuestsOf(b)
+        val primary = when {
+            gradedA.size > gradedB.size -> a
+            gradedB.size > gradedA.size -> b
+            sessionOpen && questsA.size != questsB.size ->
+                if (questsA.size <= questsB.size) a else b
+            else -> null
+        }
+        if (primary == null) {
+            todayQuestsOf(a).forEach(::takeQuest)
+            todayQuestsOf(b).forEach(::takeQuest)
+        } else {
+            val secondary = if (primary === a) b else a
+            todayQuestsOf(primary).forEach(::takeQuest)
+            todayQuestsOf(secondary).forEach { q ->
+                val key = q.type + "|" + q.cardId
+                if (key in quests) takeQuest(q)
             }
         }
-        absorbToday(a)
-        absorbToday(b)
-        days[today] = mergeDay(
-            days[today],
-            QuestDaySnap(
-                date = today,
-                recallDone = recallDone,
-                quests = quests.values.map { it.copy() }.toMutableList(),
-                gradedIds = graded.toMutableList()
-            )
+        val recallDone = if (sessionOpen) false else todayDoneOf(a) || todayDoneOf(b)
+        days[today] = QuestDaySnap(
+            date = today,
+            recallDone = recallDone,
+            quests = quests.values.map { it.copy() }.toMutableList(),
+            gradedIds = graded.toMutableList()
         )
         val backlog = compactBacklog(a.backlog + b.backlog)
         return gson.toJson(

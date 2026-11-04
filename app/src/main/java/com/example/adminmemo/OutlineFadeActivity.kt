@@ -31,23 +31,27 @@ class OutlineFadeActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        queue = loadQueue()
-        if (queue.isEmpty()) {
-            Toast.makeText(this, "목차로 외울 장이 없어요", Toast.LENGTH_SHORT).show()
-            finish()
-            return
+        fun begin() {
+            queue = loadQueue()
+            restoreFadeSession()
+            if (queue.isEmpty()) {
+                Toast.makeText(this, "목차로 외울 장이 없어요", Toast.LENGTH_SHORT).show()
+                finish()
+                return
+            }
+            setContentView(R.layout.activity_outline_fade)
+            bindFadePages()
+            confirmLeaveOnBack("목차학습을 그만둘까요?") { index < queue.size }
+            findViewById<View>(R.id.btnFadeReveal).setOnClickListener { revealNext() }
+            findViewById<View>(R.id.btnFadeCheck).setOnClickListener { showAnswer() }
+            findViewById<View>(R.id.btnFadeNext).setOnClickListener { askNextCard() }
+            findViewById<View>(R.id.tvFadeShowTree).setOnClickListener {
+                portraitTreeOpen = true
+                bindChrome()
+            }
+            showCard()
         }
-        setContentView(R.layout.activity_outline_fade)
-        bindFadePages()
-        confirmLeaveOnBack("목차학습을 그만둘까요?") { index < queue.size }
-        findViewById<View>(R.id.btnFadeReveal).setOnClickListener { revealNext() }
-        findViewById<View>(R.id.btnFadeCheck).setOnClickListener { showAnswer() }
-        findViewById<View>(R.id.btnFadeNext).setOnClickListener { askNextCard() }
-        findViewById<View>(R.id.tvFadeShowTree).setOnClickListener {
-            portraitTreeOpen = true
-            bindChrome()
-        }
-        showCard()
+        begin()
     }
 
     private fun loadQueue(): List<Card> {
@@ -57,6 +61,43 @@ class OutlineFadeActivity : BaseActivity() {
         val cards = ids.mapNotNull { byId[it] }
         index = intent.getIntExtra(EXTRA_INDEX, 0).coerceIn(0, (cards.size - 1).coerceAtLeast(0))
         return cards
+    }
+
+    private fun restoreFadeSession() {
+        val snap = OutlineFadeSessionStore.load(this) ?: return
+        if (!OutlineFadeSessionStore.unfinished(snap) || !OutlineFadeSessionStore.isToday(snap)) return
+        if (queue.isEmpty()) {
+            val byId = CardStore.getAllCards(this).associateBy { it.id }
+            val cards = snap.queueIds.mapNotNull { byId[it] }
+            if (cards.isEmpty()) return
+            queue = cards
+            index = snap.index.coerceIn(0, (queue.size - 1).coerceAtLeast(0))
+            throughLevel = snap.throughLevel
+            writeMode = snap.writeMode
+            return
+        }
+        val currentId = queue.getOrNull(index)?.id
+        val snapId = snap.queueIds.getOrNull(snap.index)
+        if (currentId != null && currentId == snapId) {
+            throughLevel = snap.throughLevel
+            writeMode = snap.writeMode
+        }
+    }
+
+    private fun saveFadeSession() {
+        if (queue.isEmpty()) return
+        OutlineFadeSessionStore.save(
+            this,
+            OutlineFadeSnap(
+                subject = queue.getOrNull(index)?.subject.orEmpty(),
+                queueIds = queue.map { it.id },
+                index = index,
+                throughLevel = throughLevel,
+                writeMode = writeMode,
+                date = TodayTtsStore.todayKey(),
+                finished = index >= queue.size
+            )
+        )
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -75,17 +116,18 @@ class OutlineFadeActivity : BaseActivity() {
 
     private fun showCard() {
         val card = queue.getOrNull(index) ?: run {
+            OutlineFadeSessionStore.markFinished(this)
             Toast.makeText(this, "목차학습 ${queue.size}장 끝", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
         roots = parseOutline(card.back)
         depth = outlineDepth(roots)
-        throughLevel = -1
-        writeMode = false
+        if (throughLevel < -1) throughLevel = -1
         answerOn = false
         portraitTreeOpen = true
         StudyProgressStore.markTopic(this, card.subject, card.topicTitle)
+        saveFadeSession()
         findViewById<TextView>(R.id.tvFadeProgress).text = "${index + 1} / ${queue.size}"
         findViewById<TextView>(R.id.tvFadeSubject).text = canonicalizeSubject(card.subject)
         findViewById<TextView>(R.id.tvFadeTitle).text = card.topicTitle.ifBlank { card.title }
@@ -248,6 +290,7 @@ class OutlineFadeActivity : BaseActivity() {
         if (throughLevel >= depth) {
             writeMode = true
         }
+        saveFadeSession()
         bindStep()
         bindChrome()
     }
@@ -268,6 +311,8 @@ class OutlineFadeActivity : BaseActivity() {
 
     private fun nextCard() {
         index++
+        throughLevel = -1
+        writeMode = false
         showCard()
     }
 }

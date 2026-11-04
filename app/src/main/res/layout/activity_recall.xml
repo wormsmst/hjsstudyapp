@@ -38,8 +38,8 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:paddingHorizontal="20dp"
-                        android:paddingTop="16dp"
-                        android:paddingBottom="18dp">
+                        android:paddingTop="10dp"
+                        android:paddingBottom="12dp">
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -71,10 +71,11 @@
                             android:id="@+id/tvRecallTitle"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:lineSpacingExtra="3dp"
+                            android:layout_marginTop="6dp"
+                            android:includeFontPadding="false"
+                            android:lineSpacingExtra="1dp"
                             android:textColor="@color/text_on_tile"
-                            android:textSize="26sp"
+                            android:textSize="22sp"
                             android:textStyle="bold"/>
 
                         <TextView
@@ -127,21 +128,10 @@
                     android:visibility="gone">
 
                     <TextView
-                        android:id="@+id/tvRecallBodyLeftCaption"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:includeFontPadding="false"
-                        android:text="본문"
-                        android:textColor="@color/accent"
-                        android:textSize="12sp"
-                        android:textStyle="bold"/>
-
-                    <TextView
                         android:id="@+id/tvRecallBodyLeft"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
-                        android:layout_marginTop="8dp"
                         android:lineSpacingExtra="4dp"
                         android:textColor="@color/text_main"
                         android:textIsSelectable="true"
@@ -195,21 +185,10 @@
                         android:visibility="gone">
 
                         <TextView
-                            android:id="@+id/tvRecallBodyCaption"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:includeFontPadding="false"
-                            android:text="본문"
-                            android:textColor="@color/accent"
-                            android:textSize="12sp"
-                            android:textStyle="bold"/>
-
-                        <TextView
                             android:id="@+id/tvRecallBody"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
-                            android:layout_marginTop="8dp"
                             android:lineSpacingExtra="4dp"
                             android:textColor="@color/text_main"
                             android:textIsSelectable="true"

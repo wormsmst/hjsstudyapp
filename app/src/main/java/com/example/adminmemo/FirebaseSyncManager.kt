@@ -12,6 +12,7 @@ import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.SetOptions
 import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executors
 
 data class ContentRevision(
     val id: String,
@@ -31,9 +32,12 @@ object FirebaseSyncManager {
         "wrong_ids.json",
         "wrong_notes.json",
         "study_log.json",
+        "outline_fade_session.json",
+        "content_study_session.json",
         "memory_levels.json",
         "today_tts.json",
         "recall.json",
+        "recall_session.json",
         "recall_quests.json",
         "study_load.json",
         "read_pass.json",
@@ -57,14 +61,23 @@ object FirebaseSyncManager {
     private const val KEEP_REVISIONS = 5
     private const val PROGRESS_DEBOUNCE_MS = 2_000L
     private const val TODAY_PUSH_MS = 400L
+    private const val FRESH_MS = 12_000L
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val io = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "adminmemo-sync").apply { isDaemon = true }
+    }
     @Volatile private var syncing = false
     @Volatile private var pendingAfterSync = false
     @Volatile private var scheduled = false
     @Volatile private var todayScheduled = false
     @Volatile private var dirty = false
     @Volatile private var applyingRemote = false
+    @Volatile private var lastApplyAt = 0L
+    @Volatile private var ownTickAt = 0L
+    @Volatile private var ownTodayAt = 0L
+    @Volatile private var ownHitsAt = 0L
+    @Volatile private var progressGen = 0L
     private var appCtx: Context? = null
     private var listenReg: ListenerRegistration? = null
     private var listenTodayReg: ListenerRegistration? = null
@@ -111,6 +124,23 @@ object FirebaseSyncManager {
         mainHandler.post { uiListeners.forEach { it() } }
     }
 
+    private fun onIo(block: () -> Unit) {
+        io.execute {
+            try {
+                block()
+            } catch (_: Exception) {
+                applyingRemote = false
+                syncing = false
+            }
+        }
+    }
+
+    private fun isOwnUpdatedAt(snap: DocumentSnapshot?, ownAt: Long): Boolean {
+        if (ownAt <= 0L) return false
+        val at = snap?.getLong("updatedAt") ?: return false
+        return at == ownAt
+    }
+
     private fun dataCol(uid: String) =
         db.collection("users").document(uid).collection("data")
 
@@ -139,20 +169,27 @@ object FirebaseSyncManager {
         listenTodayReg = col.document("today").addSnapshotListener { snap, err ->
             if (err != null || snap == null || !snap.exists()) return@addSnapshotListener
             if (snap.metadata.hasPendingWrites()) return@addSnapshotListener
+            if (isOwnUpdatedAt(snap, ownTodayAt)) return@addSnapshotListener
             onRemoteHint()
         }
         listenTickReg = col.document("tick").addSnapshotListener { snap, err ->
             if (err != null) return@addSnapshotListener
             if (snap != null && snap.metadata.hasPendingWrites()) return@addSnapshotListener
+            if (isOwnUpdatedAt(snap, ownTickAt)) return@addSnapshotListener
             onRemoteHint()
         }
         listenHitsReg = col.document("hits").addSnapshotListener { snap, err ->
             if (err != null || snap == null || !snap.exists()) return@addSnapshotListener
             if (snap.metadata.hasPendingWrites()) return@addSnapshotListener
+            if (isOwnUpdatedAt(snap, ownHitsAt)) return@addSnapshotListener
             val ctx = appCtx ?: return@addSnapshotListener
-            TodayStudyStore.applyHits(ctx, snap.get("days"))
-            DailyQuestStore.overlayHitsFromWeek(ctx)
-            notifyUi()
+            val days = snap.get("days")
+            onIo {
+                TodayStudyStore.applyHits(ctx, days)
+                DailyQuestStore.overlayHitsFromWeek(ctx)
+                DailyQuestStore.guardOpenRecallSession(ctx)
+                notifyUi()
+            }
         }
     }
 
@@ -164,13 +201,15 @@ object FirebaseSyncManager {
         val ctx = appCtx ?: return
         applyingRemote = true
         fetchProgress({ pack ->
-            applyCloudProgress(ctx, pack) {
-                applyingRemote = false
-                notifyUi()
-                val extra = pendingAfterSync || dirty
-                pendingAfterSync = false
-                if (extra) {
-                    mainHandler.post { runSmart(ctx, null) }
+            onIo {
+                applyCloudProgress(ctx, pack) {
+                    applyingRemote = false
+                    notifyUi()
+                    val extra = pendingAfterSync || dirty
+                    pendingAfterSync = false
+                    if (extra) {
+                        mainHandler.post { runSmart(ctx, null) }
+                    }
                 }
             }
         }, {
@@ -188,11 +227,16 @@ object FirebaseSyncManager {
         todayScheduled = false
         val ctx = appCtx ?: return@Runnable
         if (!isSignedIn()) return@Runnable
-        TodayStudyStore.captureFromStores(ctx)
         val uid = currentUser?.uid
-        pushHitsDoc(ctx) { _, _ ->
-            pushTodayDoc(ctx) { _, _ ->
-                if (uid != null) bumpTick(uid, ctx) { _, _ -> }
+        onIo {
+            TodayStudyStore.captureFromStores(ctx)
+            pushHitsDoc(ctx) { _, _ ->
+                pushTodayDoc(ctx) { _, _ ->
+                    if (uid == null) return@pushTodayDoc
+                    pushTodayFastShards(ctx, uid) {
+                        bumpTick(uid, ctx) { _, _ -> }
+                    }
+                }
             }
         }
     }
@@ -200,7 +244,7 @@ object FirebaseSyncManager {
     /** 진도 파일이 바뀌면 오늘 기록은 바로, 나머지는 2초 뒤 클라우드와 합친다. */
     fun notifyProgressChanged(context: Context) {
         appCtx = context.applicationContext
-        TodayStudyStore.captureFromStores(context)
+        progressGen++
         if (!isSignedIn()) return
         dirty = true
         if (!todayScheduled) {
@@ -227,6 +271,10 @@ object FirebaseSyncManager {
         runSmart(context.applicationContext, null)
     }
 
+    fun progressIsFresh(maxAgeMs: Long = FRESH_MS): Boolean =
+        isSignedIn() && lastApplyAt > 0L &&
+            System.currentTimeMillis() - lastApplyAt < maxAgeMs
+
     /** 앱을 켤 때·로그인 직후: 클라우드 진도를 받아 합친다. */
     fun syncProgressNow(context: Context, onComplete: ((Boolean, String?) -> Unit)? = null) {
         if (!isSignedIn()) {
@@ -247,19 +295,22 @@ object FirebaseSyncManager {
             return
         }
         syncing = true
-        TodayStudyStore.captureFromStores(context)
-        smartSync(context) { ok, msg ->
-            lastError = if (ok) null else msg
-            syncing = false
-            val extra = pendingAfterSync
-            pendingAfterSync = false
-            if (ok && !extra) dirty = false
-            val cbs = ArrayList(syncCompletes)
-            syncCompletes.clear()
-            cbs.forEach { it(ok, msg) }
-            notifyUi()
-            if (extra) {
-                mainHandler.post { runSmart(context, null) }
+        val ctx = context.applicationContext
+        onIo {
+            TodayStudyStore.captureFromStores(ctx)
+            smartSync(ctx) { ok, msg ->
+                lastError = if (ok) null else msg
+                syncing = false
+                val extra = pendingAfterSync
+                pendingAfterSync = false
+                if (ok && !extra) dirty = false
+                val cbs = ArrayList(syncCompletes)
+                syncCompletes.clear()
+                cbs.forEach { it(ok, msg) }
+                notifyUi()
+                if (extra) {
+                    mainHandler.post { runSmart(ctx, null) }
+                }
             }
         }
     }
@@ -278,10 +329,12 @@ object FirebaseSyncManager {
                 } else {
                     val cloudTime = pack.updatedAt()
                     AppPrefs.setCloudSyncTimestamp(context, cloudTime)
-                    applyCloudProgress(context, pack) {
-                        pushProgressToCloud(context) { ok, err ->
-                            if (ok) onComplete(true, "폰과 태블릿의 진도·오답을 합쳐 저장했어요")
-                            else onComplete(false, err)
+                    onIo {
+                        applyCloudProgress(context, pack) {
+                            pushProgressToCloud(context) { ok, err ->
+                                if (ok) onComplete(true, "폰과 태블릿의 진도·오답을 합쳐 저장했어요")
+                                else onComplete(false, err)
+                            }
                         }
                     }
                 }
@@ -376,6 +429,26 @@ object FirebaseSyncManager {
     }
 
 
+    private fun pushTodayFastShards(context: Context, uid: String, done: () -> Unit) {
+        val names = listOf(
+            "study_log.json",
+            "read_pass.json",
+            "recall.json",
+            RecallSessionStore.FILE,
+            "recall_quests.json",
+            "study_week.json",
+            OutlineFadeSessionStore.FILE,
+            ContentStudySessionStore.FILE
+        )
+        var left = names.size
+        names.forEach { name ->
+            pushShard(context, uid, name) { _, _ ->
+                left--
+                if (left <= 0) done()
+            }
+        }
+    }
+
     private fun pushHitsDoc(context: Context, onComplete: (Boolean, String?) -> Unit) {
         val user = currentUser ?: run {
             onComplete(false, "로그인된 사용자가 없어요")
@@ -383,6 +456,8 @@ object FirebaseSyncManager {
         }
         val ref = dataCol(user.uid).document("hits")
         val local = TodayStudyStore.packHits(context)
+        val now = System.currentTimeMillis()
+        ownHitsAt = now
         db.runTransaction { tx ->
             val snap = tx.get(ref)
             val merged = TodayStudyStore.unionHits(local, snap.get("days"))
@@ -390,7 +465,7 @@ object FirebaseSyncManager {
             tx.set(
                 ref,
                 hashMapOf(
-                    "updatedAt" to System.currentTimeMillis(),
+                    "updatedAt" to now,
                     "days" to merged
                 ),
                 SetOptions.merge()
@@ -403,6 +478,7 @@ object FirebaseSyncManager {
 
     private fun bumpTick(uid: String, context: Context, onComplete: (Boolean, String?) -> Unit) {
         val now = System.currentTimeMillis()
+        ownTickAt = now
         dataCol(uid).document("tick")
             .set(hashMapOf("updatedAt" to now), SetOptions.merge())
             .addOnSuccessListener {
@@ -429,7 +505,7 @@ object FirebaseSyncManager {
             val snap = tx.get(ref)
             val cloud = shardJson(snap)
             val local = localText(context, name)
-            val merged = mergeFile(name, local, cloud)
+            val merged = mergeFile(context, name, local, cloud)
             if (merged.isBlank() || isHollowProgress(name, merged)) return@runTransaction true
             if (merged == cloud) return@runTransaction true
             tx.set(
@@ -470,6 +546,7 @@ object FirebaseSyncManager {
                 return@runTransaction true
             }
             val now = System.currentTimeMillis()
+            ownTodayAt = now
             val payload = hashMapOf<String, Any>(
                 "updatedAt" to now,
                 safeCloudKey("today_study.json") to merged,
@@ -500,20 +577,48 @@ object FirebaseSyncManager {
         }
         val col = dataCol(user.uid)
         val now = System.currentTimeMillis()
-        writeContentBundle(
-            col,
-            metaId = "content",
-            at = now,
-            files = localContentFiles(context),
-            fileId = { name, part -> liveContentDocId(name, part) }
-        ) { ok, err ->
-            if (ok) {
-                AppPrefs.setLocalSyncTimestamp(context, now)
-                onComplete(true, "본문을 클라우드에 올렸어요")
-            } else {
-                onComplete(false, err)
+        val files = localContentFiles(context)
+        col.document("content").get()
+            .addOnSuccessListener { current ->
+                val prevAt = current.getLong("updatedAt") ?: 0L
+                val oldHistory = if (current.exists()) contentHistory(current) else emptyList()
+                fun writeLive(history: List<Long>, drop: List<Long>) {
+                    writeContentBundle(
+                        col,
+                        metaId = "content",
+                        at = now,
+                        files = files,
+                        fileId = { name, part -> liveContentDocId(name, part) },
+                        extra = mapOf("history" to ArrayList(history))
+                    ) { ok, err ->
+                        if (!ok) {
+                            onComplete(false, err)
+                            return@writeContentBundle
+                        }
+                        AppPrefs.setLocalSyncTimestamp(context, now)
+                        pruneContentArchives(col, drop) {
+                            onComplete(true, "본문을 클라우드에 올렸어요")
+                        }
+                    }
+                }
+                if (!current.exists() || prevAt <= 0L) {
+                    writeLive(emptyList(), emptyList())
+                    return@addOnSuccessListener
+                }
+                archiveContent(col, current) { ok, err ->
+                    if (!ok) {
+                        onComplete(false, err ?: "이전 본문을 남기지 못했어요")
+                        return@archiveContent
+                    }
+                    val history = (listOf(prevAt) + oldHistory)
+                        .distinct()
+                        .sortedDescending()
+                        .take(KEEP_REVISIONS - 1)
+                    val drop = (listOf(prevAt) + oldHistory).distinct().filter { it !in history }
+                    writeLive(history, drop)
+                }
             }
-        }
+            .addOnFailureListener { e -> onComplete(false, e.localizedMessage) }
     }
 
     fun listContentRevisions(onResult: (List<ContentRevision>, String?) -> Unit) {
@@ -704,26 +809,50 @@ object FirebaseSyncManager {
 
     private fun pruneContentArchives(
         col: com.google.firebase.firestore.CollectionReference,
-        keep: List<Long>,
+        drop: List<Long>,
         done: () -> Unit
     ) {
-        val keepSet = keep.toSet()
-        col.document("content").get()
-            .addOnSuccessListener { doc ->
-                val extra = contentHistory(doc).filter { it !in keepSet }
-                if (extra.isEmpty()) {
-                    done()
-                    return@addOnSuccessListener
-                }
-                var left = extra.size
-                extra.forEach { at ->
-                    col.document("r_$at").delete().addOnCompleteListener {
-                        left--
-                        if (left <= 0) done()
+        if (drop.isEmpty()) {
+            done()
+            return
+        }
+        deleteContentRevision(col, drop, 0, done)
+    }
+
+    private fun deleteContentRevision(
+        col: com.google.firebase.firestore.CollectionReference,
+        drop: List<Long>,
+        index: Int,
+        done: () -> Unit
+    ) {
+        if (index >= drop.size) {
+            done()
+            return
+        }
+        val at = drop[index]
+        col.document("r_$at").get()
+            .addOnCompleteListener { task ->
+                val batch = db.batch()
+                batch.delete(col.document("r_$at"))
+                val doc = task.result
+                if (doc != null && doc.exists()) {
+                    val parts = contentParts(doc)
+                    if (parts.isEmpty()) {
+                        contentFiles.forEach { name ->
+                            batch.delete(col.document(revContentDocId(at, name, 0)))
+                        }
+                    } else {
+                        parts.forEach { (name, n) ->
+                            repeat(n) { part ->
+                                batch.delete(col.document(revContentDocId(at, name, part)))
+                            }
+                        }
                     }
                 }
+                batch.commit().addOnCompleteListener {
+                    deleteContentRevision(col, drop, index + 1, done)
+                }
             }
-            .addOnFailureListener { done() }
     }
 
     private fun contentPayload(context: Context, now: Long): HashMap<String, Any> {
@@ -823,7 +952,10 @@ object FirebaseSyncManager {
                 !t.contains("\"recallDone\":true") &&
                     !t.contains("\"quests\":[{") &&
                     !t.contains("\"gradedIds\":[\"") &&
-                    !t.contains("\"progress\":") 
+                    !t.contains("\"progress\":")
+            "recall_session.json" -> RecallSessionStore.isHollowJson(json)
+            "outline_fade_session.json" -> OutlineFadeSessionStore.isHollowJson(json)
+            "content_study_session.json" -> ContentStudySessionStore.isHollowJson(json) 
             "study_log.json" ->
                 !t.contains("\"todayTopics\":[\"") &&
                     (t.contains("\"lastAt\":0") || !t.contains("\"lastAt\":"))
@@ -882,31 +1014,44 @@ object FirebaseSyncManager {
         pack: CloudProgress,
         done: () -> Unit
     ) {
+        val gen = progressGen
         TodayStudyStore.rollIntoAccumulated(context)
         val todayCloud = todayJsonFrom(pack.today, pack.backup, pack.shards)
         TodayStudyStore.foldIfStaleJson(context, todayCloud)
         val merged = linkedMapOf<String, String>()
         for (name in progressFiles) {
+            if (name == "recall_quests.json") continue
             val local = localText(context, name)
             val cloud = cloudForFile(pack, name)
-            merged[name] = mergeFile(name, local, cloud)
+            merged[name] = mergeFile(context, name, local, cloud)
         }
+        val sessionOpen = RecallSessionStore.isOpenJson(merged["recall_session.json"].orEmpty()) ||
+            RecallSessionStore.openToday(context)
+        merged["recall_quests.json"] = DailyQuestStore.mergeCloudJson(
+            localText(context, "recall_quests.json"),
+            cloudForFile(pack, "recall_quests.json"),
+            sessionOpen
+        )
         merged["wrong_ids.json"] = WrongNoteStore.mergeWrongIdsJson(
             localText(context, "wrong_ids.json"),
             cloudForFile(pack, "wrong_ids.json"),
             merged["wrong_notes.json"].orEmpty()
         )
+        if (gen != progressGen) {
+            done()
+            return
+        }
         writeNamedFiles(context, merged)
         TodayStudyStore.applyHits(context, pack.hits?.get("days"))
         TodayStudyStore.applyMerged(context, merged["today_study.json"].orEmpty())
         DailyQuestStore.overlayHitsFromWeek(context)
+        DailyQuestStore.guardOpenRecallSession(context)
         TodayStudyStore.captureFromStores(context)
-        SkillPulseStore.capture(context)
-        CardRepository.invalidateCache()
+        lastApplyAt = System.currentTimeMillis()
         done()
     }
 
-    private fun mergeFile(name: String, local: String, cloud: String): String {
+    private fun mergeFile(context: Context, name: String, local: String, cloud: String): String {
         if (local.isBlank()) return cloud
         if (cloud.isBlank()) return local
         if (isHollowProgress(name, local) && !isHollowProgress(name, cloud)) return cloud
@@ -918,7 +1063,15 @@ object FirebaseSyncManager {
             "wrong_notes.json" -> WrongNoteStore.mergeCloudJson(local, cloud)
             "today_tts.json" -> TodayTtsStore.mergeCloudJson(local, cloud)
             "recall.json" -> RecallStore.mergeCloudJson(local, cloud)
-            "recall_quests.json" -> DailyQuestStore.mergeCloudJson(local, cloud)
+            "recall_session.json" -> RecallSessionStore.mergeCloudJson(local, cloud)
+            "outline_fade_session.json" -> OutlineFadeSessionStore.mergeCloudJson(local, cloud)
+            "content_study_session.json" -> ContentStudySessionStore.mergeCloudJson(local, cloud)
+            "recall_quests.json" -> DailyQuestStore.mergeCloudJson(
+                local,
+                cloud,
+                sessionOpen = RecallSessionStore.openToday(context) ||
+                    RecallSessionStore.isOpenJson(localText(context, RecallSessionStore.FILE))
+            )
             "study_load.json" -> StudyLoadStore.mergeCloudJson(local, cloud)
             "read_pass.json" -> ReadPassStore.mergeCloudJson(local, cloud)
             "exam_chance.json" -> ExamChanceStore.mergeCloudJson(local, cloud)
@@ -949,7 +1102,9 @@ object FirebaseSyncManager {
             f.writeText(json, Charsets.UTF_8)
         }
         StoreCaches.invalidateProgress()
-        StoreCaches.invalidateCards()
+        if (files.keys.any { it in contentFiles }) {
+            StoreCaches.invalidateCards()
+        }
     }
 
     data class FileStamp(val name: String, val modifiedAt: Long)

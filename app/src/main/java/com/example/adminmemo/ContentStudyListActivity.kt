@@ -31,6 +31,9 @@ class ContentStudyListActivity : BaseActivity() {
     private var currentQuery: String = ""
     private var weakSubject: String = SUBJECT_ALL
     private var weakNewestFirst = true
+    private val onCloudProgress = {
+        if (!isDestroyed) refreshList()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,7 +73,9 @@ class ContentStudyListActivity : BaseActivity() {
                         val sub = canonicalizeSubject(it.subject)
                         if (ago.isBlank()) sub else "$sub  ·  $ago"
                     }
-                    outlineMode -> ""
+                    outlineMode -> StudyProgressStore.topicStudyLabel(
+                        this, it.subject, it.topicTitle
+                    )
                     else -> {
                         if (it.mnemonic.isNotBlank()) "두문자: ${it.mnemonic}" else ""
                     }
@@ -81,7 +86,12 @@ class ContentStudyListActivity : BaseActivity() {
             },
             readsFn = if (outlineMode || weakStudy) null else { card ->
                 val pass = ReadPassStore.count(this, card.id)
-                if (pass > 0) "${pass}회" else ""
+                val today = ReadPassStore.countedToday(this, card.id)
+                when {
+                    pass > 0 && today -> "${pass}회 · 오늘"
+                    pass > 0 -> "${pass}회"
+                    else -> ""
+                }
             },
             onClick = { card -> openCard(card.id) }
         )
@@ -105,6 +115,24 @@ class ContentStudyListActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
+        FirebaseSyncManager.addUiListener(onCloudProgress)
+        refreshList()
+        if (FirebaseSyncManager.isSignedIn() && !FirebaseSyncManager.progressIsFresh()) {
+            FirebaseSyncManager.syncProgressNow(this) { _, _ ->
+                runOnUiThread {
+                    if (isDestroyed) return@runOnUiThread
+                    refreshList()
+                }
+            }
+        }
+    }
+
+    override fun onPause() {
+        FirebaseSyncManager.removeUiListener(onCloudProgress)
+        super.onPause()
+    }
+
+    private fun refreshList() {
         loadConcepts()
         bindWeakFilters()
         applyFilter(currentQuery)

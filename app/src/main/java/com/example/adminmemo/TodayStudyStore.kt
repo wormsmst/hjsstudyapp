@@ -10,7 +10,10 @@ data class TodayRecallMark(
     var recallCount: Int = 0,
     var reps: Int = 0,
     var lapses: Int = 0,
-    var lastGradeAt: Long = 0L
+    var lastGradeAt: Long = 0L,
+    var dueAt: Long = 0L,
+    var intervalDays: Int = 0,
+    var goodStreak: Int = 0
 )
 
 private data class TodayStudyBook(
@@ -159,13 +162,7 @@ object TodayStudyStore {
             if (old == null) {
                 marks[m.cardId] = m.copy()
             } else {
-                marks[m.cardId] = TodayRecallMark(
-                    cardId = m.cardId,
-                    recallCount = maxOf(old.recallCount, m.recallCount),
-                    reps = maxOf(old.reps, m.reps),
-                    lapses = maxOf(old.lapses, m.lapses),
-                    lastGradeAt = maxOf(old.lastGradeAt, m.lastGradeAt)
-                )
+                marks[m.cardId] = foldMark(old, m)
             }
         }
         return TodayStudyBook(
@@ -243,9 +240,7 @@ object TodayStudyStore {
             news = StudyWeekStore.dayNews(context, key).toMutableList(),
             cases = StudyWeekStore.dayCases(context, key),
             exams = StudyWeekStore.dayExams(context, key),
-            topics = if (key == TodayTtsStore.todayKey()) {
-                StudyProgressStore.todayTopicKeys(context).toMutableList()
-            } else mutableListOf(),
+            topics = StudyProgressStore.topicKeysForDay(context, key).toMutableList(),
             study = flags.first,
             quiz = flags.second,
             exam = flags.third,
@@ -297,8 +292,13 @@ object TodayStudyStore {
             book.exam
         )
         ReadPassStore.overlayDay(context, date, book.readIds)
+        val today = TodayTtsStore.todayKey()
         DailyQuestStore.overlayToday(
-            context, date, book.recallDone || recalledToday, book.gradedIds, book.quests
+            context,
+            date,
+            recallDone = if (date == today) false else book.recallDone,
+            gradedIds = book.gradedIds,
+            quests = book.quests
         )
         RecallStore.overlayMarks(context, book.marks)
     }
@@ -306,11 +306,21 @@ object TodayStudyStore {
     const val HITS_DAYS = 14
 
     fun packHits(context: Context): Map<String, Any> {
+        val prev = if (file(context).exists()) parse(file(context).readText(Charsets.UTF_8))
+        else TodayStudyBook()
         val out = linkedMapOf<String, Any>()
         hitKeys().forEach { key ->
             val snap = dayFromStores(context, key)
-            if (isDayHollow(snap)) return@forEach
-            out[key] = hitOf(snap)
+            val old = prev.days[key]
+            val merged = when {
+                old == null -> snap
+                else -> union(old, snap)
+            }
+            val sess = if (key == TodayTtsStore.todayKey()) RecallSessionStore.packHit(context) else null
+            if (isDayHollow(merged) && sess == null) return@forEach
+            val hit = hitOf(merged).toMutableMap()
+            if (sess != null) hit["session"] = sess
+            out[key] = hit
         }
         return out
     }
@@ -332,10 +342,14 @@ object TodayStudyStore {
     fun applyHits(context: Context, raw: Any?) {
         val days = asHitDays(raw)
         if (days.isEmpty()) return
+        val today = TodayTtsStore.todayKey()
         days.forEach { (k, v) ->
             val book = bookFromHit(k, v) ?: return@forEach
-            if (isDayHollow(book)) return@forEach
-            applyOntoLocal(context, book)
+            if (!isDayHollow(book)) applyOntoLocal(context, book)
+            if (canon(k) == today) {
+                val hit = asHitMap(v)
+                RecallSessionStore.overlayHit(context, hit?.get("session"))
+            }
         }
     }
 
@@ -352,17 +366,24 @@ object TodayStudyStore {
         val recalled = b.recalled.filter { it.isNotBlank() && !it.startsWith("seed:") }
         val news = b.news.filter { it.isNotBlank() && !it.startsWith("seed:") }
         val graded = (b.gradedIds + recalled).distinct().filter { it.isNotBlank() }
-        val done = b.recallDone || recalled.isNotEmpty() || graded.isNotEmpty() ||
-            b.cases > 0 || b.exams > 0
+        val topics = b.topics.filter { it.isNotBlank() }
+        val readIds = b.readIds.filter { it.isNotBlank() }
+        val marks = b.marks.filter { it.cardId.isNotBlank() }.map { markHit(it) }
+        val studied = b.recallDone || recalled.isNotEmpty() || graded.isNotEmpty() ||
+            b.cases > 0 || b.exams > 0 || b.study || topics.isNotEmpty() || readIds.isNotEmpty() ||
+            marks.isNotEmpty()
         return hashMapOf(
             "recalled" to recalled,
             "news" to news,
             "cases" to b.cases,
             "exams" to b.exams,
-            "recallDone" to done,
+            "recallDone" to b.recallDone,
             "gradedIds" to graded,
-            "study" to (b.study || done),
-            "quiz" to (b.quiz || done),
+            "topics" to topics,
+            "readIds" to readIds,
+            "marks" to marks,
+            "study" to (b.study || studied),
+            "quiz" to (b.quiz || studied),
             "exam" to b.exam
         )
     }
@@ -387,6 +408,9 @@ object TodayStudyStore {
         val recalled = (asIds(ha["recalled"]) + asIds(hb["recalled"])).distinct()
         val news = (asIds(ha["news"]) + asIds(hb["news"])).distinct()
         val graded = (asIds(ha["gradedIds"]) + asIds(hb["gradedIds"])).distinct()
+        val topics = (asIds(ha["topics"]) + asIds(hb["topics"])).distinct()
+        val readIds = (asIds(ha["readIds"]) + asIds(hb["readIds"])).distinct()
+        val marks = unionHitMarks(asMarks(ha["marks"]), asMarks(hb["marks"]))
         return hashMapOf(
             "recalled" to recalled,
             "news" to news,
@@ -394,10 +418,15 @@ object TodayStudyStore {
             "exams" to maxOf(asInt(ha["exams"]), asInt(hb["exams"])),
             "recallDone" to (asBool(ha["recallDone"]) || asBool(hb["recallDone"])),
             "gradedIds" to graded,
+            "topics" to topics,
+            "readIds" to readIds,
+            "marks" to marks.map { markHit(it) },
             "study" to (asBool(ha["study"]) || asBool(hb["study"])),
             "quiz" to (asBool(ha["quiz"]) || asBool(hb["quiz"])),
             "exam" to (asBool(ha["exam"]) || asBool(hb["exam"]))
-        )
+        ).also { out ->
+            RecallSessionStore.mergeHit(ha["session"], hb["session"])?.let { out["session"] = it }
+        }
     }
 
     private fun asHitMap(v: Any?): Map<String, Any>? {
@@ -423,15 +452,75 @@ object TodayStudyStore {
             study = asBool(m["study"]),
             quiz = asBool(m["quiz"]),
             exam = asBool(m["exam"]),
-            recallDone = asBool(m["recallDone"]) || recalled.isNotEmpty(),
-            gradedIds = (if (graded.isNotEmpty()) graded else recalled).toMutableList()
+            recallDone = asBool(m["recallDone"]),
+            gradedIds = (if (graded.isNotEmpty()) graded else recalled).toMutableList(),
+            topics = asIds(m["topics"]).toMutableList(),
+            readIds = asIds(m["readIds"]).toMutableList(),
+            marks = asMarks(m["marks"]).toMutableList()
         )
+    }
+
+    private fun unionHitMarks(
+        a: List<TodayRecallMark>,
+        b: List<TodayRecallMark>
+    ): List<TodayRecallMark> {
+        val marks = linkedMapOf<String, TodayRecallMark>()
+        (a + b).forEach { m ->
+            if (m.cardId.isBlank()) return@forEach
+            val old = marks[m.cardId]
+            marks[m.cardId] = if (old == null) m.copy() else foldMark(old, m)
+        }
+        return marks.values.toList()
+    }
+
+    private fun asMarks(v: Any?): List<TodayRecallMark> {
+        val list = v as? List<*> ?: return emptyList()
+        return list.mapNotNull { raw ->
+            val m = asHitMap(raw) ?: return@mapNotNull null
+            val id = m["cardId"]?.toString().orEmpty()
+            if (id.isBlank()) return@mapNotNull null
+            TodayRecallMark(
+                cardId = id,
+                recallCount = asInt(m["recallCount"]),
+                reps = asInt(m["reps"]),
+                lapses = asInt(m["lapses"]),
+                lastGradeAt = (m["lastGradeAt"] as? Number)?.toLong() ?: 0L,
+                dueAt = (m["dueAt"] as? Number)?.toLong() ?: 0L,
+                intervalDays = asInt(m["intervalDays"]),
+                goodStreak = asInt(m["goodStreak"])
+            )
+        }
     }
 
     private fun asIds(v: Any?): List<String> =
         (v as? List<*>)?.mapNotNull { it?.toString() }
             ?.filter { it.isNotBlank() && !it.startsWith("seed:") }
             ?: emptyList()
+
+    private fun foldMark(old: TodayRecallMark, m: TodayRecallMark): TodayRecallMark {
+        val newer = if (m.lastGradeAt >= old.lastGradeAt) m else old
+        return TodayRecallMark(
+            cardId = m.cardId,
+            recallCount = maxOf(old.recallCount, m.recallCount),
+            reps = maxOf(old.reps, m.reps),
+            lapses = maxOf(old.lapses, m.lapses),
+            lastGradeAt = maxOf(old.lastGradeAt, m.lastGradeAt),
+            dueAt = newer.dueAt,
+            intervalDays = newer.intervalDays,
+            goodStreak = newer.goodStreak
+        )
+    }
+
+    private fun markHit(m: TodayRecallMark) = hashMapOf(
+        "cardId" to m.cardId,
+        "recallCount" to m.recallCount,
+        "reps" to m.reps,
+        "lapses" to m.lapses,
+        "lastGradeAt" to m.lastGradeAt,
+        "dueAt" to m.dueAt,
+        "intervalDays" to m.intervalDays,
+        "goodStreak" to m.goodStreak
+    )
 
     private fun asInt(v: Any?): Int = (v as? Number)?.toInt() ?: 0
 

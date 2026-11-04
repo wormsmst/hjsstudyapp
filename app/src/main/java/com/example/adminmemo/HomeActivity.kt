@@ -5,6 +5,9 @@ import android.content.ClipDescription
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -38,7 +41,13 @@ class HomeActivity : BaseActivity() {
     private var showExamDate = false
     private var downX = 0f
     private var downY = 0f
-    private val onCloudProgress: () -> Unit = { refreshHomeHeader() }
+    private val refreshCloudRun = Runnable {
+        if (!isDestroyed) refreshHomeHeader()
+    }
+    private val onCloudProgress: () -> Unit = {
+        tipHandler.removeCallbacks(refreshCloudRun)
+        tipHandler.postDelayed(refreshCloudRun, 250)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -174,7 +183,7 @@ class HomeActivity : BaseActivity() {
             DailyQuestStore.addDueCurveQuests(this)
             refreshHomeHeader()
         }, 120)
-        if (FirebaseSyncManager.isSignedIn()) {
+        if (FirebaseSyncManager.isSignedIn() && !FirebaseSyncManager.progressIsFresh()) {
             FirebaseSyncManager.syncProgressNow(this) { _, _ ->
                 runOnUiThread {
                     if (isDestroyed) return@runOnUiThread
@@ -186,12 +195,14 @@ class HomeActivity : BaseActivity() {
     }
 
     override fun onPause() {
+        tipHandler.removeCallbacks(refreshCloudRun)
         FirebaseSyncManager.removeUiListener(onCloudProgress)
         super.onPause()
     }
 
     override fun onStop() {
         tipHandler.removeCallbacks(tipTick)
+        tipHandler.removeCallbacks(refreshCloudRun)
         super.onStop()
     }
 
@@ -224,7 +235,6 @@ class HomeActivity : BaseActivity() {
             tvSub.text = dday.sub
         }
         bindHomeStats()
-        val graded = DailyQuestStore.gradedToday(this)
         val recallDone = DailyQuestStore.recallDoneToday(this)
         val recallSnap = RecallSessionStore.load(this)
         val recallOpen = RecallSessionStore.openToday(this)
@@ -233,7 +243,7 @@ class HomeActivity : BaseActivity() {
         } else {
             0
         }
-        val recallBusy = !recallDone && (graded >= 1 || recallOpen)
+        val recallBusy = !recallDone && recallOpen
         findViewById<TextView>(R.id.tvTileRecallLabel).text = "인출학습"
         bindStatusBadge(R.id.tvTileRecallBadge, done = recallDone, inProgress = recallBusy, n = remaining)
         val boostN = DailyQuestStore.openBoostCount(this)
@@ -532,13 +542,15 @@ class HomeActivity : BaseActivity() {
         val backlog = DailyQuestStore.backlog(this).size
         val n = open.size + backlog
         val questSummary = findViewById<TextView>(R.id.tvHomeQuestSummary)
-        val waitRecall = !DailyQuestStore.recallDoneToday(this) &&
-            DailyQuestStore.todayQuests(this).isEmpty() &&
-            DailyQuestStore.gradedToday(this) <= 0
+        val waitRecall = RecallSessionStore.openToday(this) ||
+            (!DailyQuestStore.recallDoneToday(this) &&
+                DailyQuestStore.todayQuests(this).isEmpty() &&
+                DailyQuestStore.gradedToday(this) <= 0)
+        val questN = if (waitRecall) 0 else n
         questSummary.text = when {
             waitRecall -> "오늘의 퀘스트 · 먼저 인출학습을 하세요."
-            n == 0 -> "오늘의 퀘스트 완료"
-            else -> "오늘의 퀘스트 ${n}개"
+            questN == 0 -> "오늘의 퀘스트 완료"
+            else -> "오늘의 퀘스트 ${questN}개"
         }
         questSummary.textSize = if (waitRecall) 15f else 20f
         val questDone = DailyQuestStore.questsCompleteToday(this)
@@ -557,7 +569,7 @@ class HomeActivity : BaseActivity() {
             R.id.tvTileQuestBadge,
             done = questDone,
             inProgress = questBusy,
-            n = n
+            n = questN
         )
         applyDdayQuestRow()
     }
@@ -626,37 +638,26 @@ class HomeActivity : BaseActivity() {
     }
 
     private fun bindPctDelta(valueId: Int, deltaId: Int, delta: Int?, suffix: String = "") {
-        val tv = findViewById<TextView>(deltaId)
+        val extraTv = findViewById<TextView>(deltaId)
+        extraTv.animate().cancel()
+        extraTv.translationY = 0f
+        extraTv.visibility = View.GONE
         val value = findViewById<TextView>(valueId)
-        if (delta == null || delta == 0) {
-            tv.visibility = View.GONE
-            tv.translationY = 0f
-            return
-        }
-        tv.visibility = View.VISIBLE
-        tv.textSize = 15f
-        tv.text = if (delta > 0) "↑$delta$suffix" else "↓${-delta}$suffix"
-        tv.setTextColor(
-            ContextCompat.getColor(
-                this,
-                if (delta > 0) R.color.stat_delta_up else R.color.stat_delta_down
-            )
+        val base = value.text.toString()
+        if (delta == null || delta == 0) return
+        val extra = if (delta > 0) " ↑$delta$suffix" else " ↓${-delta}$suffix"
+        val color = ContextCompat.getColor(
+            this,
+            if (delta > 0) R.color.stat_delta_up else R.color.stat_delta_down
         )
-        alignBaselines(value, tv)
-    }
-
-    private fun alignBaselines(anchor: TextView, target: TextView) {
-        target.translationY = 0f
-        target.post {
-            val a = anchor.baseline
-            val b = target.baseline
-            if (a < 0 || b < 0) return@post
-            val aParent = anchor.parent as View
-            val bParent = target.parent as View
-            val aY = aParent.top + anchor.top + a
-            val bY = bParent.top + target.top + b
-            target.translationY = (aY - bY).toFloat()
-        }
+        val span = SpannableString(base + extra)
+        span.setSpan(
+            ForegroundColorSpan(color),
+            base.length,
+            span.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        value.setText(span, TextView.BufferType.SPANNABLE)
     }
 
     private fun goToSubjectSelect(purpose: String) {

@@ -55,6 +55,20 @@ object TodayTtsStore {
         return "$y-$m-$d"
     }
 
+    /** 공부일 키의 끝(다음 날 04:00 직전). 퀘스트 완료가 약점보다 나중인지 볼 때 쓴다. */
+    fun endMillisOfKey(key: String): Long {
+        val p = canonKey(key).split("-")
+        if (p.size < 3) return 0L
+        val y = p[0].toIntOrNull() ?: return 0L
+        val m = p[1].toIntOrNull() ?: return 0L
+        val d = p[2].toIntOrNull() ?: return 0L
+        val c = Calendar.getInstance()
+        c.set(y, m - 1, d, STUDY_DAY_ROLL_HOUR, 0, 0)
+        c.set(Calendar.MILLISECOND, 0)
+        c.add(Calendar.DAY_OF_YEAR, 1)
+        return c.timeInMillis - 1L
+    }
+
     fun displayDate(key: String, today: String = todayKey()): String {
         val p = key.split("-")
         if (p.size < 3) return key

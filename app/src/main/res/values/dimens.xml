@@ -2,6 +2,9 @@
 <resources>
     <dimen name="touch_icon">48dp</dimen>
     <dimen name="btn_min_height">52dp</dimen>
+    <dimen name="recall_phone_port_btn_height">70dp</dimen>
+    <dimen name="settings_account_btn_height">90dp</dimen>
+    <dimen name="settings_logout_btn_height">70dp</dimen>
     <dimen name="home_tile_min">134dp</dimen>
     <dimen name="recall_pick_tile_min">188dp</dimen>
     <dimen name="home_screen_tile_min">156dp</dimen>

@@ -22,7 +22,10 @@ object AppPrefs {
     private const val KEY_GEMINI_FAB_Y = "gemini_fab_y"
     private const val KEY_SHOW_ACHIEVE = "show_achieve_pct"
     private const val KEY_SHOW_STABLE = "show_stable_pct"
+    private const val KEY_KEEP_SCREEN_MIN = "keep_screen_minutes"
     private const val KEY_HOME_TILE_ORDER = "home_tile_order_"
+    const val KEEP_SCREEN_MIN_DEFAULT = 15
+    const val KEEP_SCREEN_MIN_MAX = 60
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -251,6 +254,20 @@ object AppPrefs {
     fun setShowStablePct(context: Context, on: Boolean) {
         prefs(context).edit().putBoolean(KEY_SHOW_STABLE, on).apply()
     }
+
+    /** 만진 뒤 화면을 켜 둘 분. 0이면 휴대폰 절전을 따른다. 기본 15분. */
+    fun getKeepScreenMinutes(context: Context): Int =
+        prefs(context).getInt(KEY_KEEP_SCREEN_MIN, KEEP_SCREEN_MIN_DEFAULT)
+            .coerceIn(0, KEEP_SCREEN_MIN_MAX)
+
+    fun setKeepScreenMinutes(context: Context, minutes: Int) {
+        prefs(context).edit()
+            .putInt(KEY_KEEP_SCREEN_MIN, minutes.coerceIn(0, KEEP_SCREEN_MIN_MAX))
+            .apply()
+    }
+
+    fun getKeepScreenMs(context: Context): Long =
+        getKeepScreenMinutes(context) * 60_000L
 
     fun coachSeen(context: Context, key: String): Boolean =
         prefs(context).getBoolean("coach_seen_$key", false)

@@ -272,14 +272,21 @@ class ExamSessionActivity : BaseActivity() {
         timer?.cancel()
         timer = object : CountDownTimer(totalMillis, 1000) {
             override fun onTick(millisUntilFinished: Long) {
-                val totalSec = millisUntilFinished / 1000
+                val totalSec = (millisUntilFinished / 1000).toInt()
                 tvTimer.text = String.format(Locale.getDefault(), "%02d:%02d", totalSec / 60, totalSec % 60)
-                if (totalSec <= 300) tvTimer.setTextColor(ContextCompat.getColor(this@ExamSessionActivity, R.color.stat_delta_down))
+                StudyTimerPulse.bind(
+                    tvTimer,
+                    totalSec,
+                    counting = !submitted,
+                    idleColorRes = R.color.primary,
+                    solidWarnUnderSec = 300
+                )
                 if (!submitted) tvPace.text = paceLine(totalMillis - millisUntilFinished)
             }
 
             override fun onFinish() {
                 tvTimer.text = "00:00"
+                StudyTimerPulse.bind(tvTimer, 0, counting = false, idleColorRes = R.color.primary)
                 Toast.makeText(this@ExamSessionActivity, "⏰ 시간 종료! 제출할게요", Toast.LENGTH_LONG).show()
                 submitExam()
             }
@@ -290,6 +297,7 @@ class ExamSessionActivity : BaseActivity() {
         if (submitted) return
         submitted = true
         timer?.cancel()
+        StudyTimerPulse.stop(tvTimer)
         tvSubtitle.text = "제출 완료 — 각 문제의 '해답 보기'로 확인해보세요"
 
         val dateLabel = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault()).format(Date())
@@ -483,6 +491,7 @@ class ExamSessionActivity : BaseActivity() {
 
     override fun onDestroy() {
         timer?.cancel()
+        StudyTimerPulse.stop(if (::tvTimer.isInitialized) tvTimer else null)
         super.onDestroy()
     }
 }

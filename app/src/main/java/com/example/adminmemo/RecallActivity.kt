@@ -107,16 +107,7 @@ class RecallActivity : BaseActivity() {
                 else -> startFresh(clearSnap = true)
             }
         }
-        if (FirebaseSyncManager.isSignedIn() && forcedIds.isEmpty()) {
-            FirebaseSyncManager.syncProgressNow(this) { _, _ ->
-                runOnUiThread {
-                    if (isDestroyed) return@runOnUiThread
-                    begin()
-                }
-            }
-        } else {
-            begin()
-        }
+        begin()
     }
 
     private fun askResumeOrFresh(snap: RecallSessionSnap) {
@@ -279,11 +270,16 @@ class RecallActivity : BaseActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (findViewById<View?>(R.id.layoutRecallSplit) != null) bindRecallSplit()
+        if (findViewById<View?>(R.id.layoutRecallSplit) != null) {
+            bindRecallSplit()
+            orderMissActions(missMode = missLoop)
+        }
+        if (findViewById<View?>(R.id.btnRecallHome) != null) bindResultActionButtons()
     }
 
     override fun onDestroy() {
         handler.removeCallbacks(tick)
+        StudyTimerPulse.stop(findViewById(R.id.tvRecallTimer))
         super.onDestroy()
     }
 
@@ -375,12 +371,20 @@ class RecallActivity : BaseActivity() {
     private fun bindTimer() {
         val tv = findViewById<TextView>(R.id.tvRecallTimer)
         if (revealed && (!caseMode || caseStage >= 3)) {
+            StudyTimerPulse.stop(tv)
+            tv.setTextColor(ContextCompat.getColor(this, R.color.text_on_tile))
             tv.text = "대조 중"
             return
         }
         val m = remainSec / 60
         val s = remainSec % 60
         tv.text = if (remainSec <= 0) "시간 종료" else String.format("%d:%02d", m, s)
+        StudyTimerPulse.bind(
+            tv,
+            remainSec,
+            counting = remainSec > 0,
+            idleColorRes = R.color.text_on_tile
+        )
     }
 
     private fun reveal() {
@@ -560,7 +564,6 @@ class RecallActivity : BaseActivity() {
         val right = findViewById<TextView>(R.id.tvRecallBody)
         val src = recallBodyText()
         if (bodyOpen) {
-            setRecallBodyCaption("본문")
             if (land && left != null) {
                 left.text = src
                 showRecallBodyPane(left = true, animate = justOpened, countRead = true)
@@ -580,6 +583,7 @@ class RecallActivity : BaseActivity() {
         }
         if (bodyOpen) wireRecallGeminiBody()
         bindCoach()
+        applyPortraitBodyGaps()
     }
 
     private fun showRecallBodyPane(left: Boolean, animate: Boolean, countRead: Boolean = false) {
@@ -608,16 +612,6 @@ class RecallActivity : BaseActivity() {
         if (!countRead) return
         val card = queue.getOrNull(index) ?: return
         if (!card.id.startsWith("case_")) ReadPassStore.tryMark(this, card.id)
-    }
-
-    private fun setRecallBodyCaption(label: String) {
-        listOfNotNull(
-            findViewById<TextView?>(R.id.tvRecallBodyCaption),
-            findViewById<TextView?>(R.id.tvRecallBodyLeftCaption)
-        ).forEach { tv ->
-            tv.text = label
-            tv.visibility = if (label.isBlank()) View.GONE else View.VISIBLE
-        }
     }
 
     private fun hideRecallBodyPanes() {
@@ -699,7 +693,7 @@ class RecallActivity : BaseActivity() {
             else -> CoachHints.THINK
         }
         val tv = findViewById<TextView>(R.id.tvRecallCoach)
-        if (text.isBlank()) {
+        if (text.isBlank() || (isPhonePortrait() && bodyOpen)) {
             tv.visibility = View.GONE
         } else {
             tv.visibility = View.VISIBLE
@@ -759,9 +753,45 @@ class RecallActivity : BaseActivity() {
 
     private fun bindRecallActionPad(hintVisible: Boolean) {
         val bar = findViewById<LinearLayout>(R.id.layoutRecallActions) ?: return
-        val side = (16 * resources.displayMetrics.density).toInt()
-        val top = if (hintVisible) (4 * resources.displayMetrics.density).toInt() else side
-        bar.setPadding(side, top, side, side)
+        val d = resources.displayMetrics.density
+        val tight = isPhonePortrait() && bodyOpen
+        val side = ((if (tight) 12 else 16) * d).toInt()
+        val top = when {
+            tight || hintVisible -> (4 * d).toInt()
+            else -> side
+        }
+        val bottom = ((if (tight) 8 else 16) * d).toInt()
+        bar.setPadding(side, top, side, bottom)
+    }
+
+    private fun isPhonePortrait(): Boolean =
+        !isLandscape() && resources.configuration.smallestScreenWidthDp < 600
+
+    private fun applyPortraitBodyGaps() {
+        val leftSv = findViewById<ScrollView?>(R.id.svRecallLeft) ?: return
+        val rightSv = findViewById<ScrollView>(R.id.svRecallRight)
+        val bodyPane = findViewById<View>(R.id.layoutRecallBodyPane)
+        val d = resources.displayMetrics.density
+        fun dp(n: Int) = (n * d).toInt()
+        val tight = isPhonePortrait() && bodyOpen
+        if (tight) {
+            leftSv.setPadding(dp(16), dp(8), dp(16), dp(2))
+            rightSv.setPadding(dp(16), dp(2), dp(16), dp(4))
+            val lp = bodyPane.layoutParams as LinearLayout.LayoutParams
+            val rubricOn = findViewById<View>(R.id.layoutRecallRubric).visibility == View.VISIBLE
+            lp.topMargin = if (rubricOn) dp(6) else 0
+            bodyPane.layoutParams = lp
+            bodyPane.setPadding(dp(10), dp(8), dp(10), dp(8))
+        } else {
+            leftSv.setPadding(dp(16), dp(16), dp(16), dp(16))
+            rightSv.setPadding(dp(16), dp(16), dp(16), dp(16))
+            val lp = bodyPane.layoutParams as LinearLayout.LayoutParams
+            lp.topMargin = dp(12)
+            bodyPane.layoutParams = lp
+            bodyPane.setPadding(dp(14), dp(14), dp(14), dp(14))
+        }
+        val hintOn = findViewById<View>(R.id.tvRecallGradeHint).visibility == View.VISIBLE
+        bindRecallActionPad(hintOn)
     }
 
     private fun bindRecallSplit() {
@@ -782,6 +812,7 @@ class RecallActivity : BaseActivity() {
         }
         if (bodyOpen) bindBodyOpen(true)
         else if (missLoop) bindMissPeek()
+        else applyPortraitBodyGaps()
     }
 
     private fun missedCheckItems(): List<RecallCheckItem> {
@@ -876,10 +907,8 @@ class RecallActivity : BaseActivity() {
         next.isEnabled = true
         next.text = if (!last) {
             "다음 빈칸  ${missIndex + 2}/$n"
-        } else if (willRetryCurrent()) {
-            "이 장 다시 인출하기"
         } else {
-            "다음 문제 인출하기"
+            lastMissConfirmLabel()
         }
         orderMissActions(missMode = true)
         if (bodyOpen) bindBodyOpen(true) else bindMissPeek()
@@ -898,11 +927,15 @@ class RecallActivity : BaseActivity() {
         val fail = findViewById<View>(R.id.layoutRecallFailKind)
         val parent = reveal.parent as? LinearLayout ?: return
         val floor = resources.getDimensionPixelSize(R.dimen.btn_min_height)
-        val h = floor * 2
         val d = resources.displayMetrics.density
         val gap = (8 * d).toInt()
         val phonePort = !isLandscape() &&
             resources.configuration.smallestScreenWidthDp < 600
+        val h = if (phonePort) {
+            resources.getDimensionPixelSize(R.dimen.recall_phone_port_btn_height)
+        } else {
+            floor * 2
+        }
         reveal.detachFromParent()
         skip.detachFromParent()
         next.detachFromParent()
@@ -918,7 +951,7 @@ class RecallActivity : BaseActivity() {
         revealBtn.setTextColor(ContextCompat.getColor(this, R.color.text_on_header))
         fun dp(n: Int) = (n * d).toInt()
         val revealH = when {
-            missMode && phonePort -> (h * 2 - dp(40) - dp(50) - dp(60)).coerceAtLeast(h)
+            phonePort -> h
             missMode -> (h * 2 - dp(60)).coerceAtLeast(h)
             else -> h
         }
@@ -940,11 +973,7 @@ class RecallActivity : BaseActivity() {
             revealH
         )
         if (missMode) {
-            val navH = if (phonePort) {
-                (h - dp(60)).coerceAtLeast(floor)
-            } else {
-                (h - dp(20)).coerceAtLeast(floor)
-            }
+            val navH = if (phonePort) h else (h - dp(20)).coerceAtLeast(floor)
             flattenMissNav(next, navH, phonePort)
             flattenMissNav(skip, navH, phonePort)
             val lastMiss = missIndex >= missQueue.size - 1
@@ -997,7 +1026,7 @@ class RecallActivity : BaseActivity() {
             parent.addView(row)
         }
         parent.addView(fail)
-        val failH = floor + dp(40)
+        val failH = if (phonePort) h else floor + dp(40)
         listOf(R.id.btnFailStructure, R.id.btnFailTip).forEach { id ->
             val btn = findViewById<MaterialButton>(id)
             btn.insetTop = 0
@@ -1066,11 +1095,8 @@ class RecallActivity : BaseActivity() {
         val land = isLandscape()
         val left = findViewById<TextView?>(R.id.tvRecallBodyLeft)
         val right = findViewById<TextView>(R.id.tvRecallBody)
-        val text = missQueue.getOrNull(missIndex)?.peekText
-            ?.ifBlank { missQueue.getOrNull(missIndex)?.heading.orEmpty() }
-            .orEmpty()
+        val text = missPeekStyled()
         if (missPeekOpen && text.isNotBlank()) {
-            setRecallBodyCaption("")
             if (land && left != null) {
                 left.text = text
                 showRecallBodyPane(left = true, animate = true)
@@ -1083,6 +1109,15 @@ class RecallActivity : BaseActivity() {
         }
     }
 
+    private fun missPeekStyled(): CharSequence {
+        val item = missQueue.getOrNull(missIndex) ?: return ""
+        val raw = item.peekText.ifBlank { item.heading }.trim()
+        if (raw.isBlank()) return ""
+        val card = queue.getOrNull(index)
+        val keep = card != null && CardStore.isLocallyEdited(this, card.id)
+        return styledStudyAnswer(this, raw, keep)
+    }
+
     private fun showFailKind(g: Int) {
         pendingGrade = g
         findViewById<View>(R.id.btnRecallConfirm).visibility = View.GONE
@@ -1093,11 +1128,21 @@ class RecallActivity : BaseActivity() {
         bindRecallActionPad(true)
     }
 
-    private fun willRetryCurrent(): Boolean {
+    private fun willQueueRetry(card: Card? = null, g: Int? = null): Boolean {
         if (caseMode) return false
-        val card = queue.getOrNull(index) ?: return false
-        val g = pendingGrade ?: return false
-        return g != RecallStore.GRADE_GOOD && card.id !in retried
+        val target = card ?: queue.getOrNull(index) ?: return false
+        val grade = g ?: pendingGrade ?: return false
+        if (grade == RecallStore.GRADE_GOOD) return false
+        if (target.id in retried) return false
+        return pendingRetry.none { it.id == target.id }
+    }
+
+    /** 한 바퀴가 끝난 뒤에만 못 한 장을 붙인다. 마지막 장에서 재시도가 남으면 안내한다. */
+    private fun lastMissConfirmLabel(): String {
+        val moreNow = index < queue.size - 1
+        if (moreNow) return "다음 문제 인출하기"
+        val later = willQueueRetry() || pendingRetry.isNotEmpty()
+        return if (later) "못 한 장 다시 인출하기" else "다음 문제 인출하기"
     }
 
     private fun grade(g: Int, failKind: Int = RecallStore.FAIL_NONE) {
@@ -1105,12 +1150,7 @@ class RecallActivity : BaseActivity() {
         val miss = selfMissCount()
         pendingFlush.add(PendingGrade(card, g, failKind, miss))
         results.add(card to g)
-        if (!caseMode && g != RecallStore.GRADE_GOOD && card.id !in retried) {
-            retried.add(card.id)
-            flushCheckpoint()
-            showCard()
-            return
-        }
+        if (willQueueRetry(card, g)) pendingRetry.add(card)
         index++
         if (index % RecallSessionStore.CHECKPOINT == 0) flushCheckpoint()
         showCard()
@@ -1196,11 +1236,7 @@ class RecallActivity : BaseActivity() {
     }
 
     private fun recallProgressLabel(): String {
-        val card = queue.getOrNull(index)
         val base = if (baseCount > 0) baseCount else queue.size
-        val retrying = card != null && card.id in retried &&
-            results.count { it.first.id == card.id } == 1
-        if (retrying) return "재시도  ·  ${index + 1} / $base"
         val retryN = (queue.size - base).coerceAtLeast(0)
         return if (index < base || retryN == 0) {
             "${index + 1} / $base"
@@ -1228,9 +1264,10 @@ class RecallActivity : BaseActivity() {
 
     private fun showResult() {
         handler.removeCallbacks(tick)
+        StudyTimerPulse.stop(findViewById(R.id.tvRecallTimer))
         pendingFlush.forEach { persistGrade(it) }
         pendingFlush.clear()
-        RecallSessionStore.clear(this)
+        RecallSessionStore.markFinished(this)
         if (intent.getBooleanExtra(EXTRA_RECALL_FROM_QUEST, false)) {
             startActivity(
                 Intent(this, QuestActivity::class.java)
@@ -1331,6 +1368,7 @@ class RecallActivity : BaseActivity() {
         findViewById<View>(R.id.btnRecallHome).setOnClickListener { finish() }
         fillButtonRow(findViewById(R.id.layoutRecallResultRow1))
         fillButtonRow(findViewById(R.id.layoutRecallResultRow2))
+        bindResultActionButtons()
         bindCoach(
             R.id.tvRecallResultCoach,
             "recall_result",
@@ -1355,6 +1393,34 @@ class RecallActivity : BaseActivity() {
             v.layoutParams = lp
         }
         row.visibility = if (vis.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    /** 가로모드 결과 버튼 높이를 목차학습(한 단계 열기)과 같게 104dp로 맞춘다. */
+    private fun bindResultActionButtons() {
+        val land = isLandscape()
+        val floor = resources.getDimensionPixelSize(R.dimen.btn_min_height)
+        val h = if (land) floor * 2 else floor
+        val padV = (8 * resources.displayMetrics.density).toInt()
+        listOf(
+            R.id.btnRecallOpenMissed,
+            R.id.btnRecallOpenTts,
+            R.id.btnRecallOpenQuests,
+            R.id.btnRecallHome
+        ).forEach { id ->
+            val btn = findViewById<MaterialButton?>(id) ?: return@forEach
+            btn.insetTop = 0
+            btn.insetBottom = 0
+            btn.includeFontPadding = false
+            btn.gravity = Gravity.CENTER
+            btn.minHeight = h
+            btn.minimumHeight = h
+            btn.isSingleLine = false
+            btn.maxLines = 2
+            btn.setPaddingRelative(btn.paddingStart, padV, btn.paddingEnd, padV)
+            val lp = btn.layoutParams as LinearLayout.LayoutParams
+            lp.height = h
+            btn.layoutParams = lp
+        }
     }
 
     companion object {

@@ -20,10 +20,11 @@ class OutlineTreeView @JvmOverloads constructor(
     private var sideways = false
     private val d = resources.displayMetrics.density
     private val gap = 15 * d
+    private val gapMulti = 30 * d
     private val stem = 52 * d
     private val padH = 12 * d
     private val padV = 10 * d
-    private val maxBox = 390 * d
+    private val maxBox = 500 * d
     private val minBox = 96 * d
     private val radius = 12 * d
 
@@ -132,9 +133,21 @@ class OutlineTreeView @JvmOverloads constructor(
         }
     }
 
+    private fun vGap(a: Laid, b: Laid): Float =
+        if (a.lines.size >= 2 || b.lines.size >= 2) gapMulti else gap
+
+    private fun stackKidsH(kids: List<Laid>): Float {
+        if (kids.isEmpty()) return 0f
+        var h = kids[0].subH
+        for (i in 1 until kids.size) {
+            h += vGap(kids[i - 1], kids[i]) + kids[i].subH
+        }
+        return h
+    }
+
     private fun layoutNode(label: String, children: List<OutlineNode>, isRoot: Boolean): Laid {
         val paint = if (isRoot) titlePaint else textPaint
-        val maxW = (if (sideways) maxBox * 1.5f else maxBox) * 1.2f
+        val maxW = maxBox
         val minW = (if (sideways) minBox * 1.5f else minBox) * 1.2f
         val lines = wrap(outlineHeadingText(label).ifBlank { label }, paint, maxW - padH * 2)
         val textW = lines.maxOf { paint.measureText(it) }
@@ -143,7 +156,7 @@ class OutlineTreeView @JvmOverloads constructor(
         val boxH = (if (sideways) baseH else baseH * 1.5f) * 1.2f
         val kids = children.map { layoutNode(it.label, it.children, false) }
         if (sideways) {
-            val kidsH = if (kids.isEmpty()) 0f else kids.sumOf { it.subH.toDouble() }.toFloat() + gap * (kids.size - 1)
+            val kidsH = stackKidsH(kids)
             val kidsW = if (kids.isEmpty()) 0f else kids.maxOf { it.subW }
             val subW = boxW + if (kids.isEmpty()) 0f else stem + kidsW
             val subH = maxOf(boxH, kidsH)
@@ -163,9 +176,11 @@ class OutlineTreeView @JvmOverloads constructor(
             val first = node.kids.first()
             var y = top + (node.boxH - first.boxH) / 2f
             val x = left + node.boxW + stem
-            node.kids.forEach { kid ->
+            node.kids.forEachIndexed { i, kid ->
                 place(kid, x, y)
-                y += kid.subH + gap
+                if (i < node.kids.lastIndex) {
+                    y += kid.subH + vGap(kid, node.kids[i + 1])
+                }
             }
             return
         }
